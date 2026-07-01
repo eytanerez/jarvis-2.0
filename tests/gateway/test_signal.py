@@ -310,42 +310,42 @@ class TestSignalSessionSource:
 
 
 # ---------------------------------------------------------------------------
-# Phone Redaction in agent/redact.py
+# Phone Redaction in brain/redact.py
 # ---------------------------------------------------------------------------
 
 class TestSignalPhoneRedaction:
     @pytest.fixture(autouse=True)
     def _ensure_redaction_enabled(self, monkeypatch):
         # agent.redact snapshots _REDACT_ENABLED at import time from the
-        # HERMES_REDACT_SECRETS env var. monkeypatch.delenv is too late —
+        # JARVIS_REDACT_SECRETS env var. monkeypatch.delenv is too late —
         # the module was already imported during test collection with
         # whatever value was in the env then. Force the flag directly.
         # See skill: xdist-cross-test-pollution Pattern 5.
-        monkeypatch.delenv("HERMES_REDACT_SECRETS", raising=False)
-        monkeypatch.setattr("agent.redact._REDACT_ENABLED", True)
+        monkeypatch.delenv("JARVIS_REDACT_SECRETS", raising=False)
+        monkeypatch.setattr("brain.redact._REDACT_ENABLED", True)
 
     def test_us_number(self):
-        from agent.redact import redact_sensitive_text
+        from brain.redact import redact_sensitive_text
         result = redact_sensitive_text("Call +15551234567 now")
         assert "+15551234567" not in result
         assert "+155" in result  # Prefix preserved
         assert "4567" in result  # Suffix preserved
 
     def test_uk_number(self):
-        from agent.redact import redact_sensitive_text
+        from brain.redact import redact_sensitive_text
         result = redact_sensitive_text("UK: +442071838750")
         assert "+442071838750" not in result
         assert "****" in result
 
     def test_multiple_numbers(self):
-        from agent.redact import redact_sensitive_text
+        from brain.redact import redact_sensitive_text
         text = "From +15551234567 to +442071838750"
         result = redact_sensitive_text(text)
         assert "+15551234567" not in result
         assert "+442071838750" not in result
 
     def test_short_number_not_matched(self):
-        from agent.redact import redact_sensitive_text
+        from brain.redact import redact_sensitive_text
         result = redact_sensitive_text("Code: +12345")
         # 5 digits after + is below the 7-digit minimum
         assert "+12345" in result  # Too short to redact

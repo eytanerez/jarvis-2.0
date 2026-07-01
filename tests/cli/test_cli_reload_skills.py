@@ -1,4 +1,4 @@
-"""Tests for the ``/reload-skills`` CLI slash command (``HermesCLI._reload_skills``).
+"""Tests for the ``/reload-skills`` CLI slash command (``JarvisCLI._reload_skills``).
 
 The CLI handler prints the diff (name + description) for the user and —
 when any skills were added or removed — queues a one-shot note on
@@ -12,10 +12,10 @@ from unittest.mock import patch
 
 
 def _make_cli():
-    """Build a minimal HermesCLI shell exposing ``_reload_skills``."""
+    """Build a minimal JarvisCLI shell exposing ``_reload_skills``."""
     import cli as cli_mod
 
-    obj = object.__new__(cli_mod.HermesCLI)
+    obj = object.__new__(cli_mod.JarvisCLI)
     obj._command_running = False
     obj.conversation_history = []
     obj.agent = None
@@ -26,7 +26,7 @@ class TestReloadSkillsCLI:
     def test_reports_added_and_removed_and_queues_note(self, capsys):
         cli = _make_cli()
         with patch(
-            "agent.skill_commands.reload_skills",
+            "brain.skill_commands.reload_skills",
             return_value={
                 "added": [
                     {"name": "alpha", "description": "Run alpha to do xyz"},
@@ -67,7 +67,7 @@ class TestReloadSkillsCLI:
     def test_reports_no_changes_and_queues_nothing(self, capsys):
         cli = _make_cli()
         with patch(
-            "agent.skill_commands.reload_skills",
+            "brain.skill_commands.reload_skills",
             return_value={
                 "added": [],
                 "removed": [],
@@ -87,7 +87,7 @@ class TestReloadSkillsCLI:
     def test_handles_reload_failure_gracefully(self, capsys):
         cli = _make_cli()
         with patch(
-            "agent.skill_commands.reload_skills",
+            "brain.skill_commands.reload_skills",
             side_effect=RuntimeError("boom"),
         ):
             cli._reload_skills()

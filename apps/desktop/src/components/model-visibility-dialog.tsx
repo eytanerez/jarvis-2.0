@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { GlyphSpinner } from '@/components/ui/glyph-spinner'
 import { Switch } from '@/components/ui/switch'
-import type { HermesGateway } from '@/hermes'
-import { getGlobalModelOptions } from '@/hermes'
 import { useI18n } from '@/i18n'
+import type { JarvisGateway } from '@/jarvis'
+import { getGlobalModelOptions } from '@/jarvis'
 import { displayModelName, modelDisplayParts } from '@/lib/model-status-label'
 import {
   $visibleModels,
@@ -19,10 +19,10 @@ import {
   modelVisibilityKey,
   setVisibleModels
 } from '@/store/model-visibility'
-import type { ModelOptionProvider, ModelOptionsResponse } from '@/types/hermes'
+import type { ModelOptionProvider, ModelOptionsResponse } from '@/types/jarvis'
 
 interface ModelVisibilityDialogProps {
-  gw?: HermesGateway
+  gw?: JarvisGateway
   onOpenChange: (open: boolean) => void
   onOpenProviders: () => void
   open: boolean
@@ -90,14 +90,14 @@ export function ModelVisibilityDialog({
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="max-w-xs gap-0 overflow-hidden p-0">
-        <DialogHeader className="px-3 pb-1 pt-3">
+        <DialogHeader className="border-b border-[color-mix(in_srgb,var(--jarvis-hairline)_58%,transparent)] px-3 pb-1 pt-3">
           <DialogTitle className="text-[0.8125rem]">{copy.title}</DialogTitle>
         </DialogHeader>
 
-        <div className="px-3 py-1.5">
+        <div className="border-b border-[color-mix(in_srgb,var(--jarvis-hairline)_44%,transparent)] px-3 py-1.5">
           <input
             autoFocus
-            className="h-5 w-full bg-transparent text-xs text-foreground placeholder:text-(--ui-text-tertiary) focus:outline-none"
+            className="h-6 w-full rounded-[3px] bg-transparent px-0 text-xs text-(--jarvis-text) placeholder:text-(--jarvis-muted) focus:outline-none"
             onChange={event => setSearch(event.target.value)}
             placeholder={copy.search}
             type="text"
@@ -120,7 +120,7 @@ export function ModelVisibilityDialog({
 
               return (
                 <div className="py-0.5" key={provider.slug}>
-                  <div className="px-3 pb-0.5 pt-1 text-[0.625rem] font-medium uppercase tracking-wide text-(--ui-text-tertiary)">
+                  <div className="px-3 pb-0.5 pt-1 text-[0.625rem] font-medium uppercase text-(--jarvis-muted)">
                     {provider.name}
                   </div>
                   {models.map(family => {
@@ -129,12 +129,12 @@ export function ModelVisibilityDialog({
 
                     return (
                       <label
-                        className="flex cursor-pointer items-center gap-2 px-3 py-1 text-xs hover:bg-accent/50"
+                        className="flex cursor-pointer items-center gap-2 px-3 py-1 text-xs transition-colors hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_9%,transparent)] hover:text-white"
                         key={key}
                       >
                         <span className="min-w-0 flex-1 truncate">
                           {name}
-                          {tag ? <span className="text-(--ui-text-tertiary)"> {tag}</span> : null}
+                          {tag ? <span className="text-(--jarvis-muted)"> {tag}</span> : null}
                         </span>
                         <Switch checked={visible.has(key)} onCheckedChange={() => toggle(provider, family.id)} />
                       </label>
@@ -146,7 +146,7 @@ export function ModelVisibilityDialog({
           )}
         </div>
 
-        <div className="px-3 py-2">
+        <div className="border-t border-[color-mix(in_srgb,var(--jarvis-hairline)_44%,transparent)] px-3 py-2">
           <Button
             className="-ml-2 text-(--ui-text-tertiary)"
             onClick={() => {

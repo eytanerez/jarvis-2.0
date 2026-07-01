@@ -8,7 +8,7 @@ function Checkbox({ className, ...props }: React.ComponentProps<typeof CheckboxP
   return (
     <CheckboxPrimitive.Root
       className={cn(
-        'peer size-4 shrink-0 rounded-sm border border-input shadow-xs outline-none transition-shadow focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
+        'peer size-4 shrink-0 rounded-sm border border-[color-mix(in_srgb,var(--jarvis-hairline)_72%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_72%,transparent)] shadow-xs outline-none transition-[border-color,background-color,box-shadow] focus-visible:border-[color-mix(in_srgb,var(--jarvis-blue)_68%,transparent)] focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--jarvis-blue)_22%,transparent)] disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-[color-mix(in_srgb,var(--jarvis-blue)_72%,transparent)] data-[state=checked]:bg-(--jarvis-blue) data-[state=checked]:text-[color-mix(in_srgb,var(--jarvis-bg)_92%,black)] aria-invalid:border-(--jarvis-danger) aria-invalid:ring-[color-mix(in_srgb,var(--jarvis-danger)_20%,transparent)]',
         className
       )}
       data-slot="checkbox"

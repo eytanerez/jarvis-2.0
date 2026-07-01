@@ -1,16 +1,16 @@
 ---
 sidebar_position: 3
 title: "Agent Loop 内部机制"
-description: "AIAgent 执行流程、API 模式、工具、回调及回退行为的详细说明"
+description: "AIBrain 执行流程、API 模式、工具、回调及回退行为的详细说明"
 ---
 
 # Agent Loop 内部机制
 
-核心编排引擎是 `run_agent.py` 中的 `AIAgent` 类——这是一个大型文件（15k+ 行），负责处理从 prompt（提示词）组装到工具分发再到 provider 故障转移的所有逻辑。
+核心编排引擎是 `run_brain.py` 中的 `AIBrain` 类——这是一个大型文件（15k+ 行），负责处理从 prompt（提示词）组装到工具分发再到 provider 故障转移的所有逻辑。
 
 ## 核心职责
 
-`AIAgent` 负责：
+`AIBrain` 负责：
 
 - 通过 `prompt_builder.py` 组装有效的系统 prompt 和工具 schema
 - 选择正确的 provider/API 模式（`chat_completions`、`codex_responses`、`anthropic_messages`）
@@ -40,7 +40,7 @@ result = agent.run_conversation(
 
 ## API 模式
 
-Hermes 支持三种 API 执行模式，通过 provider 选择、显式参数和 base URL 启发式规则来确定：
+Jarvis 支持三种 API 执行模式，通过 provider 选择、显式参数和 base URL 启发式规则来确定：
 
 | API 模式 | 用途 | 客户端类型 |
 |----------|------|-----------|
@@ -149,7 +149,7 @@ for each tool_call in response.tool_calls:
 
 ### Agent 级工具
 
-部分工具在到达 `handle_function_call()` 之前，由 `run_agent.py` *提前*拦截：
+部分工具在到达 `handle_function_call()` 之前，由 `run_brain.py` *提前*拦截：
 
 | 工具 | 拦截原因 |
 |------|---------|
@@ -162,7 +162,7 @@ for each tool_call in response.tool_calls:
 
 ## 回调接口
 
-`AIAgent` 支持平台特定的回调，用于在 CLI、gateway 和 ACP 集成中实现实时进度展示：
+`AIBrain` 支持平台特定的回调，用于在 CLI、gateway 和 ACP 集成中实现实时进度展示：
 
 | 回调 | 触发时机 | 使用方 |
 |------|---------|--------|
@@ -214,20 +214,20 @@ agent 通过 `IterationBudget` 追踪迭代次数：
 ### Session 持久化
 
 每轮结束后：
-- 消息保存到 session 存储（通过 `hermes_state.py` 使用 SQLite）
+- 消息保存到 session 存储（通过 `jarvis_state.py` 使用 SQLite）
 - 内存变更刷写到 `MEMORY.md` / `USER.md`
-- 可通过 `/resume` 或 `hermes chat --resume` 恢复 session
+- 可通过 `/resume` 或 `jarvis chat --resume` 恢复 session
 
 ## 关键源文件
 
 | 文件 | 用途 |
 |------|------|
-| `run_agent.py` | AIAgent 类——完整的 agent loop |
-| `agent/prompt_builder.py` | 从内存、技能、上下文文件和个性组装系统 prompt |
-| `agent/context_engine.py` | ContextEngine ABC——可插拔的上下文管理 |
-| `agent/context_compressor.py` | 默认引擎——有损摘要算法 |
-| `agent/prompt_caching.py` | Anthropic prompt 缓存标记和缓存指标 |
-| `agent/auxiliary_client.py` | 用于辅助任务的辅助 LLM 客户端（视觉、摘要） |
+| `run_brain.py` | AIBrain 类——完整的 agent loop |
+| `brain/prompt_builder.py` | 从内存、技能、上下文文件和个性组装系统 prompt |
+| `brain/context_engine.py` | ContextEngine ABC——可插拔的上下文管理 |
+| `brain/context_compressor.py` | 默认引擎——有损摘要算法 |
+| `brain/prompt_caching.py` | Anthropic prompt 缓存标记和缓存指标 |
+| `brain/auxiliary_client.py` | 用于辅助任务的辅助 LLM 客户端（视觉、摘要） |
 | `model_tools.py` | 工具 schema 集合，`handle_function_call()` 分发 |
 
 ## 相关文档

@@ -11,7 +11,7 @@ function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimi
   return (
     <TabsPrimitive.List
       className={cn(
-        'inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground',
+        'inline-flex h-9 items-center justify-center rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_58%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_78%,transparent)] p-1 text-(--jarvis-muted)',
         className
       )}
       data-slot="tabs-list"
@@ -24,7 +24,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        'inline-flex h-7 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:ring-[0.1875rem] focus-visible:ring-ring/35 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+        'inline-flex h-7 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium whitespace-nowrap outline-none transition-all focus-visible:ring-[0.1875rem] focus-visible:ring-[color-mix(in_srgb,var(--jarvis-blue)_22%,transparent)] disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-[color-mix(in_srgb,var(--jarvis-blue)_14%,var(--jarvis-panel))] data-[state=active]:text-white data-[state=active]:shadow-xs [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
         className
       )}
       data-slot="tabs-trigger"

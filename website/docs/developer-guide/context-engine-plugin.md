@@ -10,7 +10,7 @@ Context engine plugins replace the built-in `ContextCompressor` with an alternat
 
 ## How it works
 
-The agent's context management is built on the `ContextEngine` ABC (`agent/context_engine.py`). The built-in `ContextCompressor` is the default implementation. Plugin engines must implement the same interface.
+The agent's context management is built on the `ContextEngine` ABC (`brain/context_engine.py`). The built-in `ContextCompressor` is the default implementation. Plugin engines must implement the same interface.
 
 Only **one** context engine can be active at a time. Selection is config-driven:
 
@@ -39,7 +39,7 @@ plugins/context_engine/lcm/
 Your engine must implement these **required** methods:
 
 ```python
-from agent.context_engine import ContextEngine
+from brain.context_engine import ContextEngine
 
 class LCMEngine(ContextEngine):
 
@@ -158,7 +158,7 @@ Only one engine can be registered. A second plugin attempting to register is rej
 
 ## Configuration
 
-Users select your engine via `hermes plugins` → Provider Plugins → Context Engine, or by editing `config.yaml`:
+Users select your engine via `jarvis plugins` → Provider Plugins → Context Engine, or by editing `config.yaml`:
 
 ```yaml
 context:
@@ -170,7 +170,7 @@ The `compression` config block (`compression.threshold`, `compression.protect_la
 ## Testing
 
 ```python
-from agent.context_engine import ContextEngine
+from brain.context_engine import ContextEngine
 
 def test_engine_satisfies_abc():
     engine = YourEngine(context_length=200000)
@@ -185,7 +185,7 @@ def test_compress_returns_valid_messages():
     assert all("role" in m for m in result)
 ```
 
-See `tests/agent/test_context_engine.py` for the full ABC contract test suite.
+See `tests/brain/test_context_engine.py` for the full ABC contract test suite.
 
 ## See also
 

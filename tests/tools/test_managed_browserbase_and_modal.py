@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from hermes_cli.nous_account import NousPortalAccountInfo
+from jarvis_cli.nous_account import NousPortalAccountInfo
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -55,7 +55,7 @@ def _restore_tool_and_agent_modules():
         if name == "tools"
         or name.startswith("tools.")
         or name == "agent"
-        or name.startswith("agent.")
+        or name.startswith("brain.")
     }
     try:
         yield
@@ -71,10 +71,10 @@ def _enable_managed_nous_tools(monkeypatch):
     The _install_fake_tools_package() helper resets and reimports tool modules,
     so a simple monkeypatch on tool_backend_helpers doesn't survive.  We patch
     the *source* modules that the reimported modules will import from — both
-    hermes_cli.nous_account — so the function body returns True.
+    jarvis_cli.nous_account — so the function body returns True.
     """
     monkeypatch.setattr(
-        "hermes_cli.nous_account.get_nous_portal_account_info",
+        "jarvis_cli.nous_account.get_nous_portal_account_info",
         lambda: NousPortalAccountInfo(
             logged_in=True,
             source="jwt",
@@ -98,7 +98,7 @@ def _install_fake_tools_package():
     agent_package = types.ModuleType("agent")
     agent_package.__path__ = []  # type: ignore[attr-defined]
     sys.modules["agent"] = agent_package
-    sys.modules["agent.auxiliary_client"] = types.SimpleNamespace(
+    sys.modules["brain.auxiliary_client"] = types.SimpleNamespace(
         call_llm=lambda *args, **kwargs: "",
     )
 
@@ -109,12 +109,12 @@ def _install_fake_tools_package():
     # tests instantiate the real plugin classes via _load_tool_module
     # below, so the stubs only need to satisfy import + isinstance.
     class _StubBrowserProvider:
-        """Minimal BrowserProvider stub for ``from agent.browser_provider import BrowserProvider``."""
+        """Minimal BrowserProvider stub for ``from brain.browser_provider import BrowserProvider``."""
 
-    sys.modules["agent.browser_provider"] = types.SimpleNamespace(
+    sys.modules["brain.browser_provider"] = types.SimpleNamespace(
         BrowserProvider=_StubBrowserProvider,
     )
-    sys.modules["agent.browser_registry"] = types.SimpleNamespace(
+    sys.modules["brain.browser_registry"] = types.SimpleNamespace(
         get_provider=lambda name: None,
         list_providers=lambda: [],
         register_provider=lambda provider: None,
@@ -199,7 +199,7 @@ def test_browser_use_explicit_local_mode_stays_local_even_when_managed_gateway_i
     env = os.environ.copy()
     env.pop("BROWSER_USE_API_KEY", None)
     env.update({
-        "HERMES_HOME": str(tmp_path),
+        "JARVIS_HOME": str(tmp_path),
         "TOOL_GATEWAY_USER_TOKEN": "nous-token",
         "BROWSER_USE_GATEWAY_URL": "http://127.0.0.1:3009",
     })
@@ -250,14 +250,14 @@ def test_browser_use_availability_skips_refresh_for_expired_cached_gateway_token
         return "fresh-token"
 
     monkeypatch.setattr(
-        "hermes_cli.auth.resolve_nous_access_token",
+        "jarvis_cli.auth.resolve_nous_access_token",
         _record_refresh,
     )
 
     env = os.environ.copy()
     env.pop("BROWSER_USE_API_KEY", None)
     env.update({
-        "HERMES_HOME": str(tmp_path),
+        "JARVIS_HOME": str(tmp_path),
         "BROWSER_USE_GATEWAY_URL": "http://127.0.0.1:3009",
     })
 

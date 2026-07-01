@@ -10,7 +10,7 @@ an empty-guard (Holographic, Hindsight, etc.) exited early and never
 persisted the session's facts, so the next gateway start-up surfaced no
 memories from the prior conversation.
 
-The fix reads ``agent._session_messages`` (set on ``AIAgent.__init__``
+The fix reads ``agent._session_messages`` (set on ``AIBrain.__init__``
 and refreshed every turn via ``_persist_session``) and forwards it to
 ``shutdown_memory_provider``. Test stubs built via ``object.__new__``
 or plain ``MagicMock()`` still exercise the legacy no-arg path, so the
@@ -41,7 +41,7 @@ def _make_runner():
     return runner
 
 
-# A lightweight stand-in for AIAgent so ``isinstance(..., list)`` correctly
+# A lightweight stand-in for AIBrain so ``isinstance(..., list)`` correctly
 # discriminates between "attribute set to a list" and "attribute absent /
 # MagicMock auto-synthesised". Using MagicMock directly for the agent
 # would also work for the populated case, but attribute access on a
@@ -89,7 +89,7 @@ class TestCleanupAgentResourcesPassesMessages:
         agent.shutdown_memory_provider.assert_called_once_with([])
 
     def test_missing_attribute_falls_back_to_no_arg(self):
-        """Test stubs built via ``object.__new__(AIAgent)`` skip
+        """Test stubs built via ``object.__new__(AIBrain)`` skip
         ``__init__`` and therefore have no ``_session_messages``
         attribute. The fix must not explode — it falls back to the
         legacy no-arg call so existing suites keep passing."""

@@ -3,18 +3,13 @@ import { contextPath } from '@/lib/chat-runtime'
 
 import type { DroppedFile } from '../hooks/use-composer-actions'
 
-import {
-  composerPlainText,
-  normalizeComposerEditorDom,
-  placeCaretEnd,
-  refChipElement
-} from './rich-editor'
+import { composerPlainText, normalizeComposerEditorDom, placeCaretEnd, refChipElement } from './rich-editor'
 
 /** A chip to insert: a raw `@kind:value` string, or a typed value + display label. */
 export type InlineRefInput = string | { kind: string; label?: string; value: string }
 
 /** MIME for an in-app session drag (sidebar row → composer). */
-export const HERMES_SESSION_MIME = 'application/x-hermes-session'
+export const JARVIS_SESSION_MIME = 'application/x-jarvis-session'
 
 export interface SessionDragPayload {
   id: string
@@ -23,16 +18,16 @@ export interface SessionDragPayload {
 }
 
 export function writeSessionDrag(transfer: DataTransfer, payload: SessionDragPayload) {
-  transfer.setData(HERMES_SESSION_MIME, JSON.stringify(payload))
+  transfer.setData(JARVIS_SESSION_MIME, JSON.stringify(payload))
   transfer.effectAllowed = 'copy'
 }
 
 export function dragHasSession(transfer: DataTransfer | null) {
-  return Boolean(transfer) && Array.from(transfer!.types || []).includes(HERMES_SESSION_MIME)
+  return Boolean(transfer) && Array.from(transfer!.types || []).includes(JARVIS_SESSION_MIME)
 }
 
 export function readSessionDrag(transfer: DataTransfer | null): null | SessionDragPayload {
-  const raw = transfer?.getData(HERMES_SESSION_MIME)
+  const raw = transfer?.getData(JARVIS_SESSION_MIME)
 
   if (!raw) {
     return null

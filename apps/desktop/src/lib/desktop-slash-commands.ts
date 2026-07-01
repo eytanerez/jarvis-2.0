@@ -28,21 +28,12 @@ export interface DesktopThemeCommandOption {
  * means adding a branch to a switch ladder — you add a row here + a handler
  * keyed by the id.
  */
-export type DesktopActionId =
-  | 'branch'
-  | 'browser'
-  | 'handoff'
-  | 'help'
-  | 'new'
-  | 'profile'
-  | 'skin'
-  | 'title'
-  | 'yolo'
+export type DesktopActionId = 'branch' | 'browser' | 'handoff' | 'help' | 'new' | 'profile' | 'skin' | 'title' | 'yolo'
 
 /** A command fulfilled by opening a desktop overlay picker. */
 export type DesktopPickerId = 'model' | 'session'
 
-/** Why a known Hermes command has no desktop UI surface. */
+/** Why a known Jarvis command has no desktop UI surface. */
 export type DesktopUnavailableReason = 'advanced' | 'messaging' | 'settings' | 'terminal'
 
 /**
@@ -97,10 +88,20 @@ const unavailable = (reason: DesktopUnavailableReason): DesktopCommandSurface =>
 const DESKTOP_COMMAND_SPECS: readonly DesktopCommandSpec[] = [
   // Local client actions
   { name: '/new', description: 'Start a new desktop chat', aliases: ['/reset'], surface: action('new') },
-  { name: '/branch', description: 'Branch the latest message into a new chat', aliases: ['/fork'], surface: action('branch') },
+  {
+    name: '/branch',
+    description: 'Branch the latest message into a new chat',
+    aliases: ['/fork'],
+    surface: action('branch')
+  },
   { name: '/yolo', description: 'Toggle YOLO — auto-approve dangerous commands', surface: action('yolo') },
-  { name: '/handoff', description: 'Hand off this session to a messaging platform', surface: action('handoff'), args: true },
-  { name: '/profile', description: 'Switch the active Hermes profile', surface: action('profile') },
+  {
+    name: '/handoff',
+    description: 'Hand off this session to a messaging platform',
+    surface: action('handoff'),
+    args: true
+  },
+  { name: '/profile', description: 'Switch the active Jarvis profile', surface: action('profile') },
   { name: '/skin', description: 'Switch desktop theme or cycle to the next one', surface: action('skin'), args: true },
   { name: '/title', description: 'Rename the current session', surface: action('title') },
   { name: '/help', description: 'Show desktop slash commands', aliases: ['/commands'], surface: action('help') },
@@ -122,7 +123,12 @@ const DESKTOP_COMMAND_SPECS: readonly DesktopCommandSpec[] = [
   },
 
   // Backend-executed commands that render useful inline output
-  { name: '/agents', description: 'Show active desktop sessions and running tasks', aliases: ['/tasks'], surface: exec() },
+  {
+    name: '/agents',
+    description: 'Show active desktop sessions and running tasks',
+    aliases: ['/tasks'],
+    surface: exec()
+  },
   { name: '/background', description: 'Run a prompt in the background', aliases: ['/bg', '/btw'], surface: exec() },
   { name: '/compress', description: 'Compress this conversation context', surface: exec() },
   { name: '/debug', description: 'Create a debug report', surface: exec() },
@@ -138,7 +144,7 @@ const DESKTOP_COMMAND_SPECS: readonly DesktopCommandSpec[] = [
   { name: '/tools', description: 'List or toggle tools available to the agent', surface: exec(), args: true },
   { name: '/undo', description: 'Remove the last user/assistant exchange', surface: exec() },
   { name: '/usage', description: 'Show token usage for this session', surface: exec() },
-  { name: '/version', description: 'Show Hermes Agent version', surface: exec() },
+  { name: '/version', description: 'Show Jarvis version', surface: exec() },
 
   // No desktop surface, but carry an alias (underscore spelling variants).
   { name: '/reload-mcp', aliases: ['/reload_mcp'], surface: unavailable('advanced') },
@@ -149,10 +155,38 @@ const DESKTOP_COMMAND_SPECS: readonly DesktopCommandSpec[] = [
 // per reason beats 40 identical object literals.
 const NO_DESKTOP_SURFACE: Record<DesktopUnavailableReason, readonly string[]> = {
   terminal: [
-    '/busy', '/clear', '/compact', '/config', '/copy', '/cron', '/details',
-    '/exit', '/footer', '/gateway', '/gquota', '/history', '/image', '/indicator', '/logs',
-    '/mouse', '/paste', '/platforms', '/plugins', '/quit', '/redraw', '/reload', '/restart',
-    '/sb', '/set-home', '/sethome', '/snap', '/snapshot', '/statusbar', '/toolsets', '/update', '/verbose'
+    '/busy',
+    '/clear',
+    '/compact',
+    '/config',
+    '/copy',
+    '/cron',
+    '/details',
+    '/exit',
+    '/footer',
+    '/gateway',
+    '/gquota',
+    '/history',
+    '/image',
+    '/indicator',
+    '/logs',
+    '/mouse',
+    '/paste',
+    '/platforms',
+    '/plugins',
+    '/quit',
+    '/redraw',
+    '/reload',
+    '/restart',
+    '/sb',
+    '/set-home',
+    '/sethome',
+    '/snap',
+    '/snapshot',
+    '/statusbar',
+    '/toolsets',
+    '/update',
+    '/verbose'
   ],
   messaging: ['/approve', '/deny'],
   settings: ['/skills'],
@@ -203,7 +237,7 @@ export function resolveDesktopCommand(command: string): DesktopCommandSpec | nul
   return SPEC_BY_NAME.get(canonicalDesktopSlashCommand(command)) ?? null
 }
 
-function isKnownHermesSlashCommand(command: string): boolean {
+function isKnownJarvisSlashCommand(command: string): boolean {
   const normalized = normalizeCommand(command)
 
   return SPEC_BY_NAME.has(normalized) || ALIAS_TO_CANONICAL.has(normalized)
@@ -211,7 +245,7 @@ function isKnownHermesSlashCommand(command: string): boolean {
 
 /**
  * An "extension" command is anything the backend surfaces that is NOT one of
- * Hermes' built-in slash commands — i.e. skill commands (`/gif-search`,
+ * Jarvis' built-in slash commands — i.e. skill commands (`/gif-search`,
  * `/codex`, …) and user-defined quick commands. These are user-activated, so
  * they appear in the desktop slash palette and execute when typed.
  */
@@ -222,7 +256,7 @@ export function isDesktopSlashExtensionCommand(command: string): boolean {
     return false
   }
 
-  return !isKnownHermesSlashCommand(normalized)
+  return !isKnownJarvisSlashCommand(normalized)
 }
 
 /** Gates execution: true unless the command is a known no-desktop-surface command. */

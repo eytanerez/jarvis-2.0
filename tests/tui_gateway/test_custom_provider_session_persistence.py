@@ -9,7 +9,7 @@ or ``_reset_session_agent``, ``_stored_session_runtime_overrides`` fed
 provider="custom" back into ``_make_agent`` →
 ``resolve_runtime_provider(requested="custom")``, which cannot match an entry
 named "mimo-v2.5-pro". Depending on config the rebuild either raised
-"No LLM provider configured. Run `hermes model`..." (resume failed) or
+"No LLM provider configured. Run `jarvis model`..." (resume failed) or
 silently resolved placeholder credentials ("no-key-required") against the
 patched-back base_url.
 
@@ -27,7 +27,7 @@ import json
 import types
 from unittest.mock import MagicMock, patch
 
-import hermes_cli.runtime_provider as rp
+import jarvis_cli.runtime_provider as rp
 
 MIMO_URL = "https://token-plan-cn.xiaomimimo.com/v1"
 MIMO_KEY = "sk-mimo-entry-key"
@@ -113,10 +113,10 @@ class TestRuntimeModelConfigPersistsEntryIdentity:
 
 def _make_agent_with_override(override, monkeypatch, config, model_cfg=None):
     """Run _make_agent through the REAL resolve_runtime_provider against a
-    patched config, returning the kwargs AIAgent was constructed with."""
+    patched config, returning the kwargs AIBrain was constructed with."""
     monkeypatch.setattr(rp, "load_config", lambda: config)
     monkeypatch.setattr(rp, "_get_model_config", lambda: model_cfg or {})
-    # Keep credential-pool resolution off the developer's real HERMES home.
+    # Keep credential-pool resolution off the developer's real JARVIS home.
     monkeypatch.setattr(rp, "_try_resolve_from_custom_pool", lambda *a, **k: None)
 
     fake_cfg = {"agent": {"system_prompt": ""}, "model": {"default": "unused"}}
@@ -126,7 +126,7 @@ def _make_agent_with_override(override, monkeypatch, config, model_cfg=None):
         patch("tui_gateway.server._load_reasoning_config", return_value=None),
         patch("tui_gateway.server._load_service_tier", return_value=None),
         patch("tui_gateway.server._load_enabled_toolsets", return_value=None),
-        patch("run_agent.AIAgent") as mock_agent,
+        patch("run_brain.AIBrain") as mock_agent,
     ):
         from tui_gateway.server import _make_agent
 
@@ -245,7 +245,7 @@ class TestBareCustomNoBaseUrlHealsFromConfig:
         # routable identity to recover; caller keeps its fallback behaviour.
         monkeypatch.setattr(rp, "load_config", lambda: {})
         monkeypatch.setattr(rp, "_get_model_config", lambda: {"provider": "custom"})
-        monkeypatch.delenv("HERMES_INFERENCE_PROVIDER", raising=False)
+        monkeypatch.delenv("JARVIS_INFERENCE_PROVIDER", raising=False)
 
         assert rp.canonical_custom_identity(base_url=None) is None
 
@@ -286,7 +286,7 @@ class TestBareCustomNoBaseUrlHealsFromConfig:
         default instead of the broken OpenRouter route."""
         monkeypatch.setattr(rp, "load_config", lambda: {})
         monkeypatch.setattr(rp, "_get_model_config", lambda: {})
-        monkeypatch.delenv("HERMES_INFERENCE_PROVIDER", raising=False)
+        monkeypatch.delenv("JARVIS_INFERENCE_PROVIDER", raising=False)
 
         from tui_gateway.server import _stored_session_runtime_overrides
 
@@ -304,7 +304,7 @@ class TestBareCustomNoBaseUrlHealsFromConfig:
 
     def test_make_agent_heals_bare_custom_no_base_url_end_to_end(self, monkeypatch):
         """The exact failing path: stored override has bare custom + no
-        base_url; _make_agent must build the AIAgent with the named entry's
+        base_url; _make_agent must build the AIBrain with the named entry's
         endpoint + key, NOT the OpenRouter default with an empty key."""
         override = {
             "model": "mimo-v2.5-pro",

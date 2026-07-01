@@ -23,7 +23,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, c
   return (
     <div
       className={cn(
-        'inline-grid w-fit auto-cols-fr grid-flow-col gap-0.5 rounded-[5px] bg-(--ui-bg-tertiary) p-0.5',
+        'inline-grid w-fit auto-cols-fr grid-flow-col gap-0.5 rounded-[5px] border border-[color-mix(in_srgb,var(--jarvis-hairline)_58%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_78%,transparent)] p-0.5',
         className
       )}
     >
@@ -34,8 +34,10 @@ export function SegmentedControl<T extends string>({ options, value, onChange, c
           <button
             aria-pressed={active}
             className={cn(
-              'flex items-center justify-center gap-1 rounded-[3px] px-2.5 py-0.5 text-[0.6875rem] font-medium transition-colors',
-              active ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              'flex items-center justify-center gap-1 rounded-[3px] px-2.5 py-0.5 text-[0.6875rem] font-medium transition-[background-color,color,box-shadow]',
+              active
+                ? 'bg-[color-mix(in_srgb,var(--jarvis-blue)_16%,var(--jarvis-panel))] text-white shadow-[0_0_16px_color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)]'
+                : 'text-(--jarvis-muted) hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_7%,transparent)] hover:text-white'
             )}
             key={id}
             onClick={() => onChange(id)}

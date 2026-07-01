@@ -42,8 +42,8 @@ class TestHandleFunctionCall:
     def test_tool_hooks_receive_session_and_tool_call_ids(self):
         with (
             patch("model_tools.registry.dispatch", return_value='{"ok":true}'),
-            patch("hermes_cli.plugins.has_hook", return_value=True),
-            patch("hermes_cli.plugins.invoke_hook") as mock_invoke_hook,
+            patch("jarvis_cli.plugins.has_hook", return_value=True),
+            patch("jarvis_cli.plugins.invoke_hook") as mock_invoke_hook,
         ):
             result = handle_function_call(
                 "web_search",
@@ -107,8 +107,8 @@ class TestHandleFunctionCall:
         """
         with (
             patch("model_tools.registry.dispatch", return_value='{"ok":true}'),
-            patch("hermes_cli.plugins.has_hook", return_value=True),
-            patch("hermes_cli.plugins.invoke_hook") as mock_invoke_hook,
+            patch("jarvis_cli.plugins.has_hook", return_value=True),
+            patch("jarvis_cli.plugins.invoke_hook") as mock_invoke_hook,
         ):
             handle_function_call("web_search", {"q": "test"}, task_id="t1")
 
@@ -137,8 +137,8 @@ class TestHandleFunctionCall:
         """
         with (
             patch("model_tools.registry.dispatch", return_value='{"ok":true}'),
-            patch("hermes_cli.plugins.has_hook", return_value=False),
-            patch("hermes_cli.plugins.invoke_hook") as mock_invoke_hook,
+            patch("jarvis_cli.plugins.has_hook", return_value=False),
+            patch("jarvis_cli.plugins.invoke_hook") as mock_invoke_hook,
         ):
             result = handle_function_call("web_search", {"q": "test"}, task_id="t1")
 
@@ -172,14 +172,14 @@ class TestHandleFunctionCall:
             (),
             {"_middleware": {"tool_request": [fake_invoke_middleware], "tool_execution": [execution_middleware]}},
         )()
-        monkeypatch.setattr("hermes_cli.plugins.invoke_middleware", fake_invoke_middleware)
-        monkeypatch.setattr("hermes_cli.plugins.get_plugin_manager", lambda: manager)
+        monkeypatch.setattr("jarvis_cli.plugins.invoke_middleware", fake_invoke_middleware)
+        monkeypatch.setattr("jarvis_cli.plugins.get_plugin_manager", lambda: manager)
         hook_calls = []
         monkeypatch.setattr(
-            "hermes_cli.plugins.invoke_hook",
+            "jarvis_cli.plugins.invoke_hook",
             lambda hook_name, **kwargs: hook_calls.append((hook_name, kwargs)) or [],
         )
-        monkeypatch.setattr("hermes_cli.plugins.has_hook", lambda name: True)
+        monkeypatch.setattr("jarvis_cli.plugins.has_hook", lambda name: True)
         monkeypatch.setattr("model_tools.registry.dispatch", fake_dispatch)
 
         result = json.loads(
@@ -242,8 +242,8 @@ class TestPreToolCallBlocking:
             dispatch_called = True
             raise AssertionError("dispatch should not run when blocked")
 
-        monkeypatch.setattr("hermes_cli.plugins.invoke_hook", fake_invoke_hook)
-        monkeypatch.setattr("hermes_cli.plugins.has_hook", lambda name: True)
+        monkeypatch.setattr("jarvis_cli.plugins.invoke_hook", fake_invoke_hook)
+        monkeypatch.setattr("jarvis_cli.plugins.has_hook", lambda name: True)
         monkeypatch.setattr("model_tools.registry.dispatch", fake_dispatch)
 
         result = json.loads(handle_function_call("read_file", {"path": "test.txt"}, task_id="t1"))
@@ -263,7 +263,7 @@ class TestPreToolCallBlocking:
                 return [{"action": "block", "message": "Blocked"}]
             return []
 
-        monkeypatch.setattr("hermes_cli.plugins.invoke_hook", fake_invoke_hook)
+        monkeypatch.setattr("jarvis_cli.plugins.invoke_hook", fake_invoke_hook)
         monkeypatch.setattr("model_tools.registry.dispatch",
                             lambda *a, **kw: (_ for _ in ()).throw(AssertionError("should not run")))
         monkeypatch.setattr("tools.file_tools.notify_other_tool_call",
@@ -284,7 +284,7 @@ class TestPreToolCallBlocking:
                 ]
             return []
 
-        monkeypatch.setattr("hermes_cli.plugins.invoke_hook", fake_invoke_hook)
+        monkeypatch.setattr("jarvis_cli.plugins.invoke_hook", fake_invoke_hook)
         monkeypatch.setattr("model_tools.registry.dispatch",
                             lambda *a, **kw: json.dumps({"ok": True}))
 
@@ -294,7 +294,7 @@ class TestPreToolCallBlocking:
     def test_skip_flag_prevents_double_fire(self, monkeypatch):
         """When skip_pre_tool_call_hook=True, the hook does not fire again.
 
-        The caller (e.g. run_agent._invoke_tool) has already called
+        The caller (e.g. run_brain._invoke_tool) has already called
         get_pre_tool_call_block_message(), which fires the hook once.
         handle_function_call must NOT fire it a second time — that was
         the classic double-fire bug where observer hooks logged every
@@ -306,8 +306,8 @@ class TestPreToolCallBlocking:
             hook_calls.append(hook_name)
             return []
 
-        monkeypatch.setattr("hermes_cli.plugins.invoke_hook", fake_invoke_hook)
-        monkeypatch.setattr("hermes_cli.plugins.has_hook", lambda name: True)
+        monkeypatch.setattr("jarvis_cli.plugins.invoke_hook", fake_invoke_hook)
+        monkeypatch.setattr("jarvis_cli.plugins.has_hook", lambda name: True)
         monkeypatch.setattr("model_tools.registry.dispatch",
                             lambda *a, **kw: json.dumps({"ok": True}))
 
@@ -326,10 +326,10 @@ class TestPreToolCallBlocking:
         assert "post_tool_call" in hook_calls
         assert "transform_tool_result" in hook_calls
 
-    def test_run_agent_pattern_fires_pre_tool_call_exactly_once(self, monkeypatch):
+    def test_run_brain_pattern_fires_pre_tool_call_exactly_once(self, monkeypatch):
         """End-to-end regression for the double-fire bug.
 
-        Mirrors run_agent._invoke_tool: first calls
+        Mirrors run_brain._invoke_tool: first calls
         get_pre_tool_call_block_message() (which fires the hook as part of
         its block-directive poll), then calls
         handle_function_call(skip_pre_tool_call_hook=True).  The plugin
@@ -337,7 +337,7 @@ class TestPreToolCallBlocking:
         did before the fix (observer plugins were seeing every tool
         execution logged twice).
         """
-        from hermes_cli.plugins import get_pre_tool_call_block_message
+        from jarvis_cli.plugins import get_pre_tool_call_block_message
 
         hook_calls = []
 
@@ -345,7 +345,7 @@ class TestPreToolCallBlocking:
             hook_calls.append(hook_name)
             return []
 
-        monkeypatch.setattr("hermes_cli.plugins.invoke_hook", fake_invoke_hook)
+        monkeypatch.setattr("jarvis_cli.plugins.invoke_hook", fake_invoke_hook)
         monkeypatch.setattr("model_tools.registry.dispatch",
                             lambda *a, **kw: json.dumps({"ok": True}))
 
@@ -363,7 +363,7 @@ class TestPreToolCallBlocking:
 
         assert hook_calls.count("pre_tool_call") == 1, (
             f"pre_tool_call fired {hook_calls.count('pre_tool_call')} times "
-            f"across the run_agent (block-check + dispatch) path; "
+            f"across the run_brain (block-check + dispatch) path; "
             f"expected exactly 1. hook_calls={hook_calls}"
         )
 

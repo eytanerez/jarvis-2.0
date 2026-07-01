@@ -82,14 +82,14 @@ def _explode_runtime_resolution():
     )
 
 
-def test_run_agent_prefers_session_override_over_global_runtime(monkeypatch):
+def test_run_brain_prefers_session_override_over_global_runtime(monkeypatch):
     monkeypatch.setattr(gateway_run, "_load_gateway_config", lambda: {})
     monkeypatch.setattr(gateway_run, "load_dotenv", lambda *args, **kwargs: None)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", _explode_runtime_resolution)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = _CapturingAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = _CapturingAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
     _CapturingAgent.last_init = None
     runner = _make_runner()
@@ -106,7 +106,7 @@ def test_run_agent_prefers_session_override_over_global_runtime(monkeypatch):
     runner._session_reasoning_overrides[session_key] = {"enabled": True, "effort": "high"}
 
     result = asyncio.run(
-        runner._run_agent(
+        runner._run_brain(
             message="ping",
             context_prompt="",
             history=[],
@@ -131,9 +131,9 @@ async def test_background_task_prefers_session_override_over_global_runtime(monk
     monkeypatch.setattr(gateway_run, "_load_gateway_config", lambda: {})
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", _explode_runtime_resolution)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = _CapturingAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = _CapturingAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
     _CapturingAgent.last_init = None
     runner = _make_runner()
@@ -168,7 +168,7 @@ def test_gateway_auth_fallback_uses_fallback_model_from_config(tmp_path, monkeyp
     """Regression: fallback provider must not inherit the primary model.
 
     If primary openai-codex auth fails and fallback_providers selects
-    OpenRouter/minimax, the gateway must instantiate AIAgent with the fallback
+    OpenRouter/minimax, the gateway must instantiate AIBrain with the fallback
     model, not the primary config model (e.g. gpt-5.5). Otherwise OpenRouter
     receives an unintended GPT request.
     """
@@ -184,12 +184,12 @@ fallback_providers:
 """.lstrip(),
         encoding="utf-8",
     )
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
 
     def fake_resolve_runtime_provider(*, requested=None, explicit_base_url=None, explicit_api_key=None):
         if requested in {None, "", "openai-codex"}:
-            from hermes_cli.auth import AuthError
-            raise AuthError("No Codex credentials stored. Run `hermes auth` to authenticate.")
+            from jarvis_cli.auth import AuthError
+            raise AuthError("No Codex credentials stored. Run `jarvis auth` to authenticate.")
         assert requested == "openrouter"
         return {
             "api_key": "sk-openrouter",
@@ -201,7 +201,7 @@ fallback_providers:
             "credential_pool": None,
         }
 
-    import hermes_cli.runtime_provider as runtime_provider
+    import jarvis_cli.runtime_provider as runtime_provider
 
     monkeypatch.setattr(runtime_provider, "resolve_runtime_provider", fake_resolve_runtime_provider)
 
@@ -232,7 +232,7 @@ fallback_providers:
 """.lstrip(),
         encoding="utf-8",
     )
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setenv("MY_FALLBACK_KEY", "env-secret")
 
     def fake_resolve_runtime_provider(*, requested=None, explicit_base_url=None, explicit_api_key=None):
@@ -249,7 +249,7 @@ fallback_providers:
             "credential_pool": None,
         }
 
-    import hermes_cli.runtime_provider as runtime_provider
+    import jarvis_cli.runtime_provider as runtime_provider
 
     monkeypatch.setattr(runtime_provider, "resolve_runtime_provider", fake_resolve_runtime_provider)
 

@@ -19,7 +19,7 @@ function SelectTrigger({
     <SelectPrimitive.Trigger
       className={cn(
         controlVariants({ size }),
-        'flex items-center justify-between gap-2 whitespace-nowrap data-placeholder:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0',
+        'flex items-center justify-between gap-2 whitespace-nowrap data-placeholder:text-(--jarvis-muted) [&_svg]:pointer-events-none [&_svg]:shrink-0',
         className
       )}
       data-slot="select-trigger"
@@ -47,7 +47,7 @@ function SelectContent({
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
         className={cn(
-          'relative z-[140] max-h-72 min-w-32 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=top]:slide-in-from-bottom-2 data-[side=right]:slide-in-from-left-2',
+          'relative z-[140] max-h-72 min-w-32 overflow-hidden rounded-md border border-[color-mix(in_srgb,var(--jarvis-blue)_22%,var(--jarvis-hairline))] bg-[color-mix(in_srgb,var(--jarvis-panel)_96%,transparent)] text-(--jarvis-text) shadow-[0_18px_56px_rgba(0,0,0,0.46),0_0_28px_color-mix(in_srgb,var(--jarvis-blue)_8%,transparent)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=top]:slide-in-from-bottom-2 data-[side=right]:slide-in-from-left-2',
           position === 'popper' &&
             'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
           className
@@ -73,7 +73,7 @@ function SelectItem({ className, children, ...props }: React.ComponentProps<type
   return (
     <SelectPrimitive.Item
       className={cn(
-        'relative flex w-full cursor-pointer items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-xs outline-none select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:cursor-default data-disabled:opacity-50',
+        'relative flex w-full cursor-pointer items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-xs outline-none select-none focus:bg-[color-mix(in_srgb,var(--jarvis-blue)_12%,transparent)] focus:text-white data-disabled:pointer-events-none data-disabled:cursor-default data-disabled:opacity-50',
         className
       )}
       data-slot="select-item"

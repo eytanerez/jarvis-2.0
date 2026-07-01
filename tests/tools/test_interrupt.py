@@ -91,16 +91,16 @@ class TestPreToolCheck:
         # Create a minimal mock agent with _interrupt_requested = True
         agent = MagicMock()
         agent._interrupt_requested = True
-        agent.log_prefix = ""
+        brain.log_prefix = ""
         agent._persist_session = MagicMock()
 
         # Import and call the method
         import types
-        from run_agent import AIAgent
+        from run_brain import AIBrain
         # Bind the real methods to our mock so dispatch works correctly
-        agent._execute_tool_calls_sequential = types.MethodType(AIAgent._execute_tool_calls_sequential, agent)
-        agent._execute_tool_calls_concurrent = types.MethodType(AIAgent._execute_tool_calls_concurrent, agent)
-        AIAgent._execute_tool_calls(agent, assistant_msg, messages, "default")
+        agent._execute_tool_calls_sequential = types.MethodType(AIBrain._execute_tool_calls_sequential, agent)
+        agent._execute_tool_calls_concurrent = types.MethodType(AIBrain._execute_tool_calls_concurrent, agent)
+        AIBrain._execute_tool_calls(agent, assistant_msg, messages, "default")
 
         # All 3 should be skipped
         assert len(messages) == 3
@@ -241,9 +241,9 @@ class TestRunToolCleanupOnBaseException:
         agent._invoke_tool = MagicMock(side_effect=BaseException("simulated CancelledError"))
 
         # Bind the real concurrent method so we get _run_tool
-        from run_agent import AIAgent
+        from run_brain import AIBrain
         agent._execute_tool_calls_concurrent = types.MethodType(
-            AIAgent._execute_tool_calls_concurrent, agent
+            AIBrain._execute_tool_calls_concurrent, agent
         )
 
         # Build a single tool call
@@ -287,7 +287,7 @@ class TestRunToolCleanupOnBaseException:
 SMOKE_TESTS = """
 Manual Smoke Test Checklist:
 
-1. CLI: Run `hermes`, ask it to `sleep 30` in terminal, type "stop" + Enter.
+1. CLI: Run `jarvis`, ask it to `sleep 30` in terminal, type "stop" + Enter.
    Expected: command dies within 2s, agent responds to "stop".
 
 2. CLI: Ask it to extract content from 5 URLs, type interrupt mid-way.

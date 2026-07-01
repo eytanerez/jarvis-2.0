@@ -1,7 +1,7 @@
 """Tests for Telegram private-chat topic-mode routing.
 
 Topic mode makes the root Telegram DM a system lobby while user-created
-Telegram topics act as independent Hermes session lanes.
+Telegram topics act as independent Jarvis session lanes.
 """
 
 from datetime import datetime
@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from hermes_state import SessionDB
+from jarvis_state import SessionDB
 from gateway.config import GatewayConfig, Platform, PlatformConfig
 from gateway.platforms.base import MessageEvent
 from gateway.session import SessionEntry, SessionSource, build_session_key
@@ -163,7 +163,7 @@ async def test_root_telegram_dm_prompt_is_system_lobby_when_topic_mode_enabled(m
 
     runner = _make_runner()
     runner._telegram_topic_mode_enabled = lambda source: True
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         side_effect=AssertionError("root Telegram DM prompt leaked to the agent loop")
     )
 
@@ -175,7 +175,7 @@ async def test_root_telegram_dm_prompt_is_system_lobby_when_topic_mode_enabled(m
 
     assert "main chat is reserved for system commands" in result
     assert "All Messages" in result
-    runner._run_agent.assert_not_called()
+    runner._run_brain.assert_not_called()
     runner.session_store.get_or_create_session.assert_not_called()
 
 
@@ -185,7 +185,7 @@ async def test_root_telegram_dm_new_shows_create_topic_instruction(monkeypatch):
 
     runner = _make_runner()
     runner._telegram_topic_mode_enabled = lambda source: True
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         side_effect=AssertionError("/new in root Telegram DM must not start an agent")
     )
 
@@ -198,7 +198,7 @@ async def test_root_telegram_dm_new_shows_create_topic_instruction(monkeypatch):
     assert "create a new topic" in result
     assert "All Messages" in result
     assert "Use /new inside" in result
-    runner._run_agent.assert_not_called()
+    runner._run_brain.assert_not_called()
     runner.session_store.reset_session.assert_not_called()
     runner.session_store.get_or_create_session.assert_not_called()
 
@@ -245,7 +245,7 @@ async def test_managed_topic_binding_reuses_restored_session_over_static_lane_se
     runner = _make_runner(session_db=session_db)
     captured = {}
 
-    async def fake_run_agent(*args, **kwargs):
+    async def fake_run_brain(*args, **kwargs):
         captured["session_id"] = kwargs.get("session_id")
         return {
             "success": True,
@@ -254,7 +254,7 @@ async def test_managed_topic_binding_reuses_restored_session_over_static_lane_se
             "messages": [],
         }
 
-    runner._run_agent = AsyncMock(side_effect=fake_run_agent)
+    runner._run_brain = AsyncMock(side_effect=fake_run_brain)
 
     monkeypatch.setattr(
         gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"}
@@ -296,7 +296,7 @@ async def test_topic_command_is_private_dm_only_and_does_not_enable_group_topic_
 
     session_db = SessionDB(db_path=tmp_path / "state.db")
     runner = _make_runner(session_db=session_db)
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         side_effect=AssertionError("group /topic must not enter the agent loop")
     )
 
@@ -308,7 +308,7 @@ async def test_topic_command_is_private_dm_only_and_does_not_enable_group_topic_
 
     assert "only available in Telegram private chats" in result
     assert session_db.is_telegram_topic_mode_enabled(chat_id="-100123", user_id="208214988") is False
-    runner._run_agent.assert_not_called()
+    runner._run_brain.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -339,7 +339,7 @@ async def test_group_new_keeps_existing_reset_semantics_when_dm_topic_mode_enabl
 
     result = await runner._handle_message(_make_group_event("/new", thread_id="555"))
 
-    assert "Started a new Hermes session in this topic" not in result
+    assert "Started a new Jarvis session in this topic" not in result
     assert "parallel work" not in result
     runner.session_store.reset_session.assert_called_once_with(group_key)
 
@@ -380,7 +380,7 @@ async def test_new_inside_telegram_topic_resets_current_topic_with_parallel_tip(
 
     result = await runner._handle_message(_make_event("/new", thread_id="17585"))
 
-    assert "Started a new Hermes session in this topic" in result
+    assert "Started a new Jarvis session in this topic" in result
     assert "parallel work" in result
     assert "All Messages" in result
     runner.session_store.reset_session.assert_called_once_with(topic_key)
@@ -505,7 +505,7 @@ async def test_topic_binding_follows_compression_tip_on_read(tmp_path, monkeypat
         )
 
     runner.session_store.switch_session = MagicMock(side_effect=fake_switch)
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         return_value={
             "success": True,
             "final_response": "ok",
@@ -537,7 +537,7 @@ async def test_topic_root_command_explicitly_migrates_and_enables_topic_mode(tmp
 
     session_db = SessionDB(db_path=tmp_path / "state.db")
     runner = _make_runner(session_db=session_db)
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         side_effect=AssertionError("/topic activation must not enter the agent loop")
     )
 
@@ -552,12 +552,12 @@ async def test_topic_root_command_explicitly_migrates_and_enables_topic_mode(tmp
     assert session_db.get_meta("telegram_dm_topic_schema_version") == "2"
     assert session_db.is_telegram_topic_mode_enabled(chat_id="208214988", user_id="208214988")
     assert runner._telegram_topic_mode_enabled(_make_source()) is True
-    runner._run_agent.assert_not_called()
+    runner._run_brain.assert_not_called()
 
     lobby_result = await runner._handle_message(_make_event("hello after activation"))
 
     assert "main chat is reserved for system commands" in lobby_result
-    runner._run_agent.assert_not_called()
+    runner._run_brain.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -593,7 +593,7 @@ async def test_topic_root_command_lists_unlinked_sessions_for_restore(tmp_path, 
         user_id="someone-else",
     )
     runner = _make_runner(session_db=session_db)
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         side_effect=AssertionError("root /topic status must not enter the agent loop")
     )
 
@@ -610,7 +610,7 @@ async def test_topic_root_command_lists_unlinked_sessions_for_restore(tmp_path, 
     assert "Send /topic old-unlinked inside a topic" in result
     assert "Already linked" not in result
     assert "other-user" not in result
-    runner._run_agent.assert_not_called()
+    runner._run_brain.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -619,7 +619,7 @@ async def test_topic_root_command_handles_no_unlinked_sessions(tmp_path, monkeyp
 
     session_db = SessionDB(db_path=tmp_path / "state.db")
     runner = _make_runner(session_db=session_db)
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         side_effect=AssertionError("root /topic status must not enter the agent loop")
     )
 
@@ -632,7 +632,7 @@ async def test_topic_root_command_handles_no_unlinked_sessions(tmp_path, monkeyp
     assert "Telegram multi-session topics are enabled" in result
     assert "No previous unlinked Telegram sessions found" in result
     assert "All Messages" in result
-    runner._run_agent.assert_not_called()
+    runner._run_brain.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -654,7 +654,7 @@ async def test_topic_command_inside_bound_topic_shows_current_session(tmp_path, 
         session_id="sess-topic",
     )
     runner = _make_runner(session_db=session_db)
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         side_effect=AssertionError("/topic status must not enter the agent loop")
     )
 
@@ -668,7 +668,7 @@ async def test_topic_command_inside_bound_topic_shows_current_session(tmp_path, 
     assert "Research notes" in result
     assert "sess-topic" in result
     assert "Use /new to replace" in result
-    runner._run_agent.assert_not_called()
+    runner._run_brain.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -688,7 +688,7 @@ async def test_topic_restore_inside_topic_binds_old_session_and_returns_last_ass
     session_db.append_message("old-session", "user", "summarize this")
     session_db.append_message("old-session", "assistant", "Here is the summary.")
     runner = _make_runner(session_db=session_db)
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         side_effect=AssertionError("/topic restore must not enter the agent loop")
     )
 
@@ -699,14 +699,14 @@ async def test_topic_restore_inside_topic_binds_old_session_and_returns_last_ass
     result = await runner._handle_message(_make_event("/topic old-session", thread_id="17585"))
 
     assert "Session restored: Research notes" in result
-    assert "Last Hermes message:" in result
+    assert "Last Jarvis message:" in result
     assert "Here is the summary." in result
     binding = session_db.get_telegram_topic_binding(chat_id="208214988", thread_id="17585")
     assert binding is not None
     assert binding["session_id"] == "old-session"
     assert binding["user_id"] == "208214988"
     assert binding["session_key"] == build_session_key(_make_source(thread_id="17585"))
-    runner._run_agent.assert_not_called()
+    runner._run_brain.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -822,7 +822,7 @@ async def test_topic_root_command_creates_and_pins_system_topic(tmp_path, monkey
     adapter._create_dm_topic.assert_awaited_once_with(208214988, "System")
     adapter.send.assert_awaited_once_with(
         "208214988",
-        "System topic for Hermes commands and status.",
+        "System topic for Jarvis commands and status.",
         metadata={"thread_id": "4242"},
     )
     bot.pin_chat_message.assert_awaited_once_with(

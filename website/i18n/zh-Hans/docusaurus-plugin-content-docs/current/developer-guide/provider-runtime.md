@@ -1,12 +1,12 @@
 ---
 sidebar_position: 4
 title: "Provider 运行时解析"
-description: "Hermes 如何在运行时解析 provider、凭据、API 模式及辅助模型"
+description: "Jarvis 如何在运行时解析 provider、凭据、API 模式及辅助模型"
 ---
 
 # Provider 运行时解析
 
-Hermes 拥有一个共享的 provider 运行时解析器，用于以下场景：
+Jarvis 拥有一个共享的 provider 运行时解析器，用于以下场景：
 
 - CLI
 - gateway
@@ -16,14 +16,14 @@ Hermes 拥有一个共享的 provider 运行时解析器，用于以下场景：
 
 主要实现：
 
-- `hermes_cli/runtime_provider.py` — 凭据解析，`_resolve_custom_runtime()`
-- `hermes_cli/auth.py` — provider 注册表，`resolve_provider()`
-- `hermes_cli/model_switch.py` — 共享 `/model` 切换流水线（CLI + gateway）
-- `agent/auxiliary_client.py` — 辅助模型路由
+- `jarvis_cli/runtime_provider.py` — 凭据解析，`_resolve_custom_runtime()`
+- `jarvis_cli/auth.py` — provider 注册表，`resolve_provider()`
+- `jarvis_cli/model_switch.py` — 共享 `/model` 切换流水线（CLI + gateway）
+- `brain/auxiliary_client.py` — 辅助模型路由
 - `providers/` — ABC + 注册表入口点（`ProviderProfile`、`register_provider`、`get_provider_profile`、`list_providers`）
-- `plugins/model-providers/<name>/` — 每个 provider 的插件（内置），声明 `api_mode`、`base_url`、`env_vars`、`fallback_models` 并在首次访问时将自身注册到注册表。用户插件位于 `$HERMES_HOME/plugins/model-providers/<name>/`，会覆盖同名的内置插件。
+- `plugins/model-providers/<name>/` — 每个 provider 的插件（内置），声明 `api_mode`、`base_url`、`env_vars`、`fallback_models` 并在首次访问时将自身注册到注册表。用户插件位于 `$JARVIS_HOME/plugins/model-providers/<name>/`，会覆盖同名的内置插件。
 
-`providers/` 中的 `get_provider_profile()` 为给定 provider id 返回一个 `ProviderProfile`。`runtime_provider.py` 在解析时调用它，以获取规范的 `base_url`、`env_vars` 优先级列表、`api_mode` 和 `fallback_models`，无需在多个文件中重复这些数据。在 `plugins/model-providers/<your-provider>/`（或 `$HERMES_HOME/plugins/model-providers/<your-provider>/`）下添加一个调用 `register_provider()` 的新插件，即可让 `runtime_provider.py` 自动识别它——无需在解析器本身中添加分支。
+`providers/` 中的 `get_provider_profile()` 为给定 provider id 返回一个 `ProviderProfile`。`runtime_provider.py` 在解析时调用它，以获取规范的 `base_url`、`env_vars` 优先级列表、`api_mode` 和 `fallback_models`，无需在多个文件中重复这些数据。在 `plugins/model-providers/<your-provider>/`（或 `$JARVIS_HOME/plugins/model-providers/<your-provider>/`）下添加一个调用 `register_provider()` 的新插件，即可让 `runtime_provider.py` 自动识别它——无需在解析器本身中添加分支。
 
 如果你想添加一个新的一等推理 provider，请结合本页阅读 [添加 Provider](./adding-providers.md) 和 [Model Provider 插件指南](./model-provider-plugin.md)。
 
@@ -36,7 +36,7 @@ Hermes 拥有一个共享的 provider 运行时解析器，用于以下场景：
 3. 环境变量
 4. provider 特定的默认值或自动解析
 
-该顺序很重要，因为 Hermes 将已保存的模型/provider 选择视为正常运行的真实来源。这可以防止过时的 shell 导出变量悄悄覆盖用户在 `hermes model` 中最后选择的端点。
+该顺序很重要，因为 Jarvis 将已保存的模型/provider 选择视为正常运行的真实来源。这可以防止过时的 shell 导出变量悄悄覆盖用户在 `jarvis model` 中最后选择的端点。
 
 ## Provider
 
@@ -84,9 +84,9 @@ Hermes 拥有一个共享的 provider 运行时解析器，用于以下场景：
 
 ## 为什么这很重要
 
-该解析器是 Hermes 能够在以下场景之间共享认证/运行时逻辑的主要原因：
+该解析器是 Jarvis 能够在以下场景之间共享认证/运行时逻辑的主要原因：
 
-- `hermes chat`
+- `jarvis chat`
 - gateway 消息处理
 - 在全新会话中运行的 cron 任务
 - ACP 编辑器会话
@@ -94,14 +94,14 @@ Hermes 拥有一个共享的 provider 运行时解析器，用于以下场景：
 
 ## OpenRouter 与自定义 OpenAI 兼容 base URL
 
-Hermes 包含相关逻辑，以避免在存在多个 provider 密钥时（例如同时存在 `OPENROUTER_API_KEY` 和 `OPENAI_API_KEY`）将错误的 API key 泄露给自定义端点。
+Jarvis 包含相关逻辑，以避免在存在多个 provider 密钥时（例如同时存在 `OPENROUTER_API_KEY` 和 `OPENAI_API_KEY`）将错误的 API key 泄露给自定义端点。
 
 每个 provider 的 API key 仅作用于其自身的 base URL：
 
 - `OPENROUTER_API_KEY` 仅发送至 `openrouter.ai` 端点
 - `OPENAI_API_KEY` 用于自定义端点及作为回退
 
-Hermes 还区分以下两种情况：
+Jarvis 还区分以下两种情况：
 
 - 用户主动选择的真实自定义端点
 - 未配置自定义端点时使用的 OpenRouter 回退路径
@@ -117,18 +117,18 @@ Hermes 还区分以下两种情况：
 
 Anthropic 不再仅限于"通过 OpenRouter"访问。
 
-当 provider 解析选择 `anthropic` 时，Hermes 使用：
+当 provider 解析选择 `anthropic` 时，Jarvis 使用：
 
 - `api_mode = anthropic_messages`
 - 原生 Anthropic Messages API
-- `agent/anthropic_adapter.py` 进行转换
+- `brain/anthropic_adapter.py` 进行转换
 
 原生 Anthropic 的凭据解析现在在两者同时存在时，优先使用可刷新的 Claude Code 凭据，而非复制的环境变量 token。实际效果为：
 
 - 包含可刷新认证的 Claude Code 凭据文件被视为首选来源
 - 手动设置的 `ANTHROPIC_TOKEN` / `CLAUDE_CODE_OAUTH_TOKEN` 值仍可作为显式覆盖
-- Hermes 在调用原生 Messages API 前会预检 Anthropic 凭据刷新
-- Hermes 在重建 Anthropic 客户端后，仍会在收到 401 时重试一次，作为回退路径
+- Jarvis 在调用原生 Messages API 前会预检 Anthropic 凭据刷新
+- Jarvis 在重建 Anthropic 客户端后，仍会在收到 401 时重试一次，作为回退路径
 
 ## OpenAI Codex 路径
 
@@ -150,21 +150,21 @@ Codex 使用独立的 Responses API 路径：
 
 这些任务可以使用各自独立的 provider/模型路由，而非主对话模型。
 
-当辅助任务配置的 provider 为 `main` 时，Hermes 通过与普通对话相同的共享运行时路径进行解析。实际效果为：
+当辅助任务配置的 provider 为 `main` 时，Jarvis 通过与普通对话相同的共享运行时路径进行解析。实际效果为：
 
 - 环境变量驱动的自定义端点仍然有效
-- 通过 `hermes model` / `config.yaml` 保存的自定义端点同样有效
+- 通过 `jarvis model` / `config.yaml` 保存的自定义端点同样有效
 - 辅助路由能够区分真实保存的自定义端点与 OpenRouter 回退
 
 ## 回退模型
 
-Hermes 支持配置回退 provider 链——一个按顺序尝试的 `(provider, model)` 条目列表，当主模型遇到错误时依次尝试。旧版单对 `fallback_model` 字典仍被接受以保持向后兼容（并在首次写入时迁移）。
+Jarvis 支持配置回退 provider 链——一个按顺序尝试的 `(provider, model)` 条目列表，当主模型遇到错误时依次尝试。旧版单对 `fallback_model` 字典仍被接受以保持向后兼容（并在首次写入时迁移）。
 
 ### 内部工作原理
 
-1. **存储**：`AIAgent.__init__` 存储 `fallback_model` 字典并将 `_fallback_activated` 设为 `False`。
+1. **存储**：`AIBrain.__init__` 存储 `fallback_model` 字典并将 `_fallback_activated` 设为 `False`。
 
-2. **触发点**：`_try_activate_fallback()` 在 `run_agent.py` 主重试循环的三处被调用：
+2. **触发点**：`_try_activate_fallback()` 在 `run_brain.py` 主重试循环的三处被调用：
    - 在无效 API 响应（None choices、缺少 content）达到最大重试次数后
    - 在不可重试的客户端错误（HTTP 401、403、404）时
    - 在瞬时错误（HTTP 429、500、502、503）达到最大重试次数后
@@ -180,8 +180,8 @@ Hermes 支持配置回退 provider 链——一个按顺序尝试的 `(provider,
    - 将重试计数重置为 0 并继续循环
 
 4. **配置流程**：
-   - CLI：`cli.py` 读取 `CLI_CONFIG["fallback_model"]` → 传递给 `AIAgent(fallback_model=...)`
-   - Gateway：`gateway/run.py._load_fallback_model()` 读取 `config.yaml` → 传递给 `AIAgent`
+   - CLI：`cli.py` 读取 `CLI_CONFIG["fallback_model"]` → 传递给 `AIBrain(fallback_model=...)`
+   - Gateway：`gateway/run.py._load_fallback_model()` 读取 `config.yaml` → 传递给 `AIBrain`
    - 验证：`provider` 和 `model` 键均须非空，否则回退被禁用
 
 ### 不支持回退的场景
@@ -189,7 +189,7 @@ Hermes 支持配置回退 provider 链——一个按顺序尝试的 `(provider,
 - **子代理委托**（`tools/delegate_tool.py`）：子代理继承父代理的 provider，但不继承回退配置
 - **辅助任务**：使用各自独立的 provider 自动检测链（见上方辅助模型路由）
 
-Cron 任务**支持**回退：`run_job()` 从 `config.yaml` 读取 `fallback_providers`（或旧版 `fallback_model`）并传递给 `AIAgent(fallback_model=...)`，与 gateway 的 `_load_fallback_model()` 模式一致。参见 [Cron 内部机制](./cron-internals.md)。
+Cron 任务**支持**回退：`run_job()` 从 `config.yaml` 读取 `fallback_providers`（或旧版 `fallback_model`）并传递给 `AIBrain(fallback_model=...)`，与 gateway 的 `_load_fallback_model()` 模式一致。参见 [Cron 内部机制](./cron-internals.md)。
 
 ### 测试覆盖
 

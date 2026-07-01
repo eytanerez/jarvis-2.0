@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { OAuthProvider } from '@/types/hermes'
+import type { OAuthProvider } from '@/types/jarvis'
 
 import {
   $desktopOnboarding,
@@ -14,7 +14,7 @@ import {
 
 function provider(id: string, name = id): OAuthProvider {
   return {
-    cli_command: `hermes login ${id}`,
+    cli_command: `jarvis login ${id}`,
     docs_url: `https://example.com/${id}`,
     flow: 'pkce',
     id,
@@ -39,7 +39,7 @@ function baseState(overrides: Partial<DesktopOnboardingState> = {}): DesktopOnbo
 }
 
 function installApiMock(api: (request: { path: string }) => Promise<unknown>) {
-  Object.defineProperty(window, 'hermesDesktop', {
+  Object.defineProperty(window, 'jarvisDesktop', {
     configurable: true,
     value: { api }
   })
@@ -362,7 +362,11 @@ describe('saveOnboardingLocalEndpoint', () => {
 
     // The probe must receive the key so an auth-gated /v1/models enumerates.
     const probe = calls.find(c => c.path === '/api/providers/validate')
-    expect(probe?.body).toMatchObject({ key: 'OPENAI_BASE_URL', value: 'https://text.example.com/v1', api_key: 'sk-secret' })
+    expect(probe?.body).toMatchObject({
+      key: 'OPENAI_BASE_URL',
+      value: 'https://text.example.com/v1',
+      api_key: 'sk-secret'
+    })
 
     // And the key must be persisted alongside the endpoint for runtime auth.
     const assign = calls.find(c => c.path === '/api/model/set')

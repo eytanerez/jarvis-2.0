@@ -1,8 +1,8 @@
-"""Shared OpenRouter API client for Hermes tools.
+"""Shared OpenRouter API client for Jarvis tools.
 
 Provides a single lazy-initialized AsyncOpenAI client that all tool modules
 can share.  Routes through the centralized provider router in
-agent/auxiliary_client.py so auth, headers, and API format are handled
+brain/auxiliary_client.py so auth, headers, and API format are handled
 consistently.
 """
 
@@ -20,7 +20,7 @@ def get_async_client():
     """
     global _client
     if _client is None:
-        from agent.auxiliary_client import resolve_provider_client
+        from brain.auxiliary_client import resolve_provider_client
         client, _model = resolve_provider_client("openrouter", async_mode=True)
         if client is None:
             raise ValueError("OPENROUTER_API_KEY environment variable not set")

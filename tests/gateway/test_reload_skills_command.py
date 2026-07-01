@@ -104,7 +104,7 @@ async def test_reload_skills_handler_queues_note_on_diff(monkeypatch):
         "commands": 3,
     }
 
-    import agent.skill_commands as skill_commands_mod
+    import brain.skill_commands as skill_commands_mod
     monkeypatch.setattr(skill_commands_mod, "reload_skills", lambda: fake_result)
 
     runner = _make_runner()
@@ -141,7 +141,7 @@ async def test_reload_skills_handler_queues_note_on_diff(monkeypatch):
 @pytest.mark.asyncio
 async def test_reload_skills_handler_reports_no_changes(monkeypatch):
     """No diff → no queued note, no transcript write."""
-    import agent.skill_commands as skill_commands_mod
+    import brain.skill_commands as skill_commands_mod
 
     monkeypatch.setattr(
         skill_commands_mod,

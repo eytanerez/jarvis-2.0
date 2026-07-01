@@ -6,18 +6,7 @@ import { $terminalTakeover, setTerminalTakeover } from '@/app/right-sidebar/stor
 import { GatewayMenuPanel } from '@/app/shell/gateway-menu-panel'
 import { GlyphSpinner } from '@/components/ui/glyph-spinner'
 import { useI18n } from '@/i18n'
-import {
-  Activity,
-  AlertCircle,
-  Clock,
-  Command,
-  Hash,
-  Loader2,
-  Sparkles,
-  Terminal,
-  Zap,
-  ZapFilled
-} from '@/lib/icons'
+import { Activity, AlertCircle, Clock, Command, Hash, Loader2, Sparkles, Terminal, Zap, ZapFilled } from '@/lib/icons'
 import type { RuntimeReadinessResult } from '@/lib/runtime-readiness'
 import { contextBarLabel, LiveDuration, usageContextLabel } from '@/lib/statusbar'
 import { cn } from '@/lib/utils'
@@ -45,7 +34,7 @@ import {
   $updateStatus,
   openUpdateOverlayFor
 } from '@/store/updates'
-import type { StatusResponse } from '@/types/hermes'
+import type { StatusResponse } from '@/types/jarvis'
 
 import { CRON_ROUTE } from '../../routes'
 import type { StatusbarItem, StatusbarSelectModifiers } from '../statusbar-controls'

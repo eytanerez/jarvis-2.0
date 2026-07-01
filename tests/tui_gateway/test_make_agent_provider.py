@@ -2,7 +2,7 @@
 
 Without resolve_runtime_provider(), bare-slug models in config
 (e.g. ``claude-opus-4-6`` with ``model.provider: anthropic``) leave
-provider/base_url/api_key empty in AIAgent, causing HTTP 404.
+provider/base_url/api_key empty in AIBrain, causing HTTP 404.
 """
 
 import os
@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 def test_make_agent_passes_resolved_provider():
     """_make_agent forwards provider/base_url/api_key/api_mode from
-    resolve_runtime_provider to AIAgent."""
+    resolve_runtime_provider to AIBrain."""
 
     fake_runtime = {
         "provider": "anthropic",
@@ -36,10 +36,10 @@ def test_make_agent_passes_resolved_provider():
         patch("tui_gateway.server._load_service_tier", return_value=None),
         patch("tui_gateway.server._load_enabled_toolsets", return_value=None),
         patch(
-            "hermes_cli.runtime_provider.resolve_runtime_provider",
+            "jarvis_cli.runtime_provider.resolve_runtime_provider",
             return_value=fake_runtime,
         ) as mock_resolve,
-        patch("run_agent.AIAgent") as mock_agent,
+        patch("run_brain.AIBrain") as mock_agent,
     ):
 
         from tui_gateway.server import _make_agent
@@ -62,7 +62,7 @@ def test_make_agent_passes_resolved_provider():
 
 def test_make_agent_forwards_provider_routing():
     """Parity with the messaging gateway + CLI: ``provider_routing`` in
-    config.yaml must reach AIAgent so OpenRouter honors the user's sort /
+    config.yaml must reach AIBrain so OpenRouter honors the user's sort /
     only / ignore / order / require_parameters / data_collection prefs.
 
     Regression for the desktop report (LewisDB): Discord respected
@@ -99,10 +99,10 @@ def test_make_agent_forwards_provider_routing():
         patch("tui_gateway.server._load_service_tier", return_value=None),
         patch("tui_gateway.server._load_enabled_toolsets", return_value=None),
         patch(
-            "hermes_cli.runtime_provider.resolve_runtime_provider",
+            "jarvis_cli.runtime_provider.resolve_runtime_provider",
             return_value=fake_runtime,
         ),
-        patch("run_agent.AIAgent") as mock_agent,
+        patch("run_brain.AIBrain") as mock_agent,
     ):
         from tui_gateway.server import _make_agent
 
@@ -139,10 +139,10 @@ def test_make_agent_provider_routing_defaults_when_unset():
         patch("tui_gateway.server._load_service_tier", return_value=None),
         patch("tui_gateway.server._load_enabled_toolsets", return_value=None),
         patch(
-            "hermes_cli.runtime_provider.resolve_runtime_provider",
+            "jarvis_cli.runtime_provider.resolve_runtime_provider",
             return_value=fake_runtime,
         ),
-        patch("run_agent.AIAgent") as mock_agent,
+        patch("run_brain.AIBrain") as mock_agent,
     ):
         from tui_gateway.server import _make_agent
 
@@ -183,10 +183,10 @@ def test_make_agent_ignores_display_personality_without_system_prompt():
         patch("tui_gateway.server._load_cfg", return_value=fake_cfg),
         patch("tui_gateway.server._get_db", return_value=MagicMock()),
         patch(
-            "hermes_cli.runtime_provider.resolve_runtime_provider",
+            "jarvis_cli.runtime_provider.resolve_runtime_provider",
             return_value=fake_runtime,
         ),
-        patch("run_agent.AIAgent") as mock_agent,
+        patch("run_brain.AIBrain") as mock_agent,
     ):
         from tui_gateway.server import _make_agent
 
@@ -211,19 +211,19 @@ def test_make_agent_honors_tui_launch_env_flags():
         patch.dict(
             os.environ,
             {
-                "HERMES_TUI_MAX_TURNS": "7",
-                "HERMES_TUI_CHECKPOINTS": "1",
-                "HERMES_TUI_PASS_SESSION_ID": "1",
-                "HERMES_IGNORE_RULES": "1",
+                "JARVIS_TUI_MAX_TURNS": "7",
+                "JARVIS_TUI_CHECKPOINTS": "1",
+                "JARVIS_TUI_PASS_SESSION_ID": "1",
+                "JARVIS_IGNORE_RULES": "1",
             },
         ),
         patch("tui_gateway.server._load_cfg", return_value=fake_cfg),
         patch("tui_gateway.server._get_db", return_value=MagicMock()),
         patch(
-            "hermes_cli.runtime_provider.resolve_runtime_provider",
+            "jarvis_cli.runtime_provider.resolve_runtime_provider",
             return_value=fake_runtime,
         ),
-        patch("run_agent.AIAgent") as mock_agent,
+        patch("run_brain.AIBrain") as mock_agent,
     ):
         from tui_gateway.server import _make_agent
 
@@ -261,11 +261,11 @@ def test_probe_config_health_flags_null_personalities_with_active_personality():
         }
     )
     assert "display.personality" in msg
-    assert "agent.personalities" in msg
+    assert "brain.personalities" in msg
 
 
 def test_make_agent_tolerates_null_config_sections():
-    """Bare `agent:` / `display:` keys in ~/.hermes/config.yaml parse as
+    """Bare `agent:` / `display:` keys in ~/.jarvis/config.yaml parse as
     None. cfg.get("agent", {}) returns None (default only fires on missing
     key), so downstream .get() chains must be guarded. Reported via Twitter
     against the new TUI."""
@@ -285,10 +285,10 @@ def test_make_agent_tolerates_null_config_sections():
         patch("tui_gateway.server._load_cfg", return_value=null_cfg),
         patch("tui_gateway.server._get_db", return_value=MagicMock()),
         patch(
-            "hermes_cli.runtime_provider.resolve_runtime_provider",
+            "jarvis_cli.runtime_provider.resolve_runtime_provider",
             return_value=fake_runtime,
         ),
-        patch("run_agent.AIAgent") as mock_agent,
+        patch("run_brain.AIBrain") as mock_agent,
     ):
 
         from tui_gateway.server import _make_agent
@@ -319,10 +319,10 @@ def test_make_agent_tolerates_null_personalities_with_active_personality():
         patch("tui_gateway.server._get_db", return_value=MagicMock()),
         patch("cli.load_cli_config", return_value={"agent": {"personalities": None}}),
         patch(
-            "hermes_cli.runtime_provider.resolve_runtime_provider",
+            "jarvis_cli.runtime_provider.resolve_runtime_provider",
             return_value=fake_runtime,
         ),
-        patch("run_agent.AIAgent") as mock_agent,
+        patch("run_brain.AIBrain") as mock_agent,
     ):
         from tui_gateway.server import _make_agent
 
@@ -375,16 +375,16 @@ def test_make_agent_honors_per_session_model_override():
         patch("tui_gateway.server._load_service_tier", return_value=None),
         patch("tui_gateway.server._load_enabled_toolsets", return_value=None),
         patch(
-            "hermes_cli.runtime_provider.resolve_runtime_provider",
+            "jarvis_cli.runtime_provider.resolve_runtime_provider",
             side_effect=echo_runtime,
         ),
-        patch("run_agent.AIAgent") as mock_agent,
+        patch("run_brain.AIBrain") as mock_agent,
     ):
         for var in (
-            "HERMES_MODEL",
-            "HERMES_INFERENCE_MODEL",
-            "HERMES_TUI_PROVIDER",
-            "HERMES_INFERENCE_PROVIDER",
+            "JARVIS_MODEL",
+            "JARVIS_INFERENCE_MODEL",
+            "JARVIS_TUI_PROVIDER",
+            "JARVIS_INFERENCE_PROVIDER",
         ):
             os.environ.pop(var, None)
 
@@ -432,21 +432,21 @@ def test_apply_model_switch_does_not_leak_process_env():
             self.provider = kw["new_provider"]
 
     env_keys = (
-        "HERMES_MODEL",
-        "HERMES_INFERENCE_MODEL",
-        "HERMES_TUI_PROVIDER",
-        "HERMES_INFERENCE_PROVIDER",
+        "JARVIS_MODEL",
+        "JARVIS_INFERENCE_MODEL",
+        "JARVIS_TUI_PROVIDER",
+        "JARVIS_INFERENCE_PROVIDER",
     )
 
     sess_b = {"agent": _FakeAgent(), "session_key": "k-B", "model_override": None}
     sess_a = {"agent": _FakeAgent(), "session_key": "k-A", "model_override": None}
 
     with (
-        patch("hermes_cli.model_switch.parse_model_flags",
+        patch("jarvis_cli.model_switch.parse_model_flags",
               return_value=("glm-5.1", None, False, False, True)),
-        patch("hermes_cli.model_switch.resolve_persist_behavior",
+        patch("jarvis_cli.model_switch.resolve_persist_behavior",
               return_value=False),
-        patch("hermes_cli.model_switch.switch_model", return_value=_FakeResult()),
+        patch("jarvis_cli.model_switch.switch_model", return_value=_FakeResult()),
         patch("tui_gateway.server._emit"),
         patch("tui_gateway.server._restart_slash_worker"),
         patch("tui_gateway.server._session_info", return_value={}),

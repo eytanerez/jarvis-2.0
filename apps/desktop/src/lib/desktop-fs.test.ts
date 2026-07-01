@@ -28,7 +28,7 @@ const api = vi.fn(async ({ path }: { path: string }) => {
 
 function stubBridge() {
   vi.stubGlobal('window', {
-    hermesDesktop: {
+    jarvisDesktop: {
       api,
       gitRoot,
       readDir,
@@ -55,7 +55,9 @@ describe('desktop filesystem facade', () => {
   it('uses local Electron filesystem methods in local mode', async () => {
     $connection.set({ mode: 'local' } as never)
 
-    await expect(readDesktopDir('/work')).resolves.toEqual({ entries: [{ name: 'local', path: '/local', isDirectory: true }] })
+    await expect(readDesktopDir('/work')).resolves.toEqual({
+      entries: [{ name: 'local', path: '/local', isDirectory: true }]
+    })
     await expect(readDesktopFileText('/work/file.txt')).resolves.toMatchObject({ text: 'local' })
     await expect(readDesktopFileDataUrl('/work/file.txt')).resolves.toBe('data:text/plain;base64,bG9jYWw=')
     await expect(desktopGitRoot('/work')).resolves.toBe('/local')

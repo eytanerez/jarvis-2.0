@@ -1,16 +1,16 @@
 ---
 sidebar_position: 3
 title: "Agent Loop Internals"
-description: "Detailed walkthrough of AIAgent execution, API modes, tools, callbacks, and fallback behavior"
+description: "Detailed walkthrough of AIBrain execution, API modes, tools, callbacks, and fallback behavior"
 ---
 
 # Agent Loop Internals
 
-The core orchestration engine is `run_agent.py`'s `AIAgent` class — a large file that handles everything from prompt assembly to tool dispatch to provider failover.
+The core orchestration engine is `run_brain.py`'s `AIBrain` class — a large file that handles everything from prompt assembly to tool dispatch to provider failover.
 
 ## Core Responsibilities
 
-`AIAgent` is responsible for:
+`AIBrain` is responsible for:
 
 - Assembling the effective system prompt and tool schemas via `prompt_builder.py`
 - Selecting the correct provider/API mode (chat_completions, codex_responses, anthropic_messages)
@@ -40,7 +40,7 @@ result = agent.run_conversation(
 
 ## API Modes
 
-Hermes supports three API execution modes, resolved from provider selection, explicit args, and base URL heuristics:
+Jarvis supports three API execution modes, resolved from provider selection, explicit args, and base URL heuristics:
 
 | API mode | Used for | Client type |
 |----------|----------|-------------|
@@ -149,7 +149,7 @@ for each tool_call in response.tool_calls:
 
 ### Agent-Level Tools
 
-Some tools are intercepted by `run_agent.py` *before* reaching `handle_function_call()`:
+Some tools are intercepted by `run_brain.py` *before* reaching `handle_function_call()`:
 
 | Tool | Why intercepted |
 |------|--------------------|
@@ -162,7 +162,7 @@ These tools modify agent state directly and return synthetic tool results withou
 
 ## Callback Surfaces
 
-`AIAgent` supports platform-specific callbacks that enable real-time progress in the CLI, gateway, and ACP integrations:
+`AIBrain` supports platform-specific callbacks that enable real-time progress in the CLI, gateway, and ACP integrations:
 
 | Callback | When fired | Used by |
 |----------|-----------|---------|
@@ -214,20 +214,20 @@ The fallback system also covers auxiliary tasks independently — vision, compre
 ### Session Persistence
 
 After each turn:
-- Messages are saved to the session store (SQLite via `hermes_state.py`)
+- Messages are saved to the session store (SQLite via `jarvis_state.py`)
 - Memory changes are flushed to `MEMORY.md` / `USER.md`
-- The session can be resumed later via `/resume` or `hermes chat --resume`
+- The session can be resumed later via `/resume` or `jarvis chat --resume`
 
 ## Key Source Files
 
 | File | Purpose |
 |------|---------|
-| `run_agent.py` | AIAgent class — the complete agent loop |
-| `agent/prompt_builder.py` | System prompt assembly from memory, skills, context files, personality |
-| `agent/context_engine.py` | ContextEngine ABC — pluggable context management |
-| `agent/context_compressor.py` | Default engine — lossy summarization algorithm |
-| `agent/prompt_caching.py` | Anthropic prompt caching markers and cache metrics |
-| `agent/auxiliary_client.py` | Auxiliary LLM client for side tasks (vision, summarization) |
+| `run_brain.py` | AIBrain class — the complete agent loop |
+| `brain/prompt_builder.py` | System prompt assembly from memory, skills, context files, personality |
+| `brain/context_engine.py` | ContextEngine ABC — pluggable context management |
+| `brain/context_compressor.py` | Default engine — lossy summarization algorithm |
+| `brain/prompt_caching.py` | Anthropic prompt caching markers and cache metrics |
+| `brain/auxiliary_client.py` | Auxiliary LLM client for side tasks (vision, summarization) |
 | `model_tools.py` | Tool schema collection, `handle_function_call()` dispatch |
 
 ## Related Docs

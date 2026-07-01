@@ -3,7 +3,7 @@
 Before this change, running-agent state lived in three dicts that drifted
 out of sync:
 
-  self._running_agents       — AIAgent instance per session key
+  self._running_agents       — AIBrain instance per session key
   self._running_agents_ts    — start timestamp per session key
   self._busy_ack_ts          — last busy-ack timestamp per session key
 

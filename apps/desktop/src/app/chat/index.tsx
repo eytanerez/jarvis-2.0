@@ -17,10 +17,10 @@ import { PromptOverlays } from '@/components/prompt-overlays'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { ErrorState } from '@/components/ui/error-state'
-import { getGlobalModelOptions, type HermesGateway } from '@/hermes'
 import { useI18n } from '@/i18n'
+import { getGlobalModelOptions, type JarvisGateway } from '@/jarvis'
 import type { ChatMessage } from '@/lib/chat-messages'
-import { quickModelOptions, sessionTitle, toRuntimeMessage } from '@/lib/chat-runtime'
+import { quickModelOptions, sessionTitle, SLASH_COMMAND_RE, toRuntimeMessage } from '@/lib/chat-runtime'
 import { useIncrementalExternalStoreRuntime } from '@/lib/incremental-external-store-runtime'
 import { cn } from '@/lib/utils'
 import type { ComposerAttachment } from '@/store/composer'
@@ -48,7 +48,7 @@ import {
   sessionPinId
 } from '@/store/session'
 import { isSecondaryWindow } from '@/store/windows'
-import type { ModelOptionsResponse } from '@/types/hermes'
+import type { ModelOptionsResponse } from '@/types/jarvis'
 
 import { routeSessionId } from '../routes'
 import { titlebarHeaderBaseClass, titlebarHeaderShadowClass, titlebarHeaderTitleClass } from '../shell/titlebar'
@@ -66,7 +66,7 @@ import { SessionActionsMenu } from './sidebar/session-actions-menu'
 import { threadLoadingState } from './thread-loading'
 
 interface ChatViewProps extends Omit<React.ComponentProps<'div'>, 'onSubmit'> {
-  gateway: HermesGateway | null
+  gateway: JarvisGateway | null
   modelMenuContent?: React.ReactNode
   onToggleSelectedPin: () => void
   onDeleteSelectedSession: () => void
@@ -320,7 +320,12 @@ export function ChatView({
   // The compact new-session pop-out skips the wordmark/tagline intro — it's a
   // scratch window, not the full-height empty state.
   const showIntro =
-    !isSecondaryWindow() && freshDraftReady && !isRoutedSessionView && !selectedSessionId && !activeSessionId && messagesEmpty
+    !isSecondaryWindow() &&
+    freshDraftReady &&
+    !isRoutedSessionView &&
+    !selectedSessionId &&
+    !activeSessionId &&
+    messagesEmpty
 
   // Session is still loading if the route references a session we haven't
   // resumed yet. Once `activeSessionId` is set (runtime has resumed), the
@@ -356,7 +361,7 @@ export function ChatView({
       }
 
       if (!gateway) {
-        throw new Error('Hermes gateway unavailable')
+        throw new Error('Jarvis gateway unavailable')
       }
 
       return gateway.request<ModelOptionsResponse>('model.options', { session_id: activeSessionId })
@@ -420,6 +425,37 @@ export function ChatView({
     requestComposerInsertRefs([sessionInlineRef(session)], { target: 'main' })
   }, [])
 
+  const submitFromChatBar = useCallback(
+    async (text: string, options?: { attachments?: ComposerAttachment[]; fromQueue?: boolean }) => {
+      const shouldRevealThread =
+        cockpitMode === 'orb' &&
+        !options?.fromQueue &&
+        !SLASH_COMMAND_RE.test(text.trim()) &&
+        (text.trim().length > 0 || (options?.attachments?.length ?? 0) > 0)
+
+      if (shouldRevealThread) {
+        setCockpitMode('classic')
+      }
+
+      try {
+        const accepted = await Promise.resolve(onSubmit(text, options))
+
+        if (accepted === false && shouldRevealThread && $cockpitMode.get() === 'classic') {
+          setCockpitMode('orb')
+        }
+
+        return accepted
+      } catch (error) {
+        if (shouldRevealThread && $cockpitMode.get() === 'classic') {
+          setCockpitMode('orb')
+        }
+
+        throw error
+      }
+    },
+    [cockpitMode, onSubmit]
+  )
+
   const { dragKind, dropHandlers } = useFileDropZone({ enabled: showChatBar, onDropFiles, onDropSession })
 
   return (
@@ -453,7 +489,7 @@ export function ChatView({
           suppressMessages={routeSessionMismatch}
         >
           {showCockpit ? (
-            <JarvisCockpit onCancel={onCancel} />
+            <JarvisCockpit onCancel={onCancel} onDismissError={onDismissError} />
           ) : (
             <Thread
               clampToComposer={showChatBar}
@@ -489,7 +525,7 @@ export function ChatView({
                 onPickImages={onPickImages}
                 onRemoveAttachment={onRemoveAttachment}
                 onSteer={onSteer}
-                onSubmit={onSubmit}
+                onSubmit={submitFromChatBar}
                 onTranscribeAudio={onTranscribeAudio}
                 queueSessionKey={selectedSessionId}
                 sessionId={activeSessionId}

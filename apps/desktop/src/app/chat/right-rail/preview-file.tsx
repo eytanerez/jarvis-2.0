@@ -12,7 +12,7 @@ import { Streamdown } from 'streamdown'
 
 import { requestComposerFocus, requestComposerInsertRefs } from '@/app/chat/composer/focus'
 import { droppedFileInlineRef } from '@/app/chat/composer/inline-refs'
-import { HERMES_PATHS_MIME } from '@/app/chat/hooks/use-composer-actions'
+import { JARVIS_PATHS_MIME } from '@/app/chat/hooks/use-composer-actions'
 import { isAddSelectionShortcut } from '@/app/right-sidebar/terminal/selection'
 import { PageLoader } from '@/components/page-loader'
 import { translateNow, useI18n } from '@/i18n'
@@ -190,14 +190,14 @@ async function readTextPreview(filePath: string) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
 
-    if (!message.includes("No handler registered for 'hermes:readFileText'")) {
+    if (!message.includes("No handler registered for 'jarvis:readFileText'")) {
       throw error
     }
   }
 
   // Back-compat for a running Electron process whose preload hasn't been
   // restarted since readFileText was added. readFileDataUrl already existed.
-  const dataUrl = await window.hermesDesktop.readFileDataUrl(filePath)
+  const dataUrl = await window.jarvisDesktop.readFileDataUrl(filePath)
   const [, metadata = '', data = ''] = dataUrl.match(/^data:([^,]*),(.*)$/) || []
   const base64 = metadata.includes(';base64')
   const mimeType = metadata.replace(/;base64$/, '') || undefined
@@ -330,7 +330,7 @@ function startLineDrag(event: ReactDragEvent<HTMLElement>, filePath: string, { e
   const lineEnd = end > start ? end : undefined
   const label = lineEnd ? `${filePath}:${start}-${end}` : `${filePath}:${start}`
 
-  event.dataTransfer.setData(HERMES_PATHS_MIME, JSON.stringify([{ line: start, lineEnd, path: filePath }]))
+  event.dataTransfer.setData(JARVIS_PATHS_MIME, JSON.stringify([{ line: start, lineEnd, path: filePath }]))
   event.dataTransfer.setData('text/plain', label)
   event.dataTransfer.effectAllowed = 'copy'
 }
@@ -544,11 +544,7 @@ export function LocalFilePreview({ reloadKey, target }: { reloadKey: number; tar
 
     return (
       <PreviewEmptyState
-        body={
-          binary
-            ? t.preview.binaryBody(target.label)
-            : t.preview.largeBody(target.label, formatBytes(size))
-        }
+        body={binary ? t.preview.binaryBody(target.label) : t.preview.largeBody(target.label, formatBytes(size))}
         primaryAction={{ label: t.preview.previewAnyway, onClick: () => setForcePreview(true) }}
         title={binary ? t.preview.binaryTitle : t.preview.largeTitle}
         tone="warning"
@@ -590,10 +586,5 @@ export function LocalFilePreview({ reloadKey, target }: { reloadKey: number; tar
     )
   }
 
-  return (
-    <PreviewEmptyState
-      body={t.preview.noInlineBody(target.mimeType || '')}
-      title={t.preview.noInlineTitle}
-    />
-  )
+  return <PreviewEmptyState body={t.preview.noInlineBody(target.mimeType || '')} title={t.preview.noInlineTitle} />
 }

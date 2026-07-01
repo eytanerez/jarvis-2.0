@@ -920,10 +920,7 @@ function formatCronTime(iso: string): string {
   })
 }
 
-function cronjobSubtitle(
-  argsRecord: Record<string, unknown>,
-  resultRecord: Record<string, unknown>
-): string {
+function cronjobSubtitle(argsRecord: Record<string, unknown>, resultRecord: Record<string, unknown>): string {
   const jobs = Array.isArray(resultRecord.jobs) ? resultRecord.jobs : null
 
   if (jobs) {
@@ -941,10 +938,7 @@ function cronjobSubtitle(
   return name ? `${label} ${name}` : `Cron ${action}`
 }
 
-function cronjobDetail(
-  argsRecord: Record<string, unknown>,
-  resultRecord: Record<string, unknown>
-): string {
+function cronjobDetail(argsRecord: Record<string, unknown>, resultRecord: Record<string, unknown>): string {
   const jobs = Array.isArray(resultRecord.jobs) ? resultRecord.jobs : null
 
   if (jobs) {

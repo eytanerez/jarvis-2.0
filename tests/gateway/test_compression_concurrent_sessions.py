@@ -25,7 +25,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from hermes_state import SessionDB
+from jarvis_state import SessionDB
 
 
 # ---------------------------------------------------------------------------
@@ -33,15 +33,15 @@ from hermes_state import SessionDB
 # ---------------------------------------------------------------------------
 
 def _build_agent_with_db(db: SessionDB, session_id: str):
-    """Construct an AIAgent wired to *db* and pinned to *session_id*.
+    """Construct an AIBrain wired to *db* and pinned to *session_id*.
 
     Mirrors the helper in test_compression_concurrent_fork.py exactly so the
     two test modules can be read side-by-side without cognitive overhead.
     """
     with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}):
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
-        agent = AIAgent(
+        agent = AIBrain(
             api_key="test-key",
             base_url="https://openrouter.ai/api/v1",
             model="test/model",

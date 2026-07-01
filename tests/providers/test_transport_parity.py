@@ -1,13 +1,13 @@
 """Parity tests: pin the exact current transport behavior per provider.
 
-These tests document the flag-based contract between run_agent.py and
+These tests document the flag-based contract between run_brain.py and
 ChatCompletionsTransport.build_kwargs(). When the next PR wires profiles
 to replace flags, every assertion here must still pass — any failure is
 a behavioral regression.
 """
 
 import pytest
-from agent.transports.chat_completions import ChatCompletionsTransport
+from brain.transports.chat_completions import ChatCompletionsTransport
 from providers import get_provider_profile
 
 
@@ -199,9 +199,9 @@ class TestNousParity:
     """Nous: product tags, reasoning, omit when disabled."""
 
     def test_tags(self, transport):
-        from agent.portal_tags import nous_portal_tags
+        from brain.portal_tags import nous_portal_tags
         kw = transport.build_kwargs(
-            model="hermes-3-llama-3.1-405b",
+            model="jarvis-3-llama-3.1-405b",
             messages=_simple_messages(),
             tools=None,
             provider_profile=get_provider_profile("nous"),
@@ -211,7 +211,7 @@ class TestNousParity:
     def test_reasoning_omitted_when_disabled(self, transport):
         """Nous special case: reasoning omitted entirely when disabled."""
         kw = transport.build_kwargs(
-            model="hermes-3-llama-3.1-405b",
+            model="jarvis-3-llama-3.1-405b",
             messages=_simple_messages(),
             tools=None,
             provider_profile=get_provider_profile("nous"),
@@ -223,7 +223,7 @@ class TestNousParity:
     def test_reasoning_enabled(self, transport):
         rc = {"enabled": True, "effort": "high"}
         kw = transport.build_kwargs(
-            model="hermes-3-llama-3.1-405b",
+            model="jarvis-3-llama-3.1-405b",
             messages=_simple_messages(),
             tools=None,
             provider_profile=get_provider_profile("nous"),

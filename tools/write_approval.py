@@ -26,7 +26,7 @@ This module lets the user gate those writes per-subsystem with a boolean
 The size asymmetry between memory and skills is real and unavoidable: a memory
 entry can be reviewed inline in a chat bubble; a 100 KB SKILL.md cannot. So
 the gate stages BOTH to disk, but review affordances differ by subsystem
-(see ``hermes_cli`` slash handlers): memory shows full content, skills show
+(see ``jarvis_cli`` slash handlers): memory shows full content, skills show
 metadata + a one-line gist + a ``diff`` escape hatch (CLI/dashboard/file).
 
 Staging is mandatory for background-origin writes (a daemon thread cannot
@@ -35,7 +35,7 @@ channel — review happens via ``/memory pending``). Foreground CLI memory
 writes prompt inline via the dangerous-command approval callback; skill
 writes always stage (too big to eyeball mid-loop).
 
-Pending records live under ``<HERMES_HOME>/pending/{memory,skills}/<id>.json``
+Pending records live under ``<JARVIS_HOME>/pending/{memory,skills}/<id>.json``
 so they survive process restarts and can be reviewed from CLI, gateway, or the
 web dashboard.
 """
@@ -50,7 +50,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from hermes_constants import get_hermes_home
+from jarvis_constants import get_jarvis_home
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ def write_approval_enabled(subsystem: str) -> bool:
     if subsystem not in _SUBSYSTEMS:
         return False
     try:
-        from hermes_cli.config import load_config, cfg_get
+        from jarvis_cli.config import load_config, cfg_get
         cfg = load_config()
         raw = cfg_get(cfg, subsystem, CONFIG_KEY, default=False)
     except Exception:
@@ -108,7 +108,7 @@ def _normalize_enabled(value: Any) -> bool:
 # ---------------------------------------------------------------------------
 
 def _pending_dir(subsystem: str) -> Path:
-    return get_hermes_home() / "pending" / subsystem
+    return get_jarvis_home() / "pending" / subsystem
 
 
 def stage_write(subsystem: str, payload: Dict[str, Any],
@@ -209,7 +209,7 @@ def current_origin() -> str:
 
     Reuses the skill-provenance ContextVar, which the background review fork
     already sets (see ``agent.background_review`` /
-    ``AIAgent._spawn_background_review``). Foreground agent turns leave it at
+    ``AIBrain._spawn_background_review``). Foreground agent turns leave it at
     the default ``foreground``.
     """
     try:

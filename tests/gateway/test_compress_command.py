@@ -77,8 +77,8 @@ async def test_compress_command_reports_noop_without_success_banner():
     with (
         patch("gateway.run._resolve_runtime_agent_kwargs", return_value={"api_key": "test-key"}),
         patch("gateway.run._resolve_gateway_model", return_value="test-model"),
-        patch("run_agent.AIAgent", return_value=agent_instance),
-        patch("agent.model_metadata.estimate_request_tokens_rough", side_effect=_estimate),
+        patch("run_brain.AIBrain", return_value=agent_instance),
+        patch("brain.model_metadata.estimate_request_tokens_rough", side_effect=_estimate),
     ):
         result = await runner._handle_compress_command(_make_event())
 
@@ -117,8 +117,8 @@ async def test_compress_command_explains_when_token_estimate_rises():
     with (
         patch("gateway.run._resolve_runtime_agent_kwargs", return_value={"api_key": "test-key"}),
         patch("gateway.run._resolve_gateway_model", return_value="test-model"),
-        patch("run_agent.AIAgent", return_value=agent_instance),
-        patch("agent.model_metadata.estimate_request_tokens_rough", side_effect=_estimate),
+        patch("run_brain.AIBrain", return_value=agent_instance),
+        patch("brain.model_metadata.estimate_request_tokens_rough", side_effect=_estimate),
     ):
         result = await runner._handle_compress_command(_make_event())
 
@@ -167,8 +167,8 @@ async def test_compress_command_appends_warning_when_compression_aborts():
     with (
         patch("gateway.run._resolve_runtime_agent_kwargs", return_value={"api_key": "***"}),
         patch("gateway.run._resolve_gateway_model", return_value="test-model"),
-        patch("run_agent.AIAgent", return_value=agent_instance),
-        patch("agent.model_metadata.estimate_request_tokens_rough", side_effect=_estimate),
+        patch("run_brain.AIBrain", return_value=agent_instance),
+        patch("brain.model_metadata.estimate_request_tokens_rough", side_effect=_estimate),
     ):
         result = await runner._handle_compress_command(_make_event())
 
@@ -229,8 +229,8 @@ async def test_compress_command_surfaces_aux_model_failure_even_when_recovered()
     with (
         patch("gateway.run._resolve_runtime_agent_kwargs", return_value={"api_key": "***"}),
         patch("gateway.run._resolve_gateway_model", return_value="test-model"),
-        patch("run_agent.AIAgent", return_value=agent_instance),
-        patch("agent.model_metadata.estimate_request_tokens_rough", side_effect=_estimate),
+        patch("run_brain.AIBrain", return_value=agent_instance),
+        patch("brain.model_metadata.estimate_request_tokens_rough", side_effect=_estimate),
     ):
         result = await runner._handle_compress_command(_make_event())
 

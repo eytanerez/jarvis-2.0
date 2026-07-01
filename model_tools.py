@@ -5,7 +5,7 @@ Model Tools Module
 Thin orchestration layer over the tool registry. Each tool file in tools/
 self-registers its schema, handler, and metadata via tools.registry.register().
 This module triggers discovery (by importing all tool modules), then provides
-the public API that run_agent.py, cli.py, batch_runner.py, and the RL
+the public API that run_brain.py, cli.py, batch_runner.py, and the RL
 environments consume.
 
 Public API (signatures preserved from the original 2,400-line version):
@@ -188,13 +188,13 @@ discover_builtin_tools()
 #
 # Each entry point now runs discovery explicitly at its own startup:
 #   - gateway/run.py            -> start_gateway() uses run_in_executor
-#   - cli.py, hermes_cli/*      -> inline on startup (no event loop)
+#   - cli.py, jarvis_cli/*      -> inline on startup (no event loop)
 #   - tui_gateway/server.py     -> inline on startup (no event loop)
 #   - acp_adapter/server.py     -> asyncio.to_thread on session init
 
 # Plugin tool discovery (user/project/pip plugins)
 try:
-    from hermes_cli.plugins import discover_plugins
+    from jarvis_cli.plugins import discover_plugins
     discover_plugins()
 except Exception as e:
     logger.debug("Plugin discovery failed: %s", e)
@@ -242,7 +242,7 @@ _LEGACY_TOOLSET_MAP = {
 
 # Module-level memoization for get_tool_definitions(). Keyed on
 # (frozenset(enabled_toolsets), frozenset(disabled_toolsets), registry._generation).
-# Hot callers (gateway runner, AIAgent.__init__) invoke this on every turn
+# Hot callers (gateway runner, AIBrain.__init__) invoke this on every turn
 # with quiet_mode=True; caching avoids ~7 ms of registry walking + schema
 # filtering + check_fn probing per call. Only active when quiet_mode=True
 # because quiet_mode=False has stdout side effects (tool-selection prints).
@@ -303,7 +303,7 @@ def get_tool_definitions(
     # invalidate hook on every config-writer.
     if quiet_mode:
         try:
-            from hermes_cli.config import get_config_path
+            from jarvis_cli.config import get_config_path
             cfg_path = get_config_path()
             cfg_stat = cfg_path.stat()
             cfg_fp = (cfg_stat.st_mtime_ns, cfg_stat.st_size)
@@ -314,7 +314,7 @@ def get_tool_definitions(
             frozenset(disabled_toolsets) if disabled_toolsets else None,
             registry._generation,
             cfg_fp,
-            bool(os.environ.get("HERMES_KANBAN_TASK")),
+            bool(os.environ.get("JARVIS_KANBAN_TASK")),
             bool(skip_tool_search_assembly),
         )
         cached = _tool_defs_cache.get(cache_key)
@@ -331,7 +331,7 @@ def get_tool_definitions(
                                        skip_tool_search_assembly=skip_tool_search_assembly)
     if quiet_mode:
         # Cache the freshly-computed list, but hand callers a shallow copy so
-        # downstream mutations (e.g. run_agent appending memory/LCM tool
+        # downstream mutations (e.g. run_brain appending memory/LCM tool
         # schemas to self.tools) don't poison the cache. Without this, a
         # long-lived Gateway process accumulates duplicate tool names across
         # agent inits and providers that enforce unique tool names
@@ -359,8 +359,8 @@ def _compute_tool_definitions(
 
     if enabled_toolsets is not None:
         effective_enabled_toolsets = list(enabled_toolsets)
-        if os.environ.get("HERMES_KANBAN_TASK") and "kanban" not in effective_enabled_toolsets:
-            # Dispatcher-spawned workers are scoped by HERMES_KANBAN_TASK and
+        if os.environ.get("JARVIS_KANBAN_TASK") and "kanban" not in effective_enabled_toolsets:
+            # Dispatcher-spawned workers are scoped by JARVIS_KANBAN_TASK and
             # must always receive the lifecycle handoff tools. Assignee
             # profiles may intentionally restrict their normal chat toolsets
             # (for token/cost reasons), but that should not strip the kanban
@@ -386,7 +386,7 @@ def _compute_tool_definitions(
             tools_to_include.update(resolve_toolset(ts_name))
 
     # Always apply disabled toolsets as a subtraction step at the end.
-    # This ensures that even if a composite toolset (like hermes-cli)
+    # This ensures that even if a composite toolset (like jarvis-cli)
     # is enabled, any tools belonging to a disabled toolset are strictly
     # stripped out. See issue #17309.
     if disabled_toolsets:
@@ -507,7 +507,7 @@ def _compute_tool_definitions(
     # Conditionally replace MCP + plugin (non-core) tools with three bridge
     # tools (tool_search / tool_describe / tool_call) when the deferrable
     # surface exceeds the configured threshold (default 10% of context
-    # window). Core Hermes tools (toolsets._HERMES_CORE_TOOLS) are NEVER
+    # window). Core Jarvis tools (toolsets._JARVIS_CORE_TOOLS) are NEVER
     # deferred. See tools/tool_search.py for full design notes.
     #
     # This is deliberately the last step before returning — sanitization
@@ -543,7 +543,7 @@ def _resolve_active_context_length() -> int:
     back to a fixed token cutoff in that case.
     """
     try:
-        from hermes_cli.config import load_config as _load
+        from jarvis_cli.config import load_config as _load
         cfg = _load() or {}
         model_cfg = cfg.get("model") if isinstance(cfg.get("model"), dict) else {}
         if not isinstance(model_cfg, dict):
@@ -551,7 +551,7 @@ def _resolve_active_context_length() -> int:
         model_id = (model_cfg.get("model") or model_cfg.get("default") or "").strip()
         if not model_id:
             return 0
-        from agent.model_metadata import get_model_context_length
+        from brain.model_metadata import get_model_context_length
         return int(get_model_context_length(model_id) or 0)
     except Exception as e:
         logger.debug("Could not resolve active context length: %s", e)
@@ -562,7 +562,7 @@ def _resolve_active_context_length() -> int:
 # handle_function_call  (the main dispatcher)
 # =============================================================================
 
-# Tools whose execution is intercepted by the agent loop (run_agent.py)
+# Tools whose execution is intercepted by the agent loop (run_brain.py)
 # because they need agent-level state (TodoStore, MemoryStore, etc.).
 # The registry still holds their schemas; dispatch just returns a stub error
 # so if something slips through, the LLM sees a sensible message.
@@ -848,7 +848,7 @@ def _emit_post_tool_call_hook(
     listener will actually consume it).
     """
     try:
-        from hermes_cli.plugins import has_hook, invoke_hook
+        from jarvis_cli.plugins import has_hook, invoke_hook
         if not has_hook("post_tool_call"):
             return
         if status is None:
@@ -997,7 +997,7 @@ def handle_function_call(
     _tool_original_args = dict(function_args)
     if not skip_tool_request_middleware:
         try:
-            from hermes_cli.middleware import apply_tool_request_middleware
+            from jarvis_cli.middleware import apply_tool_request_middleware
 
             _tool_request_mw = apply_tool_request_middleware(
                 function_name,
@@ -1019,7 +1019,7 @@ def handle_function_call(
             return json.dumps({"error": f"{function_name} must be handled by the agent loop"})
 
         # Check plugin hooks for a block directive (unless caller already
-        # checked — e.g. run_agent._invoke_tool passes skip=True to
+        # checked — e.g. run_brain._invoke_tool passes skip=True to
         # avoid double-firing the hook).
         #
         # Single-fire contract: pre_tool_call fires exactly once per tool
@@ -1031,7 +1031,7 @@ def handle_function_call(
         if not skip_pre_tool_call_hook:
             block_message: Optional[str] = None
             try:
-                from hermes_cli.plugins import get_pre_tool_call_block_message
+                from jarvis_cli.plugins import get_pre_tool_call_block_message
                 block_message = get_pre_tool_call_block_message(
                     function_name,
                     function_args,
@@ -1126,7 +1126,7 @@ def handle_function_call(
                         session_id=session_id,
                         user_task=user_task,
                     )
-            from hermes_cli.middleware import run_tool_execution_middleware
+            from jarvis_cli.middleware import run_tool_execution_middleware
 
             result = run_tool_execution_middleware(
                 function_name,
@@ -1169,7 +1169,7 @@ def handle_function_call(
         # Gated on has_hook so the no-listener path skips both the result
         # field derivation and the payload dispatch.
         try:
-            from hermes_cli.plugins import has_hook, invoke_hook
+            from jarvis_cli.plugins import has_hook, invoke_hook
             if has_hook("transform_tool_result"):
                 status, error_type, error_message = _tool_result_observer_fields(result)
                 hook_results = invoke_hook(

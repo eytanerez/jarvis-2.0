@@ -7,7 +7,7 @@ canonical implementation.
 
 The ``ddgs`` package is an optional dependency. ``is_available()`` reflects
 whether the package is importable; the plugin still registers either way so
-``hermes tools`` can prompt the user to install it.
+``jarvis tools`` can prompt the user to install it.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-from agent.web_search_provider import WebSearchProvider
+from brain.web_search_provider import WebSearchProvider
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class DDGSWebSearchProvider(WebSearchProvider):
 
         Probes the import once; cheap because Python caches the import. Must
         NOT perform network I/O — runs at tool-registration time and on every
-        ``hermes tools`` paint.
+        ``jarvis tools`` paint.
         """
         try:
             import ddgs  # noqa: F401

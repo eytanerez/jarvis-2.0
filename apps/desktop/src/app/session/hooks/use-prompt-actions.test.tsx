@@ -6,11 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { textPart } from '@/lib/chat-messages'
 import { $composerAttachments, type ComposerAttachment } from '@/store/composer'
 import { $busy, $connection, $messages, $sessions, setSessions } from '@/store/session'
-import type { SessionInfo } from '@/types/hermes'
+import type { SessionInfo } from '@/types/jarvis'
 
 import { uploadComposerAttachment, usePromptActions } from './use-prompt-actions'
 
-vi.mock('@/hermes', () => ({
+vi.mock('@/jarvis', () => ({
   getProfiles: vi.fn(async () => ({ profiles: [] })),
   setApiRequestProfile: vi.fn(),
   transcribeAudio: vi.fn()
@@ -46,10 +46,7 @@ interface HarnessHandle {
   cancelRun: () => Promise<void>
   restoreToMessage: (messageId: string) => Promise<void>
   steerPrompt: (text: string) => Promise<boolean>
-  submitText: (
-    text: string,
-    options?: { attachments?: ComposerAttachment[]; fromQueue?: boolean }
-  ) => Promise<boolean>
+  submitText: (text: string, options?: { attachments?: ComposerAttachment[]; fromQueue?: boolean }) => Promise<boolean>
 }
 
 function Harness({
@@ -130,8 +127,8 @@ describe('usePromptActions /title', () => {
 
   it('renames via the session.title RPC (with the runtime id), updates the sidebar store, and refreshes', async () => {
     const refreshSessions = vi.fn(async () => undefined)
-    const requestGateway = vi.fn(async (method: string) =>
-      (method === 'session.title' ? { pending: false, title: 'New title' } : {}) as never
+    const requestGateway = vi.fn(
+      async (method: string) => (method === 'session.title' ? { pending: false, title: 'New title' } : {}) as never
     )
 
     let handle: HarnessHandle | null = null
@@ -153,8 +150,8 @@ describe('usePromptActions /title', () => {
 
   it('reports the queued state when the session row is not persisted yet', async () => {
     const refreshSessions = vi.fn(async () => undefined)
-    const requestGateway = vi.fn(async (method: string) =>
-      (method === 'session.title' ? { pending: true, title: 'Fresh chat' } : {}) as never
+    const requestGateway = vi.fn(
+      async (method: string) => (method === 'session.title' ? { pending: true, title: 'Fresh chat' } : {}) as never
     )
 
     let handle: HarnessHandle | null = null
@@ -199,7 +196,10 @@ describe('usePromptActions /title', () => {
 
     await handle!.submitText('/title way too long title')
 
-    expect(requestGateway).toHaveBeenCalledWith('session.title', expect.objectContaining({ title: 'way too long title' }))
+    expect(requestGateway).toHaveBeenCalledWith(
+      'session.title',
+      expect.objectContaining({ title: 'way too long title' })
+    )
     expect(refreshSessions).not.toHaveBeenCalled()
     expect($sessions.get()[0]?.title).toBe('Old title')
   })
@@ -250,7 +250,9 @@ describe('usePromptActions desktop slash pickers', () => {
     })
 
     let handle: HarnessHandle | null = null
-    render(<Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />)
+    render(
+      <Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />
+    )
 
     const result = handle!.submitText('/handoff telegram')
     await vi.advanceTimersByTimeAsync(61_000)
@@ -431,7 +433,9 @@ describe('usePromptActions steerPrompt', () => {
     const requestGateway = vi.fn(async () => ({ status: 'queued' }) as never)
 
     let handle: HarnessHandle | null = null
-    render(<Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />)
+    render(
+      <Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />
+    )
 
     const accepted = await handle!.steerPrompt('  nudge the run  ')
 
@@ -448,7 +452,9 @@ describe('usePromptActions steerPrompt', () => {
     const requestGateway = vi.fn(async () => ({ status: 'rejected' }) as never)
 
     let handle: HarnessHandle | null = null
-    render(<Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />)
+    render(
+      <Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />
+    )
 
     expect(await handle!.steerPrompt('too late')).toBe(false)
   })
@@ -459,7 +465,9 @@ describe('usePromptActions steerPrompt', () => {
     })
 
     let handle: HarnessHandle | null = null
-    render(<Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />)
+    render(
+      <Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />
+    )
 
     expect(await handle!.steerPrompt('boom')).toBe(false)
   })
@@ -468,7 +476,9 @@ describe('usePromptActions steerPrompt', () => {
     const requestGateway = vi.fn(async () => ({ status: 'queued' }) as never)
 
     let handle: HarnessHandle | null = null
-    render(<Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />)
+    render(
+      <Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />
+    )
 
     expect(await handle!.steerPrompt('   ')).toBe(false)
     expect(requestGateway).not.toHaveBeenCalled()
@@ -585,7 +595,9 @@ describe('usePromptActions restoreToMessage', () => {
     const requestGateway = vi.fn(async () => ({}) as never)
 
     let handle: HarnessHandle | null = null
-    render(<Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />)
+    render(
+      <Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />
+    )
 
     await handle!.restoreToMessage('a1')
     await handle!.restoreToMessage('missing')
@@ -617,7 +629,7 @@ describe('usePromptActions file attachment sync', () => {
     // not the original /Users/... path (which would dead-end as "outside the
     // allowed workspace").
     $connection.set({ mode: 'remote' } as never)
-    Object.defineProperty(window, 'hermesDesktop', {
+    Object.defineProperty(window, 'jarvisDesktop', {
       configurable: true,
       value: { readFileDataUrl: vi.fn(async () => 'data:text/plain;base64,aGVsbG8=') }
     })
@@ -628,8 +640,8 @@ describe('usePromptActions file attachment sync', () => {
       if (method === 'file.attach') {
         return {
           attached: true,
-          path: '/remote/work/.hermes/desktop-attachments/report.txt',
-          ref_text: '@file:.hermes/desktop-attachments/report.txt',
+          path: '/remote/work/.jarvis/desktop-attachments/report.txt',
+          ref_text: '@file:.jarvis/desktop-attachments/report.txt',
           uploaded: true
         } as never
       }
@@ -637,7 +649,9 @@ describe('usePromptActions file attachment sync', () => {
     })
 
     let handle: HarnessHandle | null = null
-    render(<Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />)
+    render(
+      <Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />
+    )
 
     const ok = await handle!.submitText('convert this to epub', { attachments: [fileAttachment()] })
 
@@ -651,7 +665,7 @@ describe('usePromptActions file attachment sync', () => {
     })
     expect(calls[1]?.params).toEqual({
       session_id: RUNTIME_SESSION_ID,
-      text: '@file:.hermes/desktop-attachments/report.txt\n\nconvert this to epub'
+      text: '@file:.jarvis/desktop-attachments/report.txt\n\nconvert this to epub'
     })
   })
 
@@ -667,7 +681,7 @@ describe('usePromptActions file attachment sync', () => {
     // path-less inline ref. See partitionDroppedFiles in use-composer-actions.
     $connection.set({ mode: 'remote' } as never)
     const readFileDataUrl = vi.fn(async () => 'data:application/pdf;base64,JVBERi0=')
-    Object.defineProperty(window, 'hermesDesktop', {
+    Object.defineProperty(window, 'jarvisDesktop', {
       configurable: true,
       value: { readFileDataUrl }
     })
@@ -687,7 +701,9 @@ describe('usePromptActions file attachment sync', () => {
     })
 
     let handle: HarnessHandle | null = null
-    render(<Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />)
+    render(
+      <Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />
+    )
 
     const ok = await handle!.submitText('read this file', { attachments: [pathlessRef] })
 
@@ -711,7 +727,9 @@ describe('usePromptActions file attachment sync', () => {
     })
 
     let handle: HarnessHandle | null = null
-    render(<Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />)
+    render(
+      <Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />
+    )
 
     const ok = await handle!.submitText('summarize', { attachments: [fileAttachment()] })
 
@@ -742,10 +760,10 @@ describe('usePromptActions eager-upload races', () => {
   it('joins an in-flight eager upload at submit instead of staging the file twice', async () => {
     // Drop-then-immediately-Enter: the drop kicks off an eager file.attach; if
     // submit doesn't join it, both calls stage the file and leave a duplicate
-    // under .hermes/desktop-attachments/. Submit must await the in-flight upload
+    // under .jarvis/desktop-attachments/. Submit must await the in-flight upload
     // and reuse its gateway-side ref.
     $connection.set({ mode: 'remote' } as never)
-    Object.defineProperty(window, 'hermesDesktop', {
+    Object.defineProperty(window, 'jarvisDesktop', {
       configurable: true,
       value: { readFileDataUrl: vi.fn(async () => 'data:application/pdf;base64,JVBERi0=') }
     })
@@ -759,13 +777,15 @@ describe('usePromptActions eager-upload races', () => {
         await new Promise<void>(resolve => {
           releaseAttach = resolve
         })
-        return { attached: true, ref_text: '@file:.hermes/desktop-attachments/doc.pdf', uploaded: true } as never
+        return { attached: true, ref_text: '@file:.jarvis/desktop-attachments/doc.pdf', uploaded: true } as never
       }
       return {} as never
     })
 
     let handle: HarnessHandle | null = null
-    render(<Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />)
+    render(
+      <Harness onReady={h => (handle = h)} refreshSessions={async () => undefined} requestGateway={requestGateway} />
+    )
     await waitFor(() => expect(handle).not.toBeNull())
 
     // Drop a file → the eager effect fires file.attach and blocks on it.
@@ -940,13 +960,17 @@ describe('usePromptActions eager attachment upload (drop-time)', () => {
     // waiting for submit.
     $connection.set({ mode: 'remote' } as never)
     const readFileDataUrl = vi.fn(async () => 'data:application/pdf;base64,JVBERi0=')
-    Object.defineProperty(window, 'hermesDesktop', { configurable: true, value: { readFileDataUrl } })
+    Object.defineProperty(window, 'jarvisDesktop', { configurable: true, value: { readFileDataUrl } })
 
     const calls: string[] = []
     const requestGateway = vi.fn(async (method: string) => {
       calls.push(method)
       if (method === 'file.attach') {
-        return { attached: true, ref_text: '@file:.hermes/desktop-attachments/DEVIS_signed.pdf', uploaded: true } as never
+        return {
+          attached: true,
+          ref_text: '@file:.jarvis/desktop-attachments/DEVIS_signed.pdf',
+          uploaded: true
+        } as never
       }
       return {} as never
     })
@@ -955,20 +979,22 @@ describe('usePromptActions eager attachment upload (drop-time)', () => {
       { id: 'file:devis', kind: 'file', label: 'DEVIS_signed.pdf', path: '/Users/mahmoud/Downloads/DEVIS_signed.pdf' }
     ])
 
-    render(<Harness onReady={() => undefined} refreshSessions={async () => undefined} requestGateway={requestGateway} />)
+    render(
+      <Harness onReady={() => undefined} refreshSessions={async () => undefined} requestGateway={requestGateway} />
+    )
 
     await waitFor(() => expect(calls).toContain('file.attach'))
     await waitFor(() => expect($composerAttachments.get()[0]?.attachedSessionId).toBe(RUNTIME_SESSION_ID))
 
     const chip = $composerAttachments.get()[0]!
-    expect(chip.refText).toBe('@file:.hermes/desktop-attachments/DEVIS_signed.pdf')
+    expect(chip.refText).toBe('@file:.jarvis/desktop-attachments/DEVIS_signed.pdf')
     expect(chip.uploadState).toBeUndefined()
     expect(readFileDataUrl).toHaveBeenCalledWith('/Users/mahmoud/Downloads/DEVIS_signed.pdf')
   })
 
   it('flags the chip uploadState=error when the eager upload fails, keeping the path so submit can retry', async () => {
     $connection.set({ mode: 'remote' } as never)
-    Object.defineProperty(window, 'hermesDesktop', {
+    Object.defineProperty(window, 'jarvisDesktop', {
       configurable: true,
       value: { readFileDataUrl: vi.fn(async () => 'data:application/pdf;base64,JVBERi0=') }
     })
@@ -982,7 +1008,9 @@ describe('usePromptActions eager attachment upload (drop-time)', () => {
 
     $composerAttachments.set([{ id: 'file:x', kind: 'file', label: 'x.pdf', path: '/abs/x.pdf' }])
 
-    render(<Harness onReady={() => undefined} refreshSessions={async () => undefined} requestGateway={requestGateway} />)
+    render(
+      <Harness onReady={() => undefined} refreshSessions={async () => undefined} requestGateway={requestGateway} />
+    )
 
     await waitFor(() => expect($composerAttachments.get()[0]?.uploadState).toBe('error'))
     expect($composerAttachments.get()[0]?.attachedSessionId).toBeUndefined()
@@ -1004,7 +1032,9 @@ describe('usePromptActions eager attachment upload (drop-time)', () => {
       }
     ])
 
-    render(<Harness onReady={() => undefined} refreshSessions={async () => undefined} requestGateway={requestGateway} />)
+    render(
+      <Harness onReady={() => undefined} refreshSessions={async () => undefined} requestGateway={requestGateway} />
+    )
 
     await Promise.resolve()
     expect(requestGateway).not.toHaveBeenCalledWith('file.attach', expect.anything())
@@ -1019,7 +1049,7 @@ describe('uploadComposerAttachment remote read failures', () => {
   it('turns the raw 16MB IPC cap error into a friendly remote-gateway message', async () => {
     // electron/hardening.cjs rejects the readFileDataUrl IPC with this exact
     // shape when a file exceeds DATA_URL_READ_MAX_BYTES.
-    Object.defineProperty(window, 'hermesDesktop', {
+    Object.defineProperty(window, 'jarvisDesktop', {
       configurable: true,
       value: {
         readFileDataUrl: vi.fn(async () => {
@@ -1042,7 +1072,7 @@ describe('uploadComposerAttachment remote read failures', () => {
   })
 
   it('passes non-cap read errors through unchanged', async () => {
-    Object.defineProperty(window, 'hermesDesktop', {
+    Object.defineProperty(window, 'jarvisDesktop', {
       configurable: true,
       value: {
         readFileDataUrl: vi.fn(async () => {

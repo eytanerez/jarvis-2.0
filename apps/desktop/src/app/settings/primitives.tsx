@@ -24,9 +24,9 @@ export function Pill({ tone = 'muted', children }: { tone?: 'muted' | 'primary';
 
 export function SectionHeading({ icon: Icon, title, meta }: { icon: IconComponent; title: string; meta?: string }) {
   return (
-    <div className="mb-2.5 flex items-center gap-2 pt-2 text-[length:var(--conversation-text-font-size)] font-medium">
-      <Icon className="size-4 text-muted-foreground" />
-      <span>{title}</span>
+    <div className="mb-2.5 flex items-center gap-2 pt-2 text-[length:var(--conversation-text-font-size)] font-medium text-(--ui-text-primary)">
+      <Icon className="size-4 text-(--jarvis-blue)" />
+      <span className="jarvis-tech text-[0.7rem] text-(--ui-text-secondary)">{title}</span>
       {meta && <Pill>{meta}</Pill>}
     </div>
   )
@@ -48,8 +48,8 @@ export function NavLink({
       className={cn(
         'flex min-h-7 w-full justify-start gap-2 rounded-md px-2 text-left text-[length:var(--conversation-text-font-size)] transition',
         active
-          ? 'bg-(--ui-bg-tertiary) text-foreground'
-          : 'text-(--ui-text-secondary) hover:bg-(--chrome-action-hover) hover:text-foreground'
+          ? 'border-[color-mix(in_srgb,var(--jarvis-blue)_42%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,var(--ui-bg-tertiary))] text-white'
+          : 'text-(--ui-text-secondary) hover:bg-(--chrome-action-hover) hover:text-white'
       )}
       onClick={onClick}
       size="sm"
@@ -85,13 +85,15 @@ export function ListRow({
       )}
     >
       <div className="min-w-0">
-        <div className="text-[length:var(--conversation-text-font-size)] font-medium text-foreground">{title}</div>
+        <div className="text-[length:var(--conversation-text-font-size)] font-medium text-(--ui-text-primary)">
+          {title}
+        </div>
         {description && (
           <div className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
             {description}
           </div>
         )}
-        {hint && <div className="mt-1 block font-mono text-[0.68rem] text-muted-foreground/45">{hint}</div>}
+        {hint && <div className="mt-1 block font-mono text-[0.68rem] text-(--ui-text-quaternary)">{hint}</div>}
         {below}
       </div>
       {action && <div className={cn('min-w-0', !wide && 'sm:justify-self-end')}>{action}</div>}
@@ -106,9 +108,9 @@ export function LoadingState({ label }: { label: string }) {
 export function EmptyState({ title, description }: { title: string; description: string }) {
   return (
     <div className="grid min-h-48 place-items-center text-center">
-      <div>
-        <div className="text-sm font-medium">{title}</div>
-        <div className="mt-1 text-xs text-muted-foreground">{description}</div>
+      <div className="rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_54%,transparent)] bg-[color-mix(in_srgb,var(--dt-card)_42%,transparent)] px-6 py-5">
+        <div className="text-sm font-medium text-(--ui-text-primary)">{title}</div>
+        <div className="mt-1 text-xs text-(--ui-text-tertiary)">{description}</div>
       </div>
     </div>
   )

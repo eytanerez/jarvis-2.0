@@ -15,7 +15,7 @@ from unittest.mock import mock_open, patch
 
 
 def _import_cli():
-    import hermes_cli.config as config_mod
+    import jarvis_cli.config as config_mod
 
     if not hasattr(config_mod, "save_env_value_secure"):
         config_mod.save_env_value_secure = lambda key, value: {
@@ -177,10 +177,10 @@ class TestRunCleanupWiring(unittest.TestCase):
                 ),
                 patch("tools.mcp_tool.shutdown_mcp_servers", lambda *a, **k: None),
                 patch(
-                    "agent.auxiliary_client.shutdown_cached_clients",
+                    "brain.auxiliary_client.shutdown_cached_clients",
                     lambda *a, **k: None,
                 ),
-                patch("hermes_cli.plugins.invoke_hook", lambda *a, **k: None),
+                patch("jarvis_cli.plugins.invoke_hook", lambda *a, **k: None),
             ):
                 if extra_patches.get("terminals_raise"):
                     with patch.object(

@@ -8,8 +8,8 @@ the runtime actually finds the catalogs after a real pip install.
 This lives in tests/ (NOT tests/e2e/) so it is collected by the dedicated CI
 step in Task 9, not by the existing `python -m pytest tests/e2e/` runner.
 
-Assumption: `from agent import i18n` must import with only stdlib + pyyaml
-available (the test installs the wheel --no-deps + pyyaml). agent/__init__.py's
+Assumption: `from brain import i18n` must import with only stdlib + pyyaml
+available (the test installs the wheel --no-deps + pyyaml). brain/__init__.py's
 jiter preload swallows ImportError, and i18n.py imports yaml lazily inside
 _load_catalog, so this holds today. If i18n.py ever gains a top-level non-stdlib
 import, add it to the pip install line below.
@@ -64,9 +64,9 @@ def test_installed_wheel_renders_i18n_strings(tmp_path):
     )
 
     # 3. Run from a directory that is NOT the source tree, with a clean env
-    #    (no PYTHONPATH leaking the repo, no HERMES_BUNDLED_LOCALES).
+    #    (no PYTHONPATH leaking the repo, no JARVIS_BUNDLED_LOCALES).
     probe = (
-        "from agent import i18n;"
+        "from brain import i18n;"
         "import sys;"
         "r = i18n.t('gateway.reset.header_default', lang='en');"
         "s = i18n.t('gateway.status.header', lang='en');"
@@ -74,7 +74,7 @@ def test_installed_wheel_renders_i18n_strings(tmp_path):
         "sys.exit(0 if (r != 'gateway.reset.header_default' "
         "and s != 'gateway.status.header') else 1)"
     )
-    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "HERMES_BUNDLED_LOCALES")}
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "JARVIS_BUNDLED_LOCALES")}
     env["PATH"] = f"{venv_dir / 'bin'}:{env['PATH']}"
     env["VIRTUAL_ENV"] = str(venv_dir)
     run = subprocess.run(
@@ -118,13 +118,13 @@ def test_built_sdist_ships_locale_catalogs(tmp_path):
 
     with tarfile.open(tarballs[0]) as tf:
         # Members are prefixed with the sdist root dir, e.g.
-        # hermes_agent-0.15.1/locales/en.yaml — match on the suffix.
+        # jarvis_agent-0.15.1/locales/en.yaml — match on the suffix.
         catalogs = [m for m in tf.getnames() if "/locales/" in m and m.endswith(".yaml")]
 
     # Compare against the canonical language list rather than a hardcoded floor
     # so adding/removing a catalog updates the guard automatically and a dropped
     # catalog (not just a fully-empty graft) trips it.
-    from agent.i18n import SUPPORTED_LANGUAGES
+    from brain.i18n import SUPPORTED_LANGUAGES
 
     expected = len(SUPPORTED_LANGUAGES)
     assert len(catalogs) == expected, (

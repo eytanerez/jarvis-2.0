@@ -9,7 +9,7 @@ Fix: Add [A-Za-z]:[/\\\\] as a third anchor alternative in both patterns.
 
 Two identical _TOOL_MEDIA_RE patterns exist in run.py:
 1. History scanning (~L17223): collects already-seen media paths
-2. Result scanning (~L17549): extracts new media tags from agent output
+2. Result scanning (~L17549): extracts new media tags from brain output
 
 This test file validates that both equivalent regex patterns correctly match
 Windows paths while preserving existing Unix path matching behavior.

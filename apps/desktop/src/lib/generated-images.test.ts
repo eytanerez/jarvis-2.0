@@ -12,11 +12,11 @@ describe('generatedImageFromResult', () => {
     expect(
       generatedImageFromResult({
         agent_visible_image: '/container/cache/cat.png',
-        host_image: '/Users/me/.hermes/cache/images/cat.png',
-        image: '/Users/me/.hermes/cache/images/cat.png',
+        host_image: '/Users/me/.jarvis/cache/images/cat.png',
+        image: '/Users/me/.jarvis/cache/images/cat.png',
         success: true
       })
-    ).toBe('/Users/me/.hermes/cache/images/cat.png')
+    ).toBe('/Users/me/.jarvis/cache/images/cat.png')
   })
 
   it('ignores failed image generation results', () => {
@@ -34,9 +34,9 @@ describe('stripGeneratedImageEchoes', () => {
   })
 
   it('removes media links for generated local image paths', () => {
-    expect(
-      stripGeneratedImageEchoes('Saved image: [Image: cat.png](#media:%2Ftmp%2Fcat.png)', ['/tmp/cat.png'])
-    ).toBe('Saved image:')
+    expect(stripGeneratedImageEchoes('Saved image: [Image: cat.png](#media:%2Ftmp%2Fcat.png)', ['/tmp/cat.png'])).toBe(
+      'Saved image:'
+    )
   })
 })
 
@@ -45,7 +45,12 @@ describe('generatedImageEchoSources', () => {
     expect(
       generatedImageEchoSources([
         {
-          result: { agent_visible_image: '/sandbox/cat.png', host_image: '/host/cat.png', image: '/host/cat.png', success: true },
+          result: {
+            agent_visible_image: '/sandbox/cat.png',
+            host_image: '/host/cat.png',
+            image: '/host/cat.png',
+            success: true
+          },
           toolName: 'image_generate',
           type: 'tool-call'
         }
@@ -59,11 +64,19 @@ describe('dedupeGeneratedImageEchoesInParts', () => {
     expect(
       dedupeGeneratedImageEchoesInParts([
         { text: 'Here is your peacock! ![peacock](/host/p.png) Enjoy.', type: 'text' },
-        { result: { host_image: '/host/p.png', image: '/host/p.png', success: true }, toolName: 'image_generate', type: 'tool-call' }
+        {
+          result: { host_image: '/host/p.png', image: '/host/p.png', success: true },
+          toolName: 'image_generate',
+          type: 'tool-call'
+        }
       ])
     ).toEqual([
       { text: 'Here is your peacock! Enjoy.', type: 'text' },
-      { result: { host_image: '/host/p.png', image: '/host/p.png', success: true }, toolName: 'image_generate', type: 'tool-call' }
+      {
+        result: { host_image: '/host/p.png', image: '/host/p.png', success: true },
+        toolName: 'image_generate',
+        type: 'tool-call'
+      }
     ])
   })
 
@@ -72,14 +85,24 @@ describe('dedupeGeneratedImageEchoesInParts', () => {
       dedupeGeneratedImageEchoesInParts([
         { text: '![cat](/sandbox/cat.png)', type: 'text' },
         {
-          result: { agent_visible_image: '/sandbox/cat.png', host_image: '/host/cat.png', image: '/host/cat.png', success: true },
+          result: {
+            agent_visible_image: '/sandbox/cat.png',
+            host_image: '/host/cat.png',
+            image: '/host/cat.png',
+            success: true
+          },
           toolName: 'image_generate',
           type: 'tool-call'
         }
       ])
     ).toEqual([
       {
-        result: { agent_visible_image: '/sandbox/cat.png', host_image: '/host/cat.png', image: '/host/cat.png', success: true },
+        result: {
+          agent_visible_image: '/sandbox/cat.png',
+          host_image: '/host/cat.png',
+          image: '/host/cat.png',
+          success: true
+        },
         toolName: 'image_generate',
         type: 'tool-call'
       }

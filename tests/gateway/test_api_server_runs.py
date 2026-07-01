@@ -122,7 +122,7 @@ class TestStartRun:
                 status = await status_resp.json()
                 assert status["run_id"] == data["run_id"]
                 assert status["status"] in {"queued", "running", "completed"}
-                assert status["object"] == "hermes.run"
+                assert status["object"] == "jarvis.run"
 
     @pytest.mark.asyncio
     async def test_start_invalid_json_returns_400(self, adapter):
@@ -396,7 +396,7 @@ class TestStopRun:
                 await asyncio.sleep(0.1)
 
                 # Verify agent ref is stored
-                assert run_id in adapter._active_run_agents
+                assert run_id in adapter._active_run_brains
 
                 # Stop the run
                 stop_resp = await cli.post(f"/v1/runs/{run_id}/stop")
@@ -415,7 +415,7 @@ class TestStopRun:
 
                 # Refs should be cleaned up
                 await asyncio.sleep(0.5)
-                assert run_id not in adapter._active_run_agents
+                assert run_id not in adapter._active_run_brains
                 assert run_id not in adapter._active_run_tasks
 
     @pytest.mark.asyncio
@@ -454,7 +454,7 @@ class TestStopRun:
                 await asyncio.sleep(0.3)
 
                 # Run should be done, refs cleaned up
-                assert run_id not in adapter._active_run_agents
+                assert run_id not in adapter._active_run_brains
 
                 # Stop should return 404
                 stop_resp = await cli.post(f"/v1/runs/{run_id}/stop")

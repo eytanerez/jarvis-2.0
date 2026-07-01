@@ -12,7 +12,7 @@ curl -fsSL https://byterover.dev/install.sh | sh).
 Config via environment variables (profile-scoped via each profile's .env):
   BRV_API_KEY   — ByteRover API key (for cloud features, optional for local)
 
-Working directory: $HERMES_HOME/byterover/ (profile-scoped context tree)
+Working directory: $JARVIS_HOME/byterover/ (profile-scoped context tree)
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from agent.memory_provider import MemoryProvider
+from brain.memory_provider import MemoryProvider
 from tools.registry import tool_error
 
 logger = logging.getLogger(__name__)
@@ -116,8 +116,8 @@ def _run_brv(args: List[str], timeout: int = _QUERY_TIMEOUT,
 
 def _get_brv_cwd() -> Path:
     """Profile-scoped working directory for the brv context tree."""
-    from hermes_constants import get_hermes_home
-    return get_hermes_home() / "byterover"
+    from jarvis_constants import get_jarvis_home
+    return get_jarvis_home() / "byterover"
 
 
 # ---------------------------------------------------------------------------

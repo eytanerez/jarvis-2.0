@@ -2,7 +2,7 @@
 
 Prevents mangled edits when concurrent subagents (same process, same
 filesystem) touch the same file. Complements the single-agent path-overlap
-check in ``run_agent._should_parallelize_tool_batch`` — this module catches
+check in ``run_brain._should_parallelize_tool_batch`` — this module catches
 the case where subagent B writes a file that subagent A already read, so
 A's next write would overwrite B's changes with stale content.
 
@@ -24,7 +24,7 @@ Plus ``lock_path(path)`` — a context-manager returning a per-path lock to
 wrap the whole read→modify→write block. And ``writes_since(task_id,
 since_ts, paths)`` for the subagent-completion reminder in delegate_tool.
 
-All methods are no-ops when ``HERMES_DISABLE_FILE_STATE_GUARD=1`` is set.
+All methods are no-ops when ``JARVIS_DISABLE_FILE_STATE_GUARD=1`` is set.
 
 This module is intentionally separate from ``_read_tracker`` in
 ``file_tools.py`` — that tracker is per-task and handles consecutive-read
@@ -268,7 +268,7 @@ def get_registry() -> FileStateRegistry:
 
 def _disabled() -> bool:
     # Re-read each call so tests can toggle via monkeypatch.setenv.
-    return os.environ.get("HERMES_DISABLE_FILE_STATE_GUARD", "").strip() == "1"
+    return os.environ.get("JARVIS_DISABLE_FILE_STATE_GUARD", "").strip() == "1"
 
 
 def _fmt_ts(ts: float) -> str:

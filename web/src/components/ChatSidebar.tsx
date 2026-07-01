@@ -33,7 +33,7 @@ import { ModelReloadConfirm } from "@/components/ModelReloadConfirm";
 import { ReasoningPicker } from "@/components/ReasoningPicker";
 import { ToolCall, type ToolEntry } from "@/components/ToolCall";
 import { GatewayClient, type ConnectionState } from "@/lib/gatewayClient";
-import { api, HERMES_BASE_PATH, buildWsAuthParam } from "@/lib/api";
+import { api, JARVIS_BASE_PATH, buildWsAuthParam } from "@/lib/api";
 
 import { cn } from "@/lib/utils";
 import { AlertCircle, ChevronDown, RefreshCw } from "lucide-react";
@@ -220,7 +220,7 @@ export function ChatSidebar({
 
   // Event subscriber WebSocket — receives the rebroadcast of every
   // dispatcher emit from the PTY child's gateway.  See /api/pub +
-  // /api/events in hermes_cli/web_server.py for the broadcast hop.
+  // /api/events in jarvis_cli/web_server.py for the broadcast hop.
   //
   // Failures (auth/loopback rejection, server too old to expose the
   // endpoint, transient drops) surface in the same banner as the
@@ -245,7 +245,7 @@ export function ChatSidebar({
       const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
       const qs = new URLSearchParams({ [authName]: authValue, channel });
       ws = new WebSocket(
-        `${proto}//${window.location.host}${HERMES_BASE_PATH}/api/events?${qs.toString()}`,
+        `${proto}//${window.location.host}${JARVIS_BASE_PATH}/api/events?${qs.toString()}`,
       );
 
       // `unmounting` suppresses the banner during cleanup — `ws.close()`

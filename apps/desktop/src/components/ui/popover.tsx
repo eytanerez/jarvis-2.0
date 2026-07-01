@@ -29,7 +29,7 @@ function PopoverContent({
         // Mirrors DropdownMenuContent: themed elevated surface, viewport-aware
         // (Radix flips/shifts off edges), with the standard open/close motion.
         className={cn(
-          'z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-2 text-popover-foreground shadow-md backdrop-blur-md outline-hidden data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+          'z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md border border-[color-mix(in_srgb,var(--jarvis-blue)_22%,var(--jarvis-hairline))] bg-[color-mix(in_srgb,var(--jarvis-panel)_96%,transparent)] p-2 text-(--jarvis-text) shadow-[0_18px_56px_rgba(0,0,0,0.46),0_0_28px_color-mix(in_srgb,var(--jarvis-blue)_8%,transparent)] backdrop-blur-md outline-hidden data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
           className
         )}
         collisionPadding={collisionPadding}

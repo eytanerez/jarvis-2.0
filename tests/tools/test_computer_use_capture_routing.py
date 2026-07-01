@@ -13,7 +13,7 @@ deterministic stubs for:
 * ``should_route_capture_to_aux_vision`` (the policy decision)
 * ``_run_async`` (sync->async bridge)
 * ``vision_analyze_tool`` (the aux LLM call)
-* ``hermes_constants.get_hermes_dir`` (cache path)
+* ``jarvis_constants.get_jarvis_dir`` (cache path)
 
 …so the full code path is covered without a live cua-driver, a real
 auxiliary client, or network access.
@@ -48,14 +48,14 @@ _JPEG_B64 = (
 
 @pytest.fixture
 def tmp_cache_dir(tmp_path):
-    """Override get_hermes_dir so cache writes land under tmp_path."""
+    """Override get_jarvis_dir so cache writes land under tmp_path."""
     cache_dir = tmp_path / "cache_vision"
     cache_dir.mkdir()
 
     def _fake_get(*_args, **_kw):
         return cache_dir
 
-    with patch("hermes_constants.get_hermes_dir", _fake_get):
+    with patch("jarvis_constants.get_jarvis_dir", _fake_get):
         yield cache_dir
 
 
@@ -263,7 +263,7 @@ class TestCaptureResponseRoutedToAuxVision:
 
         with patch.object(cu_tool, "_should_route_through_aux_vision",
                           return_value=True), \
-             patch("hermes_constants.get_hermes_dir", _fake_get), \
+             patch("jarvis_constants.get_jarvis_dir", _fake_get), \
              patch("model_tools._run_async", side_effect=_fake_run_async), \
              patch("tools.vision_tools.vision_analyze_tool",
                    new_callable=lambda: fake_vat):
@@ -368,11 +368,11 @@ class TestRoutingDecisionWiring:
                 }
             },
         }
-        with patch("agent.auxiliary_client._read_main_provider",
+        with patch("brain.auxiliary_client._read_main_provider",
                    return_value="openrouter"), \
-             patch("agent.auxiliary_client._read_main_model",
+             patch("brain.auxiliary_client._read_main_model",
                    return_value="tencent/hy3-preview"), \
-             patch("hermes_cli.config.load_config", return_value=cfg):
+             patch("jarvis_cli.config.load_config", return_value=cfg):
             assert cu_tool._should_route_through_aux_vision() is True
 
     def test_no_explicit_aux_and_vision_capable_main_keeps_multimodal(self):
@@ -381,11 +381,11 @@ class TestRoutingDecisionWiring:
         cfg = {
             "model": {"default": "claude-opus-4-5", "provider": "anthropic"},
         }
-        with patch("agent.auxiliary_client._read_main_provider",
+        with patch("brain.auxiliary_client._read_main_provider",
                    return_value="anthropic"), \
-             patch("agent.auxiliary_client._read_main_model",
+             patch("brain.auxiliary_client._read_main_model",
                    return_value="claude-opus-4-5"), \
-             patch("hermes_cli.config.load_config", return_value=cfg), \
+             patch("jarvis_cli.config.load_config", return_value=cfg), \
              patch("tools.computer_use.vision_routing._lookup_supports_vision",
                    return_value=True), \
              patch("tools.computer_use.vision_routing."
@@ -396,7 +396,7 @@ class TestRoutingDecisionWiring:
     def test_config_load_failure_disables_routing_safely(self):
         from tools.computer_use import tool as cu_tool
 
-        with patch("hermes_cli.config.load_config",
+        with patch("jarvis_cli.config.load_config",
                    side_effect=RuntimeError("config.yaml unreadable")):
             # No exception should bubble up — fail open by returning False
             # so the legacy multimodal envelope continues to work.
@@ -406,11 +406,11 @@ class TestRoutingDecisionWiring:
         from tools.computer_use import tool as cu_tool
         from tools.computer_use import vision_routing as vr_mod
 
-        with patch("agent.auxiliary_client._read_main_provider",
+        with patch("brain.auxiliary_client._read_main_provider",
                    return_value="openrouter"), \
-             patch("agent.auxiliary_client._read_main_model",
+             patch("brain.auxiliary_client._read_main_model",
                    return_value="x"), \
-             patch("hermes_cli.config.load_config", return_value={}), \
+             patch("jarvis_cli.config.load_config", return_value={}), \
              patch.object(vr_mod, "should_route_capture_to_aux_vision",
                           side_effect=ValueError("policy bug")):
             assert cu_tool._should_route_through_aux_vision() is False

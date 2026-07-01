@@ -1,7 +1,7 @@
 """Tests for the combined /reasoning command.
 
 Covers both reasoning effort level management and reasoning display toggle,
-plus the reasoning extraction and display pipeline from run_agent through CLI.
+plus the reasoning extraction and display pipeline from run_brain through CLI.
 
 Combines functionality from:
 - PR #789 (Aum08Desai): reasoning effort level management
@@ -306,9 +306,9 @@ class TestReasoningCallback(unittest.TestCase):
 
 class TestReasoningPreviewBuffering(unittest.TestCase):
     def _make_cli(self):
-        from cli import HermesCLI
+        from cli import JarvisCLI
 
-        cli = HermesCLI.__new__(HermesCLI)
+        cli = JarvisCLI.__new__(JarvisCLI)
         cli.verbose = True
         cli._spinner_text = ""
         cli._reasoning_preview_buf = ""
@@ -376,9 +376,9 @@ class TestReasoningPreviewBuffering(unittest.TestCase):
 
 class TestReasoningDisplayModeSelection(unittest.TestCase):
     def _make_cli(self, *, show_reasoning=False, streaming_enabled=False, verbose=False):
-        from cli import HermesCLI
+        from cli import JarvisCLI
 
-        cli = HermesCLI.__new__(HermesCLI)
+        cli = JarvisCLI.__new__(JarvisCLI)
         cli.show_reasoning = show_reasoning
         cli.streaming_enabled = streaming_enabled
         cli.verbose = verbose
@@ -414,8 +414,8 @@ class TestExtractReasoningFormats(unittest.TestCase):
     """Test _extract_reasoning with real provider response formats."""
 
     def _get_extractor(self):
-        from run_agent import AIAgent
-        return AIAgent._extract_reasoning
+        from run_brain import AIBrain
+        return AIBrain._extract_reasoning
 
     def test_openrouter_reasoning_details(self):
         extract = self._get_extractor()
@@ -474,10 +474,10 @@ class TestInlineThinkBlockExtraction(unittest.TestCase):
 
     def _make_agent(self):
         """Create a minimal agent with _build_assistant_message."""
-        from run_agent import AIAgent
-        agent = MagicMock(spec=AIAgent)
-        agent._build_assistant_message = AIAgent._build_assistant_message.__get__(agent)
-        agent._extract_reasoning = AIAgent._extract_reasoning.__get__(agent)
+        from run_brain import AIBrain
+        agent = MagicMock(spec=AIBrain)
+        agent._build_assistant_message = AIBrain._build_assistant_message.__get__(agent)
+        agent._extract_reasoning = AIBrain._extract_reasoning.__get__(agent)
         agent.verbose_logging = False
         agent.reasoning_callback = None
         agent.stream_delta_callback = None  # non-streaming by default
@@ -547,7 +547,7 @@ class TestConfigDefault(unittest.TestCase):
     """Verify config default for show_reasoning."""
 
     def test_default_config_has_show_reasoning(self):
-        from hermes_cli.config import DEFAULT_CONFIG
+        from jarvis_cli.config import DEFAULT_CONFIG
         display = DEFAULT_CONFIG.get("display", {})
         self.assertIn("show_reasoning", display)
         self.assertFalse(display["show_reasoning"])
@@ -557,7 +557,7 @@ class TestCommandRegistered(unittest.TestCase):
     """Verify /reasoning is in the COMMANDS dict."""
 
     def test_reasoning_in_commands(self):
-        from hermes_cli.commands import COMMANDS
+        from jarvis_cli.commands import COMMANDS
         self.assertIn("/reasoning", COMMANDS)
 
 
@@ -569,7 +569,7 @@ class TestEndToEndPipeline(unittest.TestCase):
     """Simulate the full pipeline: extraction -> result dict -> display."""
 
     def test_openrouter_claude_pipeline(self):
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
         api_message = SimpleNamespace(
             role="assistant",
@@ -582,7 +582,7 @@ class TestEndToEndPipeline(unittest.TestCase):
             ],
         )
 
-        reasoning = AIAgent._extract_reasoning(None, api_message)
+        reasoning = AIBrain._extract_reasoning(None, api_message)
         self.assertIsNotNone(reasoning)
 
         messages = [
@@ -607,10 +607,10 @@ class TestEndToEndPipeline(unittest.TestCase):
         self.assertIn("Python list methods", result["last_reasoning"])
 
     def test_no_reasoning_model_pipeline(self):
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
         api_message = SimpleNamespace(content="Paris.", tool_calls=None)
-        reasoning = AIAgent._extract_reasoning(None, api_message)
+        reasoning = AIBrain._extract_reasoning(None, api_message)
         self.assertIsNone(reasoning)
 
         result = {"final_response": api_message.content, "last_reasoning": reasoning}
@@ -626,8 +626,8 @@ class TestReasoningDeltasFiredFlag(unittest.TestCase):
     reasoning was already streamed via _fire_reasoning_delta."""
 
     def _make_agent(self):
-        from run_agent import AIAgent
-        agent = AIAgent.__new__(AIAgent)
+        from run_brain import AIBrain
+        agent = AIBrain.__new__(AIBrain)
         agent.reasoning_callback = None
         agent.stream_delta_callback = None
         agent._stream_callback = None
@@ -714,8 +714,8 @@ class TestReasoningShownThisTurnFlag(unittest.TestCase):
     was already shown during streaming in a tool-calling loop."""
 
     def _make_cli(self):
-        from cli import HermesCLI
-        cli = HermesCLI.__new__(HermesCLI)
+        from cli import JarvisCLI
+        cli = JarvisCLI.__new__(JarvisCLI)
         cli.show_reasoning = True
         cli.streaming_enabled = True
         cli._stream_box_opened = False

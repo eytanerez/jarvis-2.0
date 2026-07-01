@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from hermes_cli.nous_account import NousPortalAccountInfo
+from jarvis_cli.nous_account import NousPortalAccountInfo
 
 
 TOOLS_DIR = Path(__file__).resolve().parents[2] / "tools"
@@ -28,7 +28,7 @@ def _restore_tool_and_agent_modules():
         if name == "tools"
         or name.startswith("tools.")
         or name == "agent"
-        or name.startswith("agent.")
+        or name.startswith("brain.")
         or name in {"fal_client", "openai"}
     }
     try:
@@ -39,7 +39,7 @@ def _restore_tool_and_agent_modules():
                 name == "tools"
                 or name.startswith("tools.")
                 or name == "agent"
-                or name.startswith("agent.")
+                or name.startswith("brain.")
                 or name in {"fal_client", "openai"}
             ):
                 sys.modules.pop(name, None)
@@ -51,7 +51,7 @@ def _enable_managed_nous_tools(monkeypatch):
     """Patch the source modules so managed_nous_tools_enabled() returns True
     even after tool modules are dynamically reloaded."""
     monkeypatch.setattr(
-        "hermes_cli.nous_account.get_nous_portal_account_info",
+        "jarvis_cli.nous_account.get_nous_portal_account_info",
         lambda: NousPortalAccountInfo(
             logged_in=True,
             source="jwt",
@@ -266,7 +266,7 @@ def test_transcription_uses_model_specific_response_formats(monkeypatch, tmp_pat
     whisper_capture = {}
     _install_fake_tools_package()
     _install_fake_openai_module(whisper_capture, transcription_response="hello from whisper")
-    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    monkeypatch.setenv("JARVIS_HOME", str(tmp_path))
     (tmp_path / "config.yaml").write_text("stt:\n  provider: openai\n")
     monkeypatch.delenv("VOICE_TOOLS_OPENAI_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -317,12 +317,12 @@ def _load_video_gen_plugin(monkeypatch):
     # Also need the agent.video_gen_provider ABC
     agent_dir = Path(__file__).resolve().parents[2] / "agent"
     spec = spec_from_file_location(
-        "agent.video_gen_provider",
+        "brain.video_gen_provider",
         agent_dir / "video_gen_provider.py",
     )
     assert spec and spec.loader
     mod = module_from_spec(spec)
-    sys.modules["agent.video_gen_provider"] = mod
+    sys.modules["brain.video_gen_provider"] = mod
     spec.loader.exec_module(mod)
 
     # Load the plugin
@@ -501,11 +501,11 @@ def test_video_gen_happy_horse_uses_alibaba_namespace():
 
     agent_dir = Path(__file__).resolve().parents[2] / "agent"
     spec = spec_from_file_location(
-        "agent.video_gen_provider",
+        "brain.video_gen_provider",
         agent_dir / "video_gen_provider.py",
     )
     mod = module_from_spec(spec)
-    sys.modules["agent.video_gen_provider"] = mod
+    sys.modules["brain.video_gen_provider"] = mod
     spec.loader.exec_module(mod)
 
     spec = spec_from_file_location("plugins.video_gen.fal", plugin_init)

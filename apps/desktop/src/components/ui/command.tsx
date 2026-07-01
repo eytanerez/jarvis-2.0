@@ -8,7 +8,7 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandPri
   return (
     <CommandPrimitive
       className={cn(
-        'flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground',
+        'flex h-full w-full flex-col overflow-hidden rounded-md bg-[color-mix(in_srgb,var(--jarvis-panel)_94%,transparent)] text-(--jarvis-text)',
         className
       )}
       data-slot="command"
@@ -19,11 +19,14 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandPri
 
 function CommandInput({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
-    <div className="flex h-11 items-center gap-2 border-b border-border px-3" data-slot="command-input-wrapper">
-      <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
+    <div
+      className="flex h-11 items-center gap-2 border-b border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] px-3"
+      data-slot="command-input-wrapper"
+    >
+      <SearchIcon className="size-4 shrink-0 text-(--jarvis-blue)" />
       <CommandPrimitive.Input
         className={cn(
-          'flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+          'flex h-10 w-full rounded-md bg-transparent py-3 text-sm text-(--jarvis-text) outline-none placeholder:text-(--jarvis-muted) disabled:cursor-not-allowed disabled:opacity-50',
           className
         )}
         data-slot="command-input"
@@ -57,7 +60,7 @@ function CommandGroup({ className, ...props }: React.ComponentProps<typeof Comma
   return (
     <CommandPrimitive.Group
       className={cn(
-        'overflow-hidden p-1 text-foreground **:[[cmdk-group-heading]]:sticky **:[[cmdk-group-heading]]:top-0 **:[[cmdk-group-heading]]:z-10 **:[[cmdk-group-heading]]:bg-popover **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground',
+        'overflow-hidden p-1 text-(--jarvis-text) **:[[cmdk-group-heading]]:sticky **:[[cmdk-group-heading]]:top-0 **:[[cmdk-group-heading]]:z-10 **:[[cmdk-group-heading]]:bg-[color-mix(in_srgb,var(--jarvis-panel)_96%,transparent)] **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-(--jarvis-muted)',
         className
       )}
       data-slot="command-group"
@@ -69,7 +72,7 @@ function CommandGroup({ className, ...props }: React.ComponentProps<typeof Comma
 function CommandSeparator({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.Separator>) {
   return (
     <CommandPrimitive.Separator
-      className={cn('-mx-1 h-px bg-border', className)}
+      className={cn('-mx-1 h-px bg-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)]', className)}
       data-slot="command-separator"
       {...props}
     />
@@ -80,7 +83,7 @@ function CommandItem({ className, ...props }: React.ComponentProps<typeof Comman
   return (
     <CommandPrimitive.Item
       className={cn(
-        'relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:opacity-50',
+        'relative flex cursor-default select-none items-center gap-2 rounded-[3px] px-2 py-1.5 text-sm outline-none transition-[background-color,color] data-[disabled=true]:pointer-events-none data-[selected=true]:bg-[color-mix(in_srgb,var(--jarvis-blue)_13%,transparent)] data-[selected=true]:text-white data-[disabled=true]:opacity-50',
         className
       )}
       data-slot="command-item"
@@ -91,11 +94,7 @@ function CommandItem({ className, ...props }: React.ComponentProps<typeof Comman
 
 function CommandShortcut({ className, ...props }: React.ComponentProps<'span'>) {
   return (
-    <span
-      className={cn('ml-auto text-xs tracking-widest text-muted-foreground', className)}
-      data-slot="command-shortcut"
-      {...props}
-    />
+    <span className={cn('ml-auto text-xs text-(--jarvis-muted)', className)} data-slot="command-shortcut" {...props} />
   )
 }
 

@@ -4,7 +4,7 @@ Cron job scheduler - executes due jobs.
 Provides tick() which checks for due jobs and runs them. The gateway
 calls this every 60 seconds from a background thread.
 
-Uses a file-based lock (~/.hermes/cron/.tick.lock) so only one tick
+Uses a file-based lock (~/.jarvis/cron/.tick.lock) so only one tick
 runs at a time if multiple processes overlap.
 """
 
@@ -34,14 +34,14 @@ from pathlib import Path
 from typing import List, Optional
 
 # Add parent directory to path for imports BEFORE repo-level imports.
-# Without this, standalone invocations (e.g. after `hermes update` reloads
-# the module) fail with ModuleNotFoundError for hermes_time et al.
+# Without this, standalone invocations (e.g. after `jarvis update` reloads
+# the module) fail with ModuleNotFoundError for jarvis_time et al.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from hermes_constants import get_hermes_home
-from hermes_cli._subprocess_compat import windows_hide_flags
-from hermes_cli.config import load_config, _expand_env_vars
-from hermes_time import now as _hermes_now
+from jarvis_constants import get_jarvis_home
+from jarvis_cli._subprocess_compat import windows_hide_flags
+from jarvis_cli.config import load_config, _expand_env_vars
+from jarvis_time import now as _jarvis_now
 
 logger = logging.getLogger(__name__)
 
@@ -141,10 +141,10 @@ def _resolve_cron_enabled_toolsets(job: dict, cfg: dict) -> list[str] | None:
     Precedence:
     1. Per-job ``enabled_toolsets`` (set via ``cronjob`` tool on create/update).
        Keeps the agent's job-scoped toolset override intact — #6130.
-    2. Per-platform ``hermes tools`` config for the ``cron`` platform.
+    2. Per-platform ``jarvis tools`` config for the ``cron`` platform.
        Mirrors gateway behavior (``_get_platform_tools(cfg, platform_key)``)
        so users can gate cron toolsets globally without recreating every job.
-    3. ``None`` on any lookup failure — AIAgent loads the full default set
+    3. ``None`` on any lookup failure — AIBrain loads the full default set
        (legacy behavior before this change, preserved as the safety net).
 
     _DEFAULT_OFF_TOOLSETS ({moa, homeassistant, rl}) are removed by
@@ -156,7 +156,7 @@ def _resolve_cron_enabled_toolsets(job: dict, cfg: dict) -> list[str] | None:
     if per_job:
         return per_job
     try:
-        from hermes_cli.tools_config import _get_platform_tools  # lazy: avoid heavy import at cron module load
+        from jarvis_cli.tools_config import _get_platform_tools  # lazy: avoid heavy import at cron module load
         return sorted(_get_platform_tools(cfg or {}, "cron"))
     except Exception as exc:
         logger.warning(
@@ -274,18 +274,18 @@ atexit.register(_shutdown_parallel_pool)
 
 
 # Backward-compatible module override used by tests and emergency monkeypatches.
-_hermes_home: Path | None = None
+_jarvis_home: Path | None = None
 
 
-def _get_hermes_home() -> Path:
-    """Resolve Hermes home dynamically while preserving test monkeypatch hooks."""
-    return _hermes_home or get_hermes_home()
+def _get_jarvis_home() -> Path:
+    """Resolve Jarvis home dynamically while preserving test monkeypatch hooks."""
+    return _jarvis_home or get_jarvis_home()
 
 
 def _get_lock_paths() -> tuple[Path, Path]:
     """Resolve cron lock paths at call time so profile/env changes are honored."""
-    hermes_home = _get_hermes_home()
-    lock_dir = hermes_home / "cron"
+    jarvis_home = _get_jarvis_home()
+    lock_dir = jarvis_home / "cron"
     return lock_dir, lock_dir / ".tick.lock"
 
 
@@ -343,7 +343,7 @@ def _plugin_cron_env_var(platform_name: str) -> str:
     support without editing this module.
     """
     try:
-        from hermes_cli.plugins import discover_plugins
+        from jarvis_cli.plugins import discover_plugins
         discover_plugins()  # idempotent
         from gateway.platform_registry import platform_registry
         entry = platform_registry.get(platform_name.lower())
@@ -427,7 +427,7 @@ def _iter_home_target_platforms():
     for name in _HOME_TARGET_ENV_VARS:
         yield name
     try:
-        from hermes_cli.plugins import discover_plugins
+        from jarvis_cli.plugins import discover_plugins
         discover_plugins()  # idempotent
         from gateway.platform_registry import platform_registry
         for entry in platform_registry.plugin_entries():
@@ -688,7 +688,7 @@ def _send_media_via_adapter(
             else:
                 coro = adapter.send_document(chat_id=chat_id, file_path=media_path, metadata=metadata)
 
-            from agent.async_utils import safe_schedule_threadsafe
+            from brain.async_utils import safe_schedule_threadsafe
             future = safe_schedule_threadsafe(coro, loop)
             if future is None:
                 logger.warning(
@@ -817,7 +817,7 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
                 text_to_send = cleaned_delivery_content.strip()
                 adapter_ok = True
                 if text_to_send:
-                    from agent.async_utils import safe_schedule_threadsafe
+                    from brain.async_utils import safe_schedule_threadsafe
                     future = safe_schedule_threadsafe(
                         runtime_adapter.send(chat_id, text_to_send, metadata=send_metadata),
                         loop,
@@ -920,14 +920,14 @@ def _get_script_timeout() -> int:
         except Exception:
             logger.warning("Invalid patched _SCRIPT_TIMEOUT=%r; using env/config/default", _SCRIPT_TIMEOUT)
 
-    env_value = os.getenv("HERMES_CRON_SCRIPT_TIMEOUT", "").strip()
+    env_value = os.getenv("JARVIS_CRON_SCRIPT_TIMEOUT", "").strip()
     if env_value:
         try:
             timeout = int(float(env_value))
             if timeout > 0:
                 return timeout
         except Exception:
-            logger.warning("Invalid HERMES_CRON_SCRIPT_TIMEOUT=%r; using config/default", env_value)
+            logger.warning("Invalid JARVIS_CRON_SCRIPT_TIMEOUT=%r; using config/default", env_value)
 
     try:
         cfg = load_config() or {}
@@ -946,7 +946,7 @@ def _get_script_timeout() -> int:
 def _run_job_script(script_path: str) -> tuple[bool, str]:
     """Execute a cron job's data-collection script and capture its output.
 
-    Scripts must reside within HERMES_HOME/scripts/.  Both relative and
+    Scripts must reside within JARVIS_HOME/scripts/.  Both relative and
     absolute paths are resolved and validated against this directory to
     prevent arbitrary script execution via path traversal or absolute
     path injection.
@@ -962,19 +962,19 @@ def _run_job_script(script_path: str) -> tuple[bool, str]:
     (the `memory-watchdog.sh` pattern) without wrapping them in Python.
 
     Subprocess environment is passed through ``_sanitize_subprocess_env`` so
-    provider credentials and other Hermes-managed secrets are not inherited
+    provider credentials and other Jarvis-managed secrets are not inherited
     (SECURITY.md §2.3), matching terminal and MCP child processes.
 
     Args:
         script_path: Path to the script.  Relative paths are resolved
-            against HERMES_HOME/scripts/.  Absolute and ~-prefixed paths
+            against JARVIS_HOME/scripts/.  Absolute and ~-prefixed paths
             are also validated to ensure they stay within the scripts dir.
 
     Returns:
         (success, output) — on failure *output* contains the error message so the
         LLM can report the problem to the user.
     """
-    scripts_dir = _get_hermes_home() / "scripts"
+    scripts_dir = _get_jarvis_home() / "scripts"
     scripts_dir.mkdir(parents=True, exist_ok=True)
     scripts_dir_resolved = scripts_dir.resolve()
 
@@ -985,7 +985,7 @@ def _run_job_script(script_path: str) -> tuple[bool, str]:
         path = (scripts_dir / raw).resolve()
 
     # Guard against path traversal, absolute path injection, and symlink
-    # escape — scripts MUST reside within HERMES_HOME/scripts/.
+    # escape — scripts MUST reside within JARVIS_HOME/scripts/.
     try:
         path.relative_to(scripts_dir_resolved)
     except ValueError:
@@ -1043,7 +1043,7 @@ def _run_job_script(script_path: str) -> tuple[bool, str]:
 
         # Redact secrets from both stdout and stderr before any return path.
         try:
-            from agent.redact import redact_sensitive_text
+            from brain.redact import redact_sensitive_text
             stdout = redact_sensitive_text(stdout)
             stderr = redact_sensitive_text(stderr)
         except Exception:
@@ -1221,7 +1221,7 @@ def _build_job_prompt(job: dict, prerun_script: Optional[tuple] = None) -> str:
 
     from tools.skills_tool import skill_view
     from tools.skill_usage import bump_use
-    from agent.skill_bundles import build_bundle_invocation_message, resolve_bundle_command_key
+    from brain.skill_bundles import build_bundle_invocation_message, resolve_bundle_command_key
 
     parts = []
     skipped: list[str] = []
@@ -1379,9 +1379,9 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
     # ---------------------------------------------------------------
     # This mirrors the classic "run a bash script on a timer, send its
     # stdout to telegram" watchdog pattern. The agent path is skipped
-    # entirely: no AIAgent, no prompt, no tool loop, no token spend.
+    # entirely: no AIBrain, no prompt, no tool loop, no token spend.
     #
-    # We check this BEFORE importing run_agent / constructing SessionDB so
+    # We check this BEFORE importing run_brain / constructing SessionDB so
     # a pure-script tick never pays for the agent machinery it isn't going
     # to use. Keep this block self-contained.
     #
@@ -1420,7 +1420,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                 except OSError:
                     pass
 
-        now_iso = _hermes_now().strftime("%Y-%m-%d %H:%M:%S")
+        now_iso = _jarvis_now().strftime("%Y-%m-%d %H:%M:%S")
 
         if not ok:
             # Script crashed / timed out / exited non-zero.  Deliver the
@@ -1480,16 +1480,16 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
     # ---------------------------------------------------------------
     # Default (LLM) path — import and construct the agent machinery now
     # that we know we actually need it. Doing these imports here instead of
-    # at module top keeps no_agent ticks from paying for AIAgent / SessionDB
+    # at module top keeps no_agent ticks from paying for AIBrain / SessionDB
     # construction costs.
     # ---------------------------------------------------------------
-    from run_agent import AIAgent
+    from run_brain import AIBrain
 
     # Initialize SQLite session store so cron job messages are persisted
     # and discoverable via session_search (same pattern as gateway/run.py).
     _session_db = None
     try:
-        from hermes_state import SessionDB
+        from jarvis_state import SessionDB
         _session_db = SessionDB()
     except Exception as e:
         logger.debug("Job '%s': SQLite session store not available: %s", job.get("id", "?"), e)
@@ -1511,7 +1511,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             silent_doc = (
                 f"# Cron Job: {job_name}\n\n"
                 f"**Job ID:** {job_id}\n"
-                f"**Run Time:** {_hermes_now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                f"**Run Time:** {_jarvis_now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                 "Script gate returned `wakeAgent=false` — agent skipped.\n"
             )
             return True, silent_doc, SILENT_MARKER, None
@@ -1530,7 +1530,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         blocked_doc = (
             f"# Cron Job: {job_name}\n\n"
             f"**Job ID:** {job_id}\n"
-            f"**Run Time:** {_hermes_now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"**Run Time:** {_jarvis_now().strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"**Status:** BLOCKED\n\n"
             "The assembled prompt (user prompt + loaded skill content) tripped "
             "the cron injection scanner and the agent was NOT run.\n\n"
@@ -1545,7 +1545,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         logger.info("Job '%s': script produced no output, skipping AI call.", job_name)
         return True, "", SILENT_MARKER, None
     origin = _resolve_origin(job)
-    _cron_session_id = f"cron_{job_id}_{_hermes_now().strftime('%Y%m%d_%H%M%S')}"
+    _cron_session_id = f"cron_{job_id}_{_jarvis_now().strftime('%Y%m%d_%H%M%S')}"
 
     logger.info("Running job '%s' (ID: %s)", job_name, job_id)
     logger.info("Prompt: %s", prompt[:100])
@@ -1555,42 +1555,42 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
     # Mark this as a cron session so the approval system can apply cron_mode.
     # This env var is process-wide and persists for the lifetime of the
     # scheduler process — every job this process runs is a cron job.
-    os.environ["HERMES_CRON_SESSION"] = "1"
+    os.environ["JARVIS_CRON_SESSION"] = "1"
 
     # Use ContextVars for per-job session/delivery state so parallel jobs
     # don't clobber each other's targets (os.environ is process-global).
     from gateway.session_context import set_session_vars, clear_session_vars, _VAR_MAP
 
     # Cron execution is an internal scheduler context, not a live inbound
-    # gateway message. Do not seed HERMES_SESSION_* contextvars from the
+    # gateway message. Do not seed JARVIS_SESSION_* contextvars from the
     # stored ``origin`` (which is delivery routing metadata, not a sender
     # identity). Several tool consumers branch on these vars during job
     # execution and would otherwise behave as if a real user from the
     # origin chat was driving the agent:
     #   - tools/terminal_tool.py: background-process notification routing
-    #     (notify_on_complete / watch_patterns) reads HERMES_SESSION_PLATFORM
-    #     and HERMES_SESSION_CHAT_ID to populate watcher_platform / chat_id,
+    #     (notify_on_complete / watch_patterns) reads JARVIS_SESSION_PLATFORM
+    #     and JARVIS_SESSION_CHAT_ID to populate watcher_platform / chat_id,
     #     which would route completion notifications to the origin chat
-    #     instead of via HERMES_CRON_AUTO_DELIVER_* below.
+    #     instead of via JARVIS_CRON_AUTO_DELIVER_* below.
     #   - tools/tts_tool.py: picks Opus vs MP3 based on
-    #     HERMES_SESSION_PLATFORM == "telegram".
-    #   - tools/skills_tool.py + agent/prompt_builder.py: per-platform
+    #     JARVIS_SESSION_PLATFORM == "telegram".
+    #   - tools/skills_tool.py + brain/prompt_builder.py: per-platform
     #     skill-disable lists and the system-prompt cache key both consume
-    #     HERMES_SESSION_PLATFORM.
+    #     JARVIS_SESSION_PLATFORM.
     #   - tools/send_message_tool.py: mirror source labelling and the
-    #     send_message gate read HERMES_SESSION_PLATFORM.
+    #     send_message gate read JARVIS_SESSION_PLATFORM.
     # Cron output delivery itself reads job["origin"] directly via
-    # _resolve_origin(job) and the HERMES_CRON_AUTO_DELIVER_* vars set
-    # below, so clearing HERMES_SESSION_* here does not affect delivery.
+    # _resolve_origin(job) and the JARVIS_CRON_AUTO_DELIVER_* vars set
+    # below, so clearing JARVIS_SESSION_* here does not affect delivery.
     _ctx_tokens = set_session_vars(
         platform="",
         chat_id="",
         chat_name="",
     )
     _cron_delivery_vars = (
-        "HERMES_CRON_AUTO_DELIVER_PLATFORM",
-        "HERMES_CRON_AUTO_DELIVER_CHAT_ID",
-        "HERMES_CRON_AUTO_DELIVER_THREAD_ID",
+        "JARVIS_CRON_AUTO_DELIVER_PLATFORM",
+        "JARVIS_CRON_AUTO_DELIVER_CHAT_ID",
+        "JARVIS_CRON_AUTO_DELIVER_THREAD_ID",
     )
     for _var_name in _cron_delivery_vars:
         _VAR_MAP[_var_name].set("")
@@ -1624,27 +1624,27 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         # changes take effect without a gateway restart.
         from dotenv import load_dotenv
         try:
-            load_dotenv(str(_get_hermes_home() / ".env"), override=True, encoding="utf-8")
+            load_dotenv(str(_get_jarvis_home() / ".env"), override=True, encoding="utf-8")
         except UnicodeDecodeError:
-            load_dotenv(str(_get_hermes_home() / ".env"), override=True, encoding="latin-1")
+            load_dotenv(str(_get_jarvis_home() / ".env"), override=True, encoding="latin-1")
 
         delivery_target = _resolve_delivery_target(job)
         if delivery_target:
-            _VAR_MAP["HERMES_CRON_AUTO_DELIVER_PLATFORM"].set(delivery_target["platform"])
-            _VAR_MAP["HERMES_CRON_AUTO_DELIVER_CHAT_ID"].set(str(delivery_target["chat_id"]))
-            _VAR_MAP["HERMES_CRON_AUTO_DELIVER_THREAD_ID"].set(
+            _VAR_MAP["JARVIS_CRON_AUTO_DELIVER_PLATFORM"].set(delivery_target["platform"])
+            _VAR_MAP["JARVIS_CRON_AUTO_DELIVER_CHAT_ID"].set(str(delivery_target["chat_id"]))
+            _VAR_MAP["JARVIS_CRON_AUTO_DELIVER_THREAD_ID"].set(
                 ""
                 if delivery_target.get("thread_id") is None
                 else str(delivery_target["thread_id"])
             )
 
-        model = job.get("model") or os.getenv("HERMES_MODEL") or ""
+        model = job.get("model") or os.getenv("JARVIS_MODEL") or ""
 
         # Load config.yaml for model, reasoning, prefill, toolsets, provider routing
         _cfg = {}
         try:
             import yaml
-            _cfg_path = str(_get_hermes_home() / "config.yaml")
+            _cfg_path = str(_get_jarvis_home() / "config.yaml")
             if os.path.exists(_cfg_path):
                 with open(_cfg_path, encoding="utf-8") as _f:
                     _cfg = yaml.safe_load(_f) or {}
@@ -1653,7 +1653,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                 # builds its own dict, so overlay managed values via the shared
                 # helper (fail-open, no-op when no managed scope).
                 try:
-                    from hermes_cli import managed_scope
+                    from jarvis_cli import managed_scope
                     _cfg = managed_scope.apply_managed_overlay(_cfg)
                 except Exception:
                     pass
@@ -1669,7 +1669,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
 
         # Apply IPv4 preference if configured.
         try:
-            from hermes_constants import apply_ipv4_preference
+            from jarvis_constants import apply_ipv4_preference
             _net_cfg = _cfg.get("network", {})
             if isinstance(_net_cfg, dict) and _net_cfg.get("force_ipv4"):
                 apply_ipv4_preference(force=True)
@@ -1677,7 +1677,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             pass
 
         # Reasoning config from config.yaml
-        from hermes_constants import parse_reasoning_effort
+        from jarvis_constants import parse_reasoning_effort
         effort = str(_cfg.get("agent", {}).get("reasoning_effort", "")).strip()
         reasoning_config = parse_reasoning_effort(effort)
 
@@ -1687,14 +1687,14 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         prefill_messages = None
         agent_cfg = _cfg.get("agent", {}) if isinstance(_cfg.get("agent", {}), dict) else {}
         prefill_file = (
-            os.getenv("HERMES_PREFILL_MESSAGES_FILE", "")
+            os.getenv("JARVIS_PREFILL_MESSAGES_FILE", "")
             or _cfg.get("prefill_messages_file", "")
             or agent_cfg.get("prefill_messages_file", "")
         )
         if prefill_file:
             pfpath = Path(prefill_file).expanduser()
             if not pfpath.is_absolute():
-                pfpath = _get_hermes_home() / pfpath
+                pfpath = _get_jarvis_home() / pfpath
             if pfpath.exists():
                 try:
                     with open(pfpath, "r", encoding="utf-8") as _pf:
@@ -1711,13 +1711,13 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         # Provider routing
         pr = _cfg.get("provider_routing", {})
 
-        from hermes_cli.runtime_provider import (
+        from jarvis_cli.runtime_provider import (
             resolve_runtime_provider,
             format_runtime_provider_error,
         )
-        from hermes_cli.auth import AuthError
+        from jarvis_cli.auth import AuthError
         try:
-            # Do not inject HERMES_INFERENCE_PROVIDER here. resolve_runtime_provider()
+            # Do not inject JARVIS_INFERENCE_PROVIDER here. resolve_runtime_provider()
             # already prefers persisted config over stale shell/env overrides when
             # no explicit provider is requested. Passing the env var here short-
             # circuits that precedence and can resurrect old providers (for
@@ -1759,7 +1759,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         runtime_provider = str(runtime.get("provider") or "").strip().lower()
         if runtime_provider:
             try:
-                from agent.credential_pool import load_pool
+                from brain.credential_pool import load_pool
                 pool = load_pool(runtime_provider)
                 if pool.has_credentials():
                     credential_pool = pool
@@ -1773,7 +1773,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                 logger.debug("Job '%s': failed to load credential pool for %s: %s", job_id, runtime_provider, e)
 
         # Initialize MCP servers so configured mcp_servers are available to
-        # the agent's tool registry before AIAgent is constructed. Without
+        # the agent's tool registry before AIBrain is constructed. Without
         # this, cron jobs never saw any MCP tools — only the gateway / CLI
         # paths called discover_mcp_tools() at startup. Idempotent: subsequent
         # ticks short-circuit on already-connected servers inside
@@ -1793,7 +1793,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                 job_id, _mcp_exc,
             )
 
-        agent = AIAgent(
+        agent = AIBrain(
             model=model,
             api_key=runtime.get("api_key"),
             base_url=runtime.get("base_url"),
@@ -1815,7 +1815,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             disabled_toolsets=_resolve_cron_disabled_toolsets(_cfg),
             quiet_mode=True,
             # Cron jobs should always inherit the user's SOUL.md identity from
-            # HERMES_HOME. When a workdir is configured, also inject project
+            # JARVIS_HOME. When a workdir is configured, also inject project
             # context files (AGENTS.md / CLAUDE.md / .cursorrules) from there.
             # Without a workdir, keep cwd context discovery disabled.
             skip_context_files=not bool(_job_workdir),
@@ -1830,17 +1830,17 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         # for hours if it's actively calling tools / receiving stream tokens,
         # but a hung API call or stuck tool with no activity for the configured
         # duration is caught and killed.  Default 600s (10 min inactivity);
-        # override via HERMES_CRON_TIMEOUT env var.  0 = unlimited.
+        # override via JARVIS_CRON_TIMEOUT env var.  0 = unlimited.
         #
         # Uses the agent's built-in activity tracker (updated by
         # _touch_activity() on every tool call, API call, and stream delta).
-        _raw_cron_timeout = os.getenv("HERMES_CRON_TIMEOUT", "").strip()
+        _raw_cron_timeout = os.getenv("JARVIS_CRON_TIMEOUT", "").strip()
         if _raw_cron_timeout:
             try:
                 _cron_timeout = float(_raw_cron_timeout)
             except (ValueError, TypeError):
                 logger.warning(
-                    "Invalid HERMES_CRON_TIMEOUT=%r; using default 600s",
+                    "Invalid JARVIS_CRON_TIMEOUT=%r; using default 600s",
                     _raw_cron_timeout,
                 )
                 _cron_timeout = 600.0
@@ -1917,12 +1917,12 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         # Guard against non-dict returns from run_conversation under error conditions
         if not isinstance(result, dict):
             raise RuntimeError(
-                f"agent.run_conversation returned {type(result).__name__} instead of dict: {result!r}"
+                f"brain.run_conversation returned {type(result).__name__} instead of dict: {result!r}"
             )
 
         # If the agent itself reported failure (e.g. all retries exhausted on
         # API errors, model abort, mid-run interrupt), do not silently mark the
-        # job as successful. run_agent populates `failed=True`/`completed=False`
+        # job as successful. run_brain populates `failed=True`/`completed=False`
         # on these paths and may put the error into `final_response`, which
         # would otherwise be delivered as if it were the agent's reply and the
         # job's `last_status` set to "ok". Raise so the except handler below
@@ -1946,7 +1946,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         output = f"""# Cron Job: {job_name}
 
 **Job ID:** {job_id}
-**Run Time:** {_hermes_now().strftime('%Y-%m-%d %H:%M:%S')}
+**Run Time:** {_jarvis_now().strftime('%Y-%m-%d %H:%M:%S')}
 **Schedule:** {job.get('schedule_display', 'N/A')}
 
 ## Prompt
@@ -1968,7 +1968,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         output = f"""# Cron Job: {job_name} (FAILED)
 
 **Job ID:** {job_id}
-**Run Time:** {_hermes_now().strftime('%Y-%m-%d %H:%M:%S')}
+**Run Time:** {_jarvis_now().strftime('%Y-%m-%d %H:%M:%S')}
 **Schedule:** {job.get('schedule_display', 'N/A')}
 
 ## Prompt
@@ -2005,7 +2005,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             # suffix keeps it unique against the sessions.title index across runs.
             try:
                 _title_base = " ".join(job_name.split())[:60].strip() or f"cron {job_id}"
-                _cron_title = f"{_title_base} · {_hermes_now().strftime('%b %d %H:%M')}"
+                _cron_title = f"{_title_base} · {_jarvis_now().strftime('%b %d %H:%M')}"
                 _session_db.set_session_title(_cron_session_id, _cron_title)
             except (Exception, KeyboardInterrupt) as e:
                 logger.debug("Job '%s': failed to set cron session title: %s", job_id, e)
@@ -2031,7 +2031,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         # httpx clients cached under that loop are now unusable — reap them
         # so their transports don't accumulate in the process-global cache.
         try:
-            from agent.auxiliary_client import cleanup_stale_async_clients
+            from brain.auxiliary_client import cleanup_stale_async_clients
             cleanup_stale_async_clients()
         except Exception as e:
             logger.debug("Job '%s': failed to reap stale auxiliary clients: %s", job_id, e)
@@ -2149,11 +2149,11 @@ def tick(verbose: bool = True, adapters=None, loop=None, sync: bool = True) -> i
         due_jobs = get_due_jobs()
 
         if verbose and not due_jobs:
-            logger.info("%s - No jobs due", _hermes_now().strftime('%H:%M:%S'))
+            logger.info("%s - No jobs due", _jarvis_now().strftime('%H:%M:%S'))
             return 0
 
         if verbose:
-            logger.info("%s - %s job(s) due", _hermes_now().strftime('%H:%M:%S'), len(due_jobs))
+            logger.info("%s - %s job(s) due", _jarvis_now().strftime('%H:%M:%S'), len(due_jobs))
 
         # Advance next_run_at for all recurring jobs FIRST, under the file lock,
         # before any execution begins.  This preserves at-most-once semantics.
@@ -2164,14 +2164,14 @@ def tick(verbose: bool = True, adapters=None, loop=None, sync: bool = True) -> i
             advance_next_run(job["id"])
 
         # Resolve max parallel workers: env var > config.yaml > unbounded.
-        # Set HERMES_CRON_MAX_PARALLEL=1 to restore old serial behaviour.
+        # Set JARVIS_CRON_MAX_PARALLEL=1 to restore old serial behaviour.
         _max_workers: Optional[int] = None
         try:
-            _env_par = os.getenv("HERMES_CRON_MAX_PARALLEL", "").strip()
+            _env_par = os.getenv("JARVIS_CRON_MAX_PARALLEL", "").strip()
             if _env_par:
                 _max_workers = int(_env_par) or None
         except (ValueError, TypeError):
-            logger.warning("Invalid HERMES_CRON_MAX_PARALLEL value; defaulting to unbounded")
+            logger.warning("Invalid JARVIS_CRON_MAX_PARALLEL value; defaulting to unbounded")
         if _max_workers is None:
             try:
                 _ucfg = load_config() or {}

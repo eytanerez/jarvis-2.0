@@ -129,7 +129,7 @@ async def test_status_command_includes_session_title_when_present():
 @pytest.mark.asyncio
 async def test_status_command_reads_token_totals_from_session_db():
     """Regression test for #17158: /status must source token totals from the
-    SQLite SessionDB (where run_agent.py persists them) and sum all component
+    SQLite SessionDB (where run_brain.py persists them) and sum all component
     counts, not from SessionEntry (which the agent never writes)."""
     session_entry = SessionEntry(
         session_key=build_session_key(_make_source()),
@@ -358,7 +358,7 @@ async def test_handle_message_persists_agent_token_counts(monkeypatch):
     )
     runner = _make_runner(session_entry)
     runner.session_store.load_transcript.return_value = [{"role": "user", "content": "earlier"}]
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         return_value={
             "final_response": "ok",
             "messages": [],
@@ -373,7 +373,7 @@ async def test_handle_message_persists_agent_token_counts(monkeypatch):
 
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
     monkeypatch.setattr(
-        "agent.model_metadata.get_model_context_length",
+        "brain.model_metadata.get_model_context_length",
         lambda *_args, **_kwargs: 100000,
     )
 
@@ -401,7 +401,7 @@ async def test_first_run_slack_home_channel_onboarding_uses_parent_command(monke
     runner = _make_runner(session_entry, platform=Platform.SLACK)
     runner.session_store.load_transcript.return_value = []
     runner.session_store.has_any_sessions.return_value = False
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         return_value={
             "final_response": "ok",
             "messages": [],
@@ -417,7 +417,7 @@ async def test_first_run_slack_home_channel_onboarding_uses_parent_command(monke
     monkeypatch.delenv("SLACK_HOME_CHANNEL", raising=False)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
     monkeypatch.setattr(
-        "agent.model_metadata.get_model_context_length",
+        "brain.model_metadata.get_model_context_length",
         lambda *_args, **_kwargs: 100000,
     )
 
@@ -426,7 +426,7 @@ async def test_first_run_slack_home_channel_onboarding_uses_parent_command(monke
     assert result == "ok"
     runner.adapters[Platform.SLACK].send.assert_awaited_once()
     onboarding = runner.adapters[Platform.SLACK].send.await_args.args[1]
-    assert "/hermes sethome" in onboarding
+    assert "/jarvis sethome" in onboarding
     assert "Type /sethome" not in onboarding
 
 
@@ -445,7 +445,7 @@ async def test_first_run_non_slack_home_channel_onboarding_keeps_direct_command(
     runner = _make_runner(session_entry, platform=Platform.TELEGRAM)
     runner.session_store.load_transcript.return_value = []
     runner.session_store.has_any_sessions.return_value = False
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         return_value={
             "final_response": "ok",
             "messages": [],
@@ -461,7 +461,7 @@ async def test_first_run_non_slack_home_channel_onboarding_keeps_direct_command(
     monkeypatch.delenv("TELEGRAM_HOME_CHANNEL", raising=False)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
     monkeypatch.setattr(
-        "agent.model_metadata.get_model_context_length",
+        "brain.model_metadata.get_model_context_length",
         lambda *_args, **_kwargs: 100000,
     )
 
@@ -503,11 +503,11 @@ async def test_handle_message_discards_stale_result_after_session_invalidation(m
             "model": "openai/test-model",
         }
 
-    runner._run_agent = AsyncMock(side_effect=_stale_result)
+    runner._run_brain = AsyncMock(side_effect=_stale_result)
 
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
     monkeypatch.setattr(
-        "agent.model_metadata.get_model_context_length",
+        "brain.model_metadata.get_model_context_length",
         lambda *_args, **_kwargs: 100000,
     )
 
@@ -573,11 +573,11 @@ async def test_handle_message_stale_result_keeps_newer_generation_callback(monke
             "model": "openai/test-model",
         }
 
-    runner._run_agent = AsyncMock(side_effect=_stale_result)
+    runner._run_brain = AsyncMock(side_effect=_stale_result)
 
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
     monkeypatch.setattr(
-        "agent.model_metadata.get_model_context_length",
+        "brain.model_metadata.get_model_context_length",
         lambda *_args, **_kwargs: 100000,
     )
 
@@ -605,7 +605,7 @@ async def test_status_command_bypasses_active_session_guard():
 
     async def fake_handler(event):
         handler_called_with.append(event)
-        return "📊 **Hermes Gateway Status**\n**Agent Running:** Yes ⚡"
+        return "📊 **Jarvis Gateway Status**\n**Agent Running:** Yes ⚡"
 
     # Concrete subclass to avoid abstract method errors
     class _ConcreteAdapter(BasePlatformAdapter):
@@ -648,7 +648,7 @@ async def test_status_command_bypasses_active_session_guard():
 
 @pytest.mark.asyncio
 async def test_profile_command_reports_custom_root_profile(monkeypatch, tmp_path):
-    """Gateway /profile detects custom-root profiles (not under ~/.hermes)."""
+    """Gateway /profile detects custom-root profiles (not under ~/.jarvis)."""
     from pathlib import Path
 
     session_entry = SessionEntry(
@@ -662,7 +662,7 @@ async def test_profile_command_reports_custom_root_profile(monkeypatch, tmp_path
     runner = _make_runner(session_entry)
     profile_home = tmp_path / "profiles" / "coder"
 
-    monkeypatch.setenv("HERMES_HOME", str(profile_home))
+    monkeypatch.setenv("JARVIS_HOME", str(profile_home))
     monkeypatch.setattr(Path, "home", lambda: tmp_path / "unrelated-home")
 
     result = await runner._handle_profile_command(_make_event("/profile"))
@@ -676,7 +676,7 @@ async def test_post_delivery_callback_generation_snapshot_happens_after_bind():
     """Regression: the callback_generation snapshot in _process_message_background
     must happen AFTER the handler runs, not before.
 
-    _hermes_run_generation is set on the interrupt event by
+    _jarvis_run_generation is set on the interrupt event by
     GatewayRunner._bind_adapter_run_generation during _handle_message_with_agent.
     The earlier snapshot-at-task-start always captured None, which bypassed the
     generation-ownership check in pop_post_delivery_callback and let stale runs
@@ -704,7 +704,7 @@ async def test_post_delivery_callback_generation_snapshot_happens_after_bind():
     async def fake_handler(event):
         # Simulate what _bind_adapter_run_generation does mid-run.
         interrupt_event = adapter._active_sessions.get(session_key)
-        setattr(interrupt_event, "_hermes_run_generation", 1)
+        setattr(interrupt_event, "_jarvis_run_generation", 1)
         # Stale run registers its callback at generation=1.
         adapter.register_post_delivery_callback(
             session_key,

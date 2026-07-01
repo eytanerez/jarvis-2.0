@@ -7,7 +7,9 @@ import { PreviewPane } from './preview-pane'
 
 describe('PreviewPane console state', () => {
   beforeEach(() => {
-    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => window.setTimeout(() => callback(Date.now()), 0))
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+      window.setTimeout(() => callback(Date.now()), 0)
+    )
     vi.stubGlobal('cancelAnimationFrame', (id: number) => window.clearTimeout(id))
   })
 
@@ -23,7 +25,7 @@ describe('PreviewPane console state', () => {
     $connection.set({ mode: 'remote' } as never)
     vi.stubGlobal('window', {
       ...window,
-      hermesDesktop: {
+      jarvisDesktop: {
         onPreviewFileChanged,
         watchPreviewFile
       }

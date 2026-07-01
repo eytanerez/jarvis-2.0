@@ -12,15 +12,15 @@ import {
   urlSlugTitleLabel
 } from './external-link'
 
-const desktopWindow = window as unknown as { hermesDesktop?: Window['hermesDesktop'] }
-const initialHermesDesktop = desktopWindow.hermesDesktop
+const desktopWindow = window as unknown as { jarvisDesktop?: Window['jarvisDesktop'] }
+const initialJarvisDesktop = desktopWindow.jarvisDesktop
 
-function installDesktopBridge(partial: Partial<Window['hermesDesktop']> = {}) {
-  desktopWindow.hermesDesktop = {
+function installDesktopBridge(partial: Partial<Window['jarvisDesktop']> = {}) {
+  desktopWindow.jarvisDesktop = {
     fetchLinkTitle: vi.fn().mockResolvedValue(''),
     openExternal: vi.fn().mockResolvedValue(undefined),
     ...partial
-  } as unknown as Window['hermesDesktop']
+  } as unknown as Window['jarvisDesktop']
 }
 
 afterEach(() => {
@@ -28,10 +28,10 @@ afterEach(() => {
   vi.restoreAllMocks()
   cleanup()
 
-  if (initialHermesDesktop) {
-    desktopWindow.hermesDesktop = initialHermesDesktop
+  if (initialJarvisDesktop) {
+    desktopWindow.jarvisDesktop = initialJarvisDesktop
   } else {
-    delete desktopWindow.hermesDesktop
+    delete desktopWindow.jarvisDesktop
   }
 })
 
@@ -61,7 +61,7 @@ describe('external link helpers', () => {
 
   it('deduplicates in-flight title fetches and caches results', async () => {
     const bridge = vi.fn().mockResolvedValue('El Yunque Tour Water Slide, Rope Swing & Pickup')
-    installDesktopBridge({ fetchLinkTitle: bridge as unknown as Window['hermesDesktop']['fetchLinkTitle'] })
+    installDesktopBridge({ fetchLinkTitle: bridge as unknown as Window['jarvisDesktop']['fetchLinkTitle'] })
 
     const url =
       'https://www.expedia.com/things-to-do/puerto-rico-el-yunque-rainforest-adventure-with-transport.a46272756.activity-details'
@@ -80,7 +80,7 @@ describe('external link helpers', () => {
 
   it('shares cache across protocol/www URL variants', async () => {
     const bridge = vi.fn().mockResolvedValue('Shared Canonical Title')
-    installDesktopBridge({ fetchLinkTitle: bridge as unknown as Window['hermesDesktop']['fetchLinkTitle'] })
+    installDesktopBridge({ fetchLinkTitle: bridge as unknown as Window['jarvisDesktop']['fetchLinkTitle'] })
 
     const first = 'https://www.getyourguide.com/san-juan-puerto-rico-l355/sunset-tours-tc306/'
     const second = 'http://getyourguide.com/san-juan-puerto-rico-l355/sunset-tours-tc306/'
@@ -94,7 +94,7 @@ describe('external link helpers', () => {
 
   it('opens links via the desktop bridge', () => {
     const openExternal = vi.fn().mockResolvedValue(undefined)
-    installDesktopBridge({ openExternal: openExternal as unknown as Window['hermesDesktop']['openExternal'] })
+    installDesktopBridge({ openExternal: openExternal as unknown as Window['jarvisDesktop']['openExternal'] })
 
     render(<ExternalLink href="https://example.com/path/to/resource">Example link</ExternalLink>)
 
@@ -113,7 +113,7 @@ describe('external link helpers', () => {
 
   it('renders pretty links with fetched titles and no host suffix', async () => {
     const bridge = vi.fn().mockResolvedValue('From Fajardo: Full-Day Culebra Islands Catamaran Tour')
-    installDesktopBridge({ fetchLinkTitle: bridge as unknown as Window['hermesDesktop']['fetchLinkTitle'] })
+    installDesktopBridge({ fetchLinkTitle: bridge as unknown as Window['jarvisDesktop']['fetchLinkTitle'] })
 
     const url =
       'https://www.getyourguide.com/culebra-island-l145468/from-fajardo-full-day-cordillera-islands-catamaran-tour-t19894/'
@@ -142,7 +142,7 @@ describe('external link helpers', () => {
 
   it('ignores error-like fetched titles and falls back to slug label', async () => {
     const bridge = vi.fn().mockResolvedValue('GetYourGuide – Error')
-    installDesktopBridge({ fetchLinkTitle: bridge as unknown as Window['hermesDesktop']['fetchLinkTitle'] })
+    installDesktopBridge({ fetchLinkTitle: bridge as unknown as Window['jarvisDesktop']['fetchLinkTitle'] })
 
     const url =
       'https://www.getyourguide.com/culebra-island-l145468/from-fajardo-full-day-cordillera-islands-catamaran-tour-t19894/'
@@ -173,23 +173,23 @@ describe('external link helpers', () => {
       <LinkifiedText
         explicitOnly
         pretty={false}
-        text={'Report  https://paste.rs/abc\nagent.log  https://paste.rs/def\nerrors.log'}
+        text={'Report  https://paste.rs/abc\nbrain.log  https://paste.rs/def\nerrors.log'}
       />
     )
 
     const links = screen.getAllByRole('link')
     expect(links.map(a => a.getAttribute('href'))).toEqual(['https://paste.rs/abc', 'https://paste.rs/def'])
     // Bare filename-shaped tokens stay as plain text, not links.
-    expect(screen.queryByText(content => content.includes('agent.log'))).toBeTruthy()
+    expect(screen.queryByText(content => content.includes('brain.log'))).toBeTruthy()
     expect(links.some(a => (a.textContent ?? '').includes('.log'))).toBe(false)
   })
 
   it('without explicitOnly, bare filename tokens are still linkified (default behavior)', () => {
     installDesktopBridge()
 
-    render(<LinkifiedText pretty={false} text="open agent.log please" />)
+    render(<LinkifiedText pretty={false} text="open brain.log please" />)
 
-    const link = screen.getByRole('link', { name: 'agent.log' })
-    expect(link.getAttribute('href')).toBe('https://agent.log')
+    const link = screen.getByRole('link', { name: 'brain.log' })
+    expect(link.getAttribute('href')).toBe('https://brain.log')
   })
 })

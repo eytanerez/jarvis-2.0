@@ -107,7 +107,7 @@ class TestKimiFullKwargsIntegration:
     """The transport's full kwargs carry at most one reasoning knob."""
 
     def _build(self, kimi_profile, reasoning_config):
-        from agent.transports.chat_completions import ChatCompletionsTransport
+        from brain.transports.chat_completions import ChatCompletionsTransport
 
         return ChatCompletionsTransport().build_kwargs(
             model="kimi-k2-turbo-preview",

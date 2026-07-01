@@ -1,4 +1,4 @@
-"""Integration tests for gateway AIAgent caching.
+"""Integration tests for gateway AIBrain caching.
 
 Verifies that the agent cache correctly:
 - Reuses agents across messages (same config → same instance)
@@ -32,8 +32,8 @@ class TestAgentConfigSignature:
 
         runtime = {"api_key": "sk-test12345678", "base_url": "https://openrouter.ai/api/v1",
                     "provider": "openrouter", "api_mode": "chat_completions"}
-        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "")
-        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "")
+        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["jarvis-telegram"], "")
+        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["jarvis-telegram"], "")
         assert sig1 == sig2
 
     def test_model_change_different_signature(self):
@@ -41,8 +41,8 @@ class TestAgentConfigSignature:
 
         runtime = {"api_key": "sk-test12345678", "base_url": "https://openrouter.ai/api/v1",
                     "provider": "openrouter"}
-        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "")
-        sig2 = GatewayRunner._agent_config_signature("claude-opus-4.6", runtime, ["hermes-telegram"], "")
+        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["jarvis-telegram"], "")
+        sig2 = GatewayRunner._agent_config_signature("claude-opus-4.6", runtime, ["jarvis-telegram"], "")
         assert sig1 != sig2
 
     def test_same_token_prefix_different_full_token_changes_signature(self):
@@ -63,8 +63,8 @@ class TestAgentConfigSignature:
         }
 
         assert rt1["api_key"][:8] == rt2["api_key"][:8]
-        sig1 = GatewayRunner._agent_config_signature("gpt-5.3-codex", rt1, ["hermes-telegram"], "")
-        sig2 = GatewayRunner._agent_config_signature("gpt-5.3-codex", rt2, ["hermes-telegram"], "")
+        sig1 = GatewayRunner._agent_config_signature("gpt-5.3-codex", rt1, ["jarvis-telegram"], "")
+        sig2 = GatewayRunner._agent_config_signature("gpt-5.3-codex", rt2, ["jarvis-telegram"], "")
         assert sig1 != sig2
 
     def test_provider_change_different_signature(self):
@@ -72,16 +72,16 @@ class TestAgentConfigSignature:
 
         rt1 = {"api_key": "sk-test12345678", "base_url": "https://openrouter.ai/api/v1", "provider": "openrouter"}
         rt2 = {"api_key": "sk-test12345678", "base_url": "https://api.anthropic.com", "provider": "anthropic"}
-        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", rt1, ["hermes-telegram"], "")
-        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", rt2, ["hermes-telegram"], "")
+        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", rt1, ["jarvis-telegram"], "")
+        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", rt2, ["jarvis-telegram"], "")
         assert sig1 != sig2
 
     def test_toolset_change_different_signature(self):
         from gateway.run import GatewayRunner
 
         runtime = {"api_key": "sk-test12345678", "base_url": "https://openrouter.ai/api/v1", "provider": "openrouter"}
-        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "")
-        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-discord"], "")
+        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["jarvis-telegram"], "")
+        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["jarvis-discord"], "")
         assert sig1 != sig2
 
     def test_reasoning_not_in_signature(self):
@@ -91,8 +91,8 @@ class TestAgentConfigSignature:
         runtime = {"api_key": "sk-test12345678", "base_url": "https://openrouter.ai/api/v1", "provider": "openrouter"}
         # Same config — signature should be identical regardless of what
         # reasoning_config the caller might have (it's not passed in)
-        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "")
-        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "")
+        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["jarvis-telegram"], "")
+        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["jarvis-telegram"], "")
         assert sig1 == sig2
 
     # ---------------------------------------------------------------
@@ -305,7 +305,7 @@ class TestExtractCacheBustingConfig:
             calls.append(True)
             return {
                 "honcho.peer_name": "eri",
-                "honcho.ai_peer": "hermes",
+                "honcho.ai_peer": "jarvis",
                 "honcho.pin_peer_name": True,
                 "honcho.runtime_peer_prefix": "tg_",
                 "honcho.user_peer_aliases": [("123", "eri")],
@@ -351,7 +351,7 @@ class TestExtractCacheBustingConfig:
 
         class FakeConfig:
             peer_name = "eri"
-            ai_peer = "hermes"
+            ai_peer = "jarvis"
             pin_peer_name = False
             runtime_peer_prefix = "tg_"
             user_peer_aliases = {"123": "eri"}
@@ -411,20 +411,20 @@ class TestExtractCacheBustingConfig:
 
 
 class TestAgentCacheLifecycle:
-    """End-to-end cache behavior with real AIAgent construction."""
+    """End-to-end cache behavior with real AIBrain construction."""
 
     def test_cache_hit_returns_same_agent(self):
         """Second message with same config reuses the cached agent instance."""
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
         runner = _make_runner()
         session_key = "telegram:12345"
         runtime = {"api_key": "test", "base_url": "https://openrouter.ai/api/v1",
                     "provider": "openrouter", "api_mode": "chat_completions"}
-        sig = runner._agent_config_signature("anthropic/claude-sonnet-4", runtime, ["hermes-telegram"], "")
+        sig = runner._agent_config_signature("anthropic/claude-sonnet-4", runtime, ["jarvis-telegram"], "")
 
         # First message — create and cache
-        agent1 = AIAgent(
+        agent1 = AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True, skip_context_files=True,
@@ -442,15 +442,15 @@ class TestAgentCacheLifecycle:
 
     def test_cache_miss_on_model_change(self):
         """Model change produces different signature → cache miss."""
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
         runner = _make_runner()
         session_key = "telegram:12345"
         runtime = {"api_key": "test", "base_url": "https://openrouter.ai/api/v1",
                     "provider": "openrouter", "api_mode": "chat_completions"}
 
-        old_sig = runner._agent_config_signature("anthropic/claude-sonnet-4", runtime, ["hermes-telegram"], "")
-        agent1 = AIAgent(
+        old_sig = runner._agent_config_signature("anthropic/claude-sonnet-4", runtime, ["jarvis-telegram"], "")
+        agent1 = AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True, skip_context_files=True,
@@ -460,7 +460,7 @@ class TestAgentCacheLifecycle:
             runner._agent_cache[session_key] = (agent1, old_sig)
 
         # New model → different signature
-        new_sig = runner._agent_config_signature("anthropic/claude-opus-4.6", runtime, ["hermes-telegram"], "")
+        new_sig = runner._agent_config_signature("anthropic/claude-opus-4.6", runtime, ["jarvis-telegram"], "")
         assert new_sig != old_sig
 
         with runner._agent_cache_lock:
@@ -469,12 +469,12 @@ class TestAgentCacheLifecycle:
 
     def test_evict_on_session_reset(self):
         """_evict_cached_agent removes the entry."""
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
         runner = _make_runner()
         session_key = "telegram:12345"
 
-        agent = AIAgent(
+        agent = AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True, skip_context_files=True,
@@ -503,9 +503,9 @@ class TestAgentCacheLifecycle:
 
     def test_reasoning_config_updates_in_place(self):
         """Reasoning config can be set on a cached agent without eviction."""
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
-        agent = AIAgent(
+        agent = AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True, skip_context_files=True,
@@ -526,9 +526,9 @@ class TestAgentCacheLifecycle:
 
     def test_system_prompt_frozen_across_cache_reuse(self):
         """The cached agent's system prompt stays identical across turns."""
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
-        agent = AIAgent(
+        agent = AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True, skip_context_files=True,
@@ -545,9 +545,9 @@ class TestAgentCacheLifecycle:
 
     def test_callbacks_update_without_cache_eviction(self):
         """Per-message callbacks can be set on cached agent."""
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
-        agent = AIAgent(
+        agent = AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True, skip_context_files=True,
@@ -585,7 +585,7 @@ class TestAgentCacheBoundedGrowth:
         return runner
 
     def _fake_agent(self, last_activity: float | None = None):
-        """Lightweight stand-in; real AIAgent is heavy to construct."""
+        """Lightweight stand-in; real AIBrain is heavy to construct."""
         m = MagicMock()
         if last_activity is not None:
             m._last_activity_ts = last_activity
@@ -748,7 +748,7 @@ class TestAgentCacheBoundedGrowth:
 class TestAgentCacheActiveSafety:
     """Safety: eviction must not tear down agents currently mid-turn.
 
-    AIAgent.close() kills process_registry entries for the task, cleans
+    AIBrain.close() kills process_registry entries for the task, cleans
     the terminal sandbox, closes the OpenAI client, and cascades
     .close() into active child subagents.  Calling it while the agent
     is still processing would crash the in-flight request.  These tests
@@ -883,7 +883,7 @@ class TestAgentCacheActiveSafety:
         """_AGENT_PENDING_SENTINEL in _running_agents is treated as 'not active'.
 
         The sentinel is set while an agent is being CONSTRUCTED, before the
-        real AIAgent instance exists.  Cached agents from other sessions
+        real AIBrain instance exists.  Cached agents from other sessions
         can still be evicted safely.
         """
         from gateway import run as gw_run
@@ -937,12 +937,12 @@ class TestAgentCacheActiveSafety:
         monkeypatch.setattr(gw_run, "_AGENT_CACHE_MAX_SIZE", 1)
         runner = self._runner()
 
-        # Build a proper fake agent whose close() matches AIAgent's contract.
+        # Build a proper fake agent whose close() matches AIBrain's contract.
         active = MagicMock()
         active._last_activity_ts = __import__("time").time()
         active.client = MagicMock()  # simulate an OpenAI client
         def _real_close():
-            active.client = None  # mirrors run_agent.py:3299
+            active.client = None  # mirrors run_brain.py:3299
         active.close = _real_close
         active.shutdown_memory_provider = MagicMock()
 
@@ -969,7 +969,7 @@ class TestAgentCacheActiveSafety:
 
 
 class TestAgentCacheSpilloverLive:
-    """Live E2E: fill cache with real AIAgent instances and stress it."""
+    """Live E2E: fill cache with real AIBrain instances and stress it."""
 
     def _runner(self):
         from collections import OrderedDict
@@ -982,9 +982,9 @@ class TestAgentCacheSpilloverLive:
         return runner
 
     def _real_agent(self):
-        """A genuine AIAgent; no API calls are made during these tests."""
-        from run_agent import AIAgent
-        return AIAgent(
+        """A genuine AIBrain; no API calls are made during these tests."""
+        from run_brain import AIBrain
+        return AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True,
@@ -1063,7 +1063,7 @@ class TestAgentCacheSpilloverLive:
         """After eviction, the same session_key can insert a fresh agent.
 
         Simulates the real spillover flow: evicted session sends another
-        message, which builds a new AIAgent and re-enters the cache.
+        message, which builds a new AIBrain and re-enters the cache.
         """
         from gateway import run as gw_run
 
@@ -1130,9 +1130,9 @@ class TestAgentCacheIdleResume:
 
     def test_release_clients_does_not_touch_process_registry(self, monkeypatch):
         """release_clients must not call process_registry.kill_all for task_id."""
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
-        agent = AIAgent(
+        agent = AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True,
@@ -1161,11 +1161,11 @@ class TestAgentCacheIdleResume:
 
     def test_release_clients_does_not_touch_terminal_or_browser(self, monkeypatch):
         """release_clients must not call cleanup_vm or cleanup_browser."""
-        from run_agent import AIAgent
+        from run_brain import AIBrain
         from tools import terminal_tool as _tt
         from tools import browser_tool as _bt
 
-        agent = AIAgent(
+        agent = AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True,
@@ -1200,9 +1200,9 @@ class TestAgentCacheIdleResume:
 
     def test_release_clients_closes_llm_client(self):
         """release_clients IS expected to close the OpenAI/httpx client."""
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
-        agent = AIAgent(
+        agent = AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True,
@@ -1223,19 +1223,19 @@ class TestAgentCacheIdleResume:
         (full teardown — session is done), cache-eviction path uses
         release_clients() (soft — session may resume).
         """
-        from run_agent import AIAgent
-        import run_agent as _ra
+        from run_brain import AIBrain
+        import run_brain as _ra
 
         # Agent A: evicted from cache (soft) — terminal survives.
         # Agent B: session expired (hard) — terminal torn down.
-        agent_a = AIAgent(
+        agent_a = AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True,
             skip_context_files=True, skip_memory=True,
             session_id="soft-session",
         )
-        agent_b = AIAgent(
+        agent_b = AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True,
@@ -1244,9 +1244,9 @@ class TestAgentCacheIdleResume:
         )
 
         vm_calls: list = []
-        # AIAgent.close() calls the ``cleanup_vm`` name bound into
-        # ``run_agent`` at import time, not ``tools.terminal_tool.cleanup_vm``
-        # directly — so patch the ``run_agent`` reference.
+        # AIBrain.close() calls the ``cleanup_vm`` name bound into
+        # ``run_brain`` at import time, not ``tools.terminal_tool.cleanup_vm``
+        # directly — so patch the ``run_brain`` reference.
         original_vm = _ra.cleanup_vm
         _ra.cleanup_vm = lambda tid: vm_calls.append(tid)
         try:
@@ -1269,14 +1269,14 @@ class TestAgentCacheIdleResume:
         that persisted across eviction is reachable via the new agent.
         """
         from gateway import run as gw_run
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
         monkeypatch.setattr(gw_run, "_AGENT_CACHE_IDLE_TTL_SECS", 0.01)
         runner = self._runner()
 
         # Build an agent representing a stale (idle) session.
         SESSION_ID = "long-lived-user-session"
-        old = AIAgent(
+        old = AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True,
@@ -1298,7 +1298,7 @@ class TestAgentCacheIdleResume:
         assert old.client is None
 
         # User comes back — new agent built for the SAME session_id.
-        new_agent = AIAgent(
+        new_agent = AIBrain(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True,
@@ -1469,7 +1469,7 @@ class TestCachedAgentInactivityReset:
         agent = self._fake_agent(stale_seconds=STUCK_FOR)
 
         # Simulate: user sees "Still working..." and sends another message.
-        # That triggers an interrupt → _run_agent recurses at depth=1.
+        # That triggers an interrupt → _run_brain recurses at depth=1.
         GatewayRunner._init_cached_agent_for_turn(agent, interrupt_depth=1)
 
         # Watchdog sees time.time() - _last_activity_ts ≥ STUCK_FOR.
@@ -1485,7 +1485,7 @@ class TestAgentConfigSignatureUserId:
 
     HonchoSessionManager freezes the resolved runtime user identity at
     first-message init.  When the gateway session_key omits the participant
-    ID (``thread_sessions_per_user=False``), a cached AIAgent created by
+    ID (``thread_sessions_per_user=False``), a cached AIBrain created by
     user A would otherwise be reused for user B, attributing B's writes to
     A's resolved peer.  Including ``user_id`` / ``user_id_alt`` in the
     signature forces per-user agent builds in shared threads.
@@ -1498,10 +1498,10 @@ class TestAgentConfigSignatureUserId:
         from gateway.run import GatewayRunner
         runtime = {"provider": "anthropic", "api_key": "k", "base_url": "", "api_mode": "chat_completions"}
         sig_a = GatewayRunner._agent_config_signature(
-            "claude-sonnet-4", runtime, ["hermes-telegram"], "", user_id="7654321"
+            "claude-sonnet-4", runtime, ["jarvis-telegram"], "", user_id="7654321"
         )
         sig_b = GatewayRunner._agent_config_signature(
-            "claude-sonnet-4", runtime, ["hermes-telegram"], "", user_id="491827364"
+            "claude-sonnet-4", runtime, ["jarvis-telegram"], "", user_id="491827364"
         )
         assert sig_a != sig_b
 
@@ -1509,10 +1509,10 @@ class TestAgentConfigSignatureUserId:
         from gateway.run import GatewayRunner
         runtime = {"provider": "anthropic", "api_key": "k", "base_url": "", "api_mode": "chat_completions"}
         sig_1 = GatewayRunner._agent_config_signature(
-            "claude-sonnet-4", runtime, ["hermes-telegram"], "", user_id="7654321"
+            "claude-sonnet-4", runtime, ["jarvis-telegram"], "", user_id="7654321"
         )
         sig_2 = GatewayRunner._agent_config_signature(
-            "claude-sonnet-4", runtime, ["hermes-telegram"], "", user_id="7654321"
+            "claude-sonnet-4", runtime, ["jarvis-telegram"], "", user_id="7654321"
         )
         assert sig_1 == sig_2
 
@@ -1520,11 +1520,11 @@ class TestAgentConfigSignatureUserId:
         from gateway.run import GatewayRunner
         runtime = {"provider": "anthropic", "api_key": "k", "base_url": "", "api_mode": "chat_completions"}
         sig_a = GatewayRunner._agent_config_signature(
-            "claude-sonnet-4", runtime, ["hermes-telegram"], "",
+            "claude-sonnet-4", runtime, ["jarvis-telegram"], "",
             user_id="7654321", user_id_alt="@igor_tg",
         )
         sig_b = GatewayRunner._agent_config_signature(
-            "claude-sonnet-4", runtime, ["hermes-telegram"], "",
+            "claude-sonnet-4", runtime, ["jarvis-telegram"], "",
             user_id="7654321", user_id_alt="@erosika_tg",
         )
         assert sig_a != sig_b
@@ -1539,10 +1539,10 @@ class TestAgentConfigSignatureUserId:
         from gateway.run import GatewayRunner
         runtime = {"provider": "anthropic", "api_key": "k", "base_url": "", "api_mode": "chat_completions"}
         sig_implicit = GatewayRunner._agent_config_signature(
-            "claude-sonnet-4", runtime, ["hermes-telegram"], "",
+            "claude-sonnet-4", runtime, ["jarvis-telegram"], "",
         )
         sig_explicit_none = GatewayRunner._agent_config_signature(
-            "claude-sonnet-4", runtime, ["hermes-telegram"], "",
+            "claude-sonnet-4", runtime, ["jarvis-telegram"], "",
             user_id=None, user_id_alt=None,
         )
         assert sig_implicit == sig_explicit_none
@@ -1599,7 +1599,7 @@ class TestAgentCacheMessageCountRebaseline:
         writes), turn appends its own rows, then the post-turn re-baseline
         runs — so the NEXT turn's guard sees no external change and reuses.
         """
-        from hermes_state import SessionDB
+        from jarvis_state import SessionDB
 
         db = SessionDB(db_path=tmp_path / "sessions.db")
         db.create_session("s1", source="telegram")
@@ -1634,7 +1634,7 @@ class TestAgentCacheMessageCountRebaseline:
         """After the re-baseline, a DIFFERENT process appending to the same
         session must still flip the guard to rebuild (the #45966 fix holds).
         """
-        from hermes_state import SessionDB
+        from jarvis_state import SessionDB
 
         db = SessionDB(db_path=tmp_path / "sessions.db")
         db.create_session("s1", source="telegram")
@@ -1663,7 +1663,7 @@ class TestAgentCacheMessageCountRebaseline:
     def test_rebaseline_is_fail_safe_and_skips_legacy_and_pending(self, tmp_path):
         """Re-baseline must never crash and must leave legacy 2-tuples and
         pending-sentinel entries untouched."""
-        from hermes_state import SessionDB
+        from jarvis_state import SessionDB
         from gateway.run import _AGENT_PENDING_SENTINEL
 
         db = SessionDB(db_path=tmp_path / "sessions.db")

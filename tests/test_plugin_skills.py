@@ -1,8 +1,8 @@
 """Tests for namespaced plugin skill registration and resolution.
 
 Covers:
-- agent/skill_utils namespace helpers
-- hermes_cli/plugins register_skill API + registry
+- brain/skill_utils namespace helpers
+- jarvis_cli/plugins register_skill API + registry
 - tools/skills_tool qualified name dispatch in skill_view
 """
 
@@ -17,28 +17,28 @@ import pytest
 
 class TestParseQualifiedName:
     def test_with_colon(self):
-        from agent.skill_utils import parse_qualified_name
+        from brain.skill_utils import parse_qualified_name
 
         ns, bare = parse_qualified_name("superpowers:writing-plans")
         assert ns == "superpowers"
         assert bare == "writing-plans"
 
     def test_without_colon(self):
-        from agent.skill_utils import parse_qualified_name
+        from brain.skill_utils import parse_qualified_name
 
         ns, bare = parse_qualified_name("my-skill")
         assert ns is None
         assert bare == "my-skill"
 
     def test_multiple_colons_splits_on_first(self):
-        from agent.skill_utils import parse_qualified_name
+        from brain.skill_utils import parse_qualified_name
 
         ns, bare = parse_qualified_name("a:b:c")
         assert ns == "a"
         assert bare == "b:c"
 
     def test_empty_string(self):
-        from agent.skill_utils import parse_qualified_name
+        from brain.skill_utils import parse_qualified_name
 
         ns, bare = parse_qualified_name("")
         assert ns is None
@@ -47,7 +47,7 @@ class TestParseQualifiedName:
 
 class TestIsValidNamespace:
     def test_valid(self):
-        from agent.skill_utils import is_valid_namespace
+        from brain.skill_utils import is_valid_namespace
 
         assert is_valid_namespace("superpowers")
         assert is_valid_namespace("my-plugin")
@@ -55,7 +55,7 @@ class TestIsValidNamespace:
         assert is_valid_namespace("Plugin123")
 
     def test_invalid(self):
-        from agent.skill_utils import is_valid_namespace
+        from brain.skill_utils import is_valid_namespace
 
         assert not is_valid_namespace("")
         assert not is_valid_namespace(None)
@@ -70,8 +70,8 @@ class TestIsValidNamespace:
 class TestPluginSkillRegistry:
     @pytest.fixture
     def pm(self, monkeypatch):
-        from hermes_cli import plugins as plugins_mod
-        from hermes_cli.plugins import PluginManager
+        from jarvis_cli import plugins as plugins_mod
+        from jarvis_cli.plugins import PluginManager
 
         fresh = PluginManager()
         monkeypatch.setattr(plugins_mod, "_plugin_manager", fresh)
@@ -119,8 +119,8 @@ class TestPluginSkillRegistry:
 class TestPluginContextRegisterSkill:
     @pytest.fixture
     def ctx(self, tmp_path, monkeypatch):
-        from hermes_cli import plugins as plugins_mod
-        from hermes_cli.plugins import PluginContext, PluginManager, PluginManifest
+        from jarvis_cli import plugins as plugins_mod
+        from jarvis_cli.plugins import PluginContext, PluginManager, PluginManifest
 
         pm = PluginManager()
         monkeypatch.setattr(plugins_mod, "_plugin_manager", pm)
@@ -164,8 +164,8 @@ class TestSkillViewQualifiedName:
     @pytest.fixture(autouse=True)
     def _isolate(self, tmp_path, monkeypatch):
         """Fresh plugin manager + empty SKILLS_DIR for each test."""
-        from hermes_cli import plugins as plugins_mod
-        from hermes_cli.plugins import PluginManager
+        from jarvis_cli import plugins as plugins_mod
+        from jarvis_cli.plugins import PluginManager
 
         self.pm = PluginManager()
         monkeypatch.setattr(plugins_mod, "_plugin_manager", self.pm)
@@ -173,7 +173,7 @@ class TestSkillViewQualifiedName:
         empty = tmp_path / "empty-skills"
         empty.mkdir()
         monkeypatch.setattr("tools.skills_tool.SKILLS_DIR", empty)
-        monkeypatch.setenv("HERMES_HOME", str(tmp_path / ".hermes"))
+        monkeypatch.setenv("JARVIS_HOME", str(tmp_path / ".jarvis"))
 
     def _register_skill(self, tmp_path, plugin="superpowers", name="writing-plans", content=None):
         skill_dir = tmp_path / "plugins" / plugin / "skills" / name
@@ -272,15 +272,15 @@ class TestSkillViewPluginGuards:
     def _isolate(self, tmp_path, monkeypatch):
         import sys
 
-        from hermes_cli import plugins as plugins_mod
-        from hermes_cli.plugins import PluginManager
+        from jarvis_cli import plugins as plugins_mod
+        from jarvis_cli.plugins import PluginManager
 
         self.pm = PluginManager()
         monkeypatch.setattr(plugins_mod, "_plugin_manager", self.pm)
         empty = tmp_path / "empty"
         empty.mkdir()
         monkeypatch.setattr("tools.skills_tool.SKILLS_DIR", empty)
-        monkeypatch.setenv("HERMES_HOME", str(tmp_path / ".hermes"))
+        monkeypatch.setenv("JARVIS_HOME", str(tmp_path / ".jarvis"))
         self._platform = sys.platform
 
     def _reg(self, tmp_path, content, plugin="myplugin", name="foo"):
@@ -296,7 +296,7 @@ class TestSkillViewPluginGuards:
         from tools.skills_tool import skill_view
 
         self._reg(tmp_path, "---\nname: foo\n---\nBody.\n")
-        monkeypatch.setattr("hermes_cli.plugins._get_disabled_plugins", lambda: {"myplugin"})
+        monkeypatch.setattr("jarvis_cli.plugins._get_disabled_plugins", lambda: {"myplugin"})
 
         result = json.loads(skill_view("myplugin:foo"))
         assert result["success"] is False
@@ -329,15 +329,15 @@ class TestSkillViewPluginGuards:
 class TestBundleContextBanner:
     @pytest.fixture(autouse=True)
     def _isolate(self, tmp_path, monkeypatch):
-        from hermes_cli import plugins as plugins_mod
-        from hermes_cli.plugins import PluginManager
+        from jarvis_cli import plugins as plugins_mod
+        from jarvis_cli.plugins import PluginManager
 
         self.pm = PluginManager()
         monkeypatch.setattr(plugins_mod, "_plugin_manager", self.pm)
         empty = tmp_path / "empty"
         empty.mkdir()
         monkeypatch.setattr("tools.skills_tool.SKILLS_DIR", empty)
-        monkeypatch.setenv("HERMES_HOME", str(tmp_path / ".hermes"))
+        monkeypatch.setenv("JARVIS_HOME", str(tmp_path / ".jarvis"))
 
     def _setup_bundle(self, tmp_path, skills=("foo", "bar", "baz")):
         for name in skills:

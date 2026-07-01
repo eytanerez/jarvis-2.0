@@ -52,7 +52,7 @@ export function OverlaySidebar({ children, className }: OverlaySidebarProps) {
       className={cn(
         // pt clears the floating titlebar/header; the bg itself fills from the
         // card's top edge so there's no surface-colored gap above the sidebar.
-        'flex min-h-0 flex-col gap-0.5 overflow-y-auto bg-(--ui-sidebar-surface-background) px-2.5 pb-3 pt-[calc(var(--titlebar-height)+1rem)]',
+        'flex min-h-0 flex-col gap-0.5 overflow-y-auto border-r border-[color-mix(in_srgb,var(--jarvis-hairline)_58%,transparent)] bg-[color-mix(in_srgb,var(--ui-sidebar-surface-background)_92%,#02040a)] px-2.5 pb-3 pt-[calc(var(--titlebar-height)+1rem)]',
         className
       )}
     >
@@ -104,14 +104,14 @@ export function OverlayNavItem({ active, icon: Icon, label, nested, onClick, tra
   return (
     <button
       className={cn(
-        'flex h-7 w-full items-center justify-start gap-2 rounded-md border px-2 text-left text-[length:var(--conversation-text-font-size)] font-normal transition-colors',
+        'flex h-7 w-full items-center justify-start gap-2 rounded-md border px-2 text-left text-[length:var(--conversation-text-font-size)] font-normal transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.99]',
         nested
           ? active
-            ? 'border-transparent bg-(--chrome-action-hover) font-medium text-foreground'
-            : 'border-transparent bg-transparent text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground'
+            ? 'border-[color-mix(in_srgb,var(--jarvis-blue)_30%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] font-medium text-white'
+            : 'border-transparent bg-transparent text-(--ui-text-tertiary) hover:border-[color-mix(in_srgb,var(--jarvis-hairline)_36%,transparent)] hover:bg-(--chrome-action-hover) hover:text-white'
           : active
-            ? 'border-(--ui-stroke-tertiary) bg-(--ui-bg-tertiary) text-foreground'
-            : 'border-transparent bg-transparent text-(--ui-text-secondary) hover:bg-(--chrome-action-hover) hover:text-foreground'
+            ? 'border-[color-mix(in_srgb,var(--jarvis-blue)_44%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_12%,var(--ui-bg-tertiary))] text-white shadow-[inset_0_0.0625rem_0_color-mix(in_srgb,#fff_6%,transparent)]'
+            : 'border-transparent bg-transparent text-(--ui-text-secondary) hover:border-[color-mix(in_srgb,var(--jarvis-hairline)_44%,transparent)] hover:bg-(--chrome-action-hover) hover:text-white'
       )}
       onClick={onClick}
       type="button"

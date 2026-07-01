@@ -9,7 +9,7 @@ with on the first turn of that session. Two pieces make that true:
    from current config). If this helper ever started clobbering it, the
    gateway's refresh would be silently undone.
 2. The per-turn budget object is rebuilt from ``agent.max_iterations`` at the
-   start of every turn (``agent/turn_context.py`` -> ``IterationBudget``), so
+   start of every turn (``brain/turn_context.py`` -> ``IterationBudget``), so
    refreshing ``max_iterations`` on the cached agent is sufficient to change
    the operative cap the agent loop checks.
 
@@ -20,7 +20,7 @@ assignment, so they fail if either contract regresses.
 import time
 from types import SimpleNamespace
 
-from agent.iteration_budget import IterationBudget
+from brain.iteration_budget import IterationBudget
 
 
 def _make_cached_agent(max_iterations: int) -> SimpleNamespace:
@@ -85,7 +85,7 @@ def test_refreshed_max_iterations_propagates_to_turn_budget():
     # Gateway refresh on cache reuse:
     agent.max_iterations = 200
 
-    # Start-of-turn budget rebuild (agent/turn_context.py:166):
+    # Start-of-turn budget rebuild (brain/turn_context.py:166):
     agent.iteration_budget = IterationBudget(agent.max_iterations)
 
     assert agent.iteration_budget.max_total == 200

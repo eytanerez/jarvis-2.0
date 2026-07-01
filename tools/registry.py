@@ -1,4 +1,4 @@
-"""Central registry for all hermes-agent tools.
+"""Central registry for all jarvis-agent tools.
 
 Each tool file calls ``registry.register()`` at module level to declare its
 schema, handler, toolset membership, and availability check.  ``model_tools.py``
@@ -11,7 +11,7 @@ Import chain (circular-import safe):
            ^
     model_tools.py  (imports tools.registry + all tool modules)
            ^
-    run_agent.py, cli.py, batch_runner.py, etc.
+    run_brain.py, cli.py, batch_runner.py, etc.
 """
 
 import ast
@@ -113,7 +113,7 @@ class ToolEntry:
 # probe external state (Docker daemon, Modal SDK install, playwright binary
 # availability). For a long-lived CLI or gateway process, calling them on
 # every get_definitions() is pure waste — external state changes on human
-# timescales. Cache results for ~30 s so env-var flips via ``hermes tools``
+# timescales. Cache results for ~30 s so env-var flips via ``jarvis tools``
 # or live credential file changes propagate within a turn or two without
 # requiring any explicit invalidation.
 # ---------------------------------------------------------------------------
@@ -143,7 +143,7 @@ def _check_fn_cached(fn: Callable) -> bool:
 
 def invalidate_check_fn_cache() -> None:
     """Drop all cached ``check_fn`` results. Call after config changes that
-    affect tool availability (e.g. ``hermes tools enable``)."""
+    affect tool availability (e.g. ``jarvis tools enable``)."""
     with _check_fn_cache_lock:
         _check_fn_cache.clear()
 
@@ -270,7 +270,7 @@ class ToolRegistry:
                     )
                 elif override:
                     # Explicit plugin opt-in: replace the existing tool.
-                    # Logged at INFO so the override is auditable in agent.log.
+                    # Logged at INFO so the override is auditable in brain.log.
                     logger.info(
                         "Tool '%s': toolset '%s' overriding existing toolset '%s' "
                         "(override=True opt-in)",
@@ -341,7 +341,7 @@ class ToolRegistry:
         are included. ``check_fn()`` results are cached for ~30 s via
         :func:`_check_fn_cached` to amortize repeat probes (check_terminal_
         requirements probes modal/docker, browser checks probe playwright,
-        etc.); TTL chosen so env-var changes (``hermes tools enable foo``)
+        etc.); TTL chosen so env-var changes (``jarvis tools enable foo``)
         still take effect in near-real-time without forcing a full cache
         flush on every call.
         """

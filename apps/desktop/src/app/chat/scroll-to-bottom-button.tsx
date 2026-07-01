@@ -50,10 +50,10 @@ export function ScrollToBottomButton() {
       aria-hidden={!visible}
       aria-label={label}
       className={cn(
-        'thread-jump-button absolute left-1/2 z-20 grid place-items-center backdrop-blur-[0.75rem] [-webkit-backdrop-filter:blur(0.75rem)]',
+        'jarvis-button thread-jump-button absolute left-1/2 z-20 grid place-items-center overflow-hidden rounded-md backdrop-blur-[0.75rem] transition-[border-color,background-color,color,box-shadow,transform] duration-150 [-webkit-backdrop-filter:blur(0.75rem)]',
         approval
-          ? 'h-8 grid-flow-col gap-1.5 rounded-full border border-primary/40 bg-(--composer-fill) px-3 text-primary hover:bg-primary/10'
-          : 'size-8 rounded-full border border-border/65 bg-(--composer-fill) text-muted-foreground hover:text-foreground',
+          ? 'h-8 grid-flow-col gap-1.5 border border-[color-mix(in_srgb,var(--jarvis-blue)_48%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel)_88%,transparent)] px-3 text-(--jarvis-blue) shadow-[0_0_24px_color-mix(in_srgb,var(--jarvis-blue)_14%,transparent)] hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_12%,var(--jarvis-panel))] hover:text-white'
+          : 'size-8 border border-[color-mix(in_srgb,var(--jarvis-hairline)_72%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel)_88%,transparent)] text-(--jarvis-muted) hover:border-[color-mix(in_srgb,var(--jarvis-blue)_42%,transparent)] hover:text-white',
         !visible && 'pointer-events-none'
       )}
       data-state={state}

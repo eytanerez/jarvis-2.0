@@ -3,7 +3,14 @@ import { useEffect, useState } from 'react'
 
 import { ActionStatus } from '@/components/ui/action-status'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import { useI18n } from '@/i18n'
 import { AlertTriangle } from '@/lib/icons'
 
@@ -89,7 +96,7 @@ export function ConfirmDialog({
         </DialogHeader>
 
         {error && (
-          <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <div className="flex items-start gap-2 rounded-md border border-[color-mix(in_srgb,var(--jarvis-danger)_42%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-danger)_10%,transparent)] px-3 py-2 text-xs text-(--jarvis-danger)">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
             <span>{error}</span>
           </div>
@@ -100,7 +107,12 @@ export function ConfirmDialog({
             {resolvedCancelLabel}
           </Button>
           <Button disabled={busy} onClick={() => void run()} variant={destructive ? 'destructive' : 'default'}>
-            <ActionStatus busy={resolvedBusyLabel} done={resolvedDoneLabel} idle={resolvedConfirmLabel} state={status} />
+            <ActionStatus
+              busy={resolvedBusyLabel}
+              done={resolvedDoneLabel}
+              idle={resolvedConfirmLabel}
+              state={status}
+            />
           </Button>
         </DialogFooter>
       </DialogContent>

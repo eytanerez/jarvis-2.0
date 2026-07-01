@@ -4,7 +4,7 @@ Todo Tool Module - Planning & Task Management
 
 Provides an in-memory task list the agent uses to decompose complex tasks,
 track progress, and maintain focus across long conversations. The state
-lives on the AIAgent instance (one per session) and is re-injected into
+lives on the AIBrain instance (one per session) and is re-injected into
 the conversation after context compression events.
 
 Design:
@@ -35,7 +35,7 @@ _TRUNCATION_MARKER = "… [truncated]"
 
 class TodoStore:
     """
-    In-memory todo list. One instance per AIAgent (one per session).
+    In-memory todo list. One instance per AIBrain (one per session).
 
     Items are ordered -- list position is priority. Each item has:
       - id: unique string identifier (agent-chosen)
@@ -195,7 +195,7 @@ def todo_tool(
     Args:
         todos: if provided, write these items. If None, read current list.
         merge: if True, update by id. If False (default), replace entire list.
-        store: the TodoStore instance from the AIAgent.
+        store: the TodoStore instance from the AIBrain.
 
     Returns:
         JSON string with the full current list and summary metadata.

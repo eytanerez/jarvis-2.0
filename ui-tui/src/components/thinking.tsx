@@ -1,4 +1,4 @@
-import { Box, NoSelect, Text } from '@hermes/ink'
+import { Box, NoSelect, Text } from '@jarvis/ink'
 import { memo, type ReactNode, useEffect, useMemo, useState } from 'react'
 import spinners, { type BrailleSpinnerName } from 'unicode-animations'
 
@@ -338,7 +338,7 @@ function SubagentAccordion({
   const title = `${prefix}${open ? goalLabel : compactPreview(goalLabel, 60)}`
   const summary = compactPreview((item.summary || '').replace(/\s+/g, ' ').trim(), 72)
 
-  // Suffix packs branch rollup: status · elapsed · per-branch tool/agent/token/cost.
+  // Suffix packs branch rollup: status · elapsed · per-branch tool/brain/token/cost.
   // Emphasises the numbers the user can't easily eyeball from a flat list.
   const statusLabel = item.status === 'queued' ? 'queued' : item.status === 'running' ? 'running' : String(item.status)
 

@@ -155,16 +155,16 @@ def _make_runner(adapter):
 
 
 def _install_fakes(monkeypatch, agent_cls, *, cleanup_on: bool):
-    """Wire up the module stubs every _run_agent test needs."""
-    monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "all")
+    """Wire up the module stubs every _run_brain test needs."""
+    monkeypatch.setenv("JARVIS_TOOL_PROGRESS_MODE", "all")
 
     fake_dotenv = types.ModuleType("dotenv")
     fake_dotenv.load_dotenv = lambda *a, **k: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = agent_cls
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = agent_cls
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
     import tools.terminal_tool  # noqa: F401 — register tool emoji
 
     gateway_run = importlib.import_module("gateway.run")
@@ -195,12 +195,12 @@ async def test_cleanup_off_by_default_leaves_bubbles(monkeypatch, tmp_path):
     adapter = CleanupCaptureAdapter()
     runner = _make_runner(adapter)
     gateway_run = _install_fakes(monkeypatch, ProgressAgent, cleanup_on=False)
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
 
     source = SessionSource(platform=Platform.TELEGRAM, chat_id="-1001")
     session_key = "agent:main:telegram:group:-1001"
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -227,12 +227,12 @@ async def test_cleanup_registers_callback_and_deletes_on_success(monkeypatch, tm
     adapter = CleanupCaptureAdapter()
     runner = _make_runner(adapter)
     gateway_run = _install_fakes(monkeypatch, ProgressAgent, cleanup_on=True)
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
 
     source = SessionSource(platform=Platform.TELEGRAM, chat_id="-1001")
     session_key = "agent:main:telegram:group:-1001"
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -268,12 +268,12 @@ async def test_cleanup_skipped_on_failed_run(monkeypatch, tmp_path):
     adapter = CleanupCaptureAdapter()
     runner = _make_runner(adapter)
     gateway_run = _install_fakes(monkeypatch, FailingAgent, cleanup_on=True)
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
 
     source = SessionSource(platform=Platform.TELEGRAM, chat_id="-1001")
     session_key = "agent:main:telegram:group:-1001"
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -301,12 +301,12 @@ async def test_cleanup_noop_on_adapter_without_delete_support(monkeypatch, tmp_p
     adapter = NoDeleteAdapter()
     runner = _make_runner(adapter)
     gateway_run = _install_fakes(monkeypatch, ProgressAgent, cleanup_on=True)
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
 
     source = SessionSource(platform=Platform.TELEGRAM, chat_id="-1001")
     session_key = "agent:main:telegram:group:-1001"
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -329,7 +329,7 @@ async def test_cleanup_chains_with_existing_callback(monkeypatch, tmp_path):
     adapter = CleanupCaptureAdapter()
     runner = _make_runner(adapter)
     gateway_run = _install_fakes(monkeypatch, ProgressAgent, cleanup_on=True)
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
 
     source = SessionSource(platform=Platform.TELEGRAM, chat_id="-1001")
     session_key = "agent:main:telegram:group:-1001"
@@ -343,7 +343,7 @@ async def test_cleanup_chains_with_existing_callback(monkeypatch, tmp_path):
     # (run_generation=None in this test path — matches the default slot).
     adapter.register_post_delivery_callback(session_key, _preexisting_callback)
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],

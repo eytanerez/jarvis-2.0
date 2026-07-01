@@ -93,23 +93,23 @@ class TestZombieReproduction:
 
 
 class TestAgentCloseMethod:
-    """Verify AIAgent.close() exists, is idempotent, and calls cleanup."""
+    """Verify AIBrain.close() exists, is idempotent, and calls cleanup."""
 
     def test_close_calls_cleanup_functions(self):
         """close() should call kill_all, cleanup_vm, cleanup_browser."""
         from unittest.mock import patch
 
-        with patch("run_agent.AIAgent.__init__", return_value=None):
-            from run_agent import AIAgent
-            agent = AIAgent.__new__(AIAgent)
+        with patch("run_brain.AIBrain.__init__", return_value=None):
+            from run_brain import AIBrain
+            agent = AIBrain.__new__(AIBrain)
             agent.session_id = "test-close-cleanup"
             agent._active_children = []
             agent._active_children_lock = threading.Lock()
             agent.client = None
 
             with patch("tools.process_registry.process_registry") as mock_registry, \
-                 patch("run_agent.cleanup_vm") as mock_cleanup_vm, \
-                 patch("run_agent.cleanup_browser") as mock_cleanup_browser:
+                 patch("run_brain.cleanup_vm") as mock_cleanup_vm, \
+                 patch("run_brain.cleanup_browser") as mock_cleanup_browser:
                 agent.close()
 
                 mock_registry.kill_all.assert_called_once_with(
@@ -122,9 +122,9 @@ class TestAgentCloseMethod:
         """close() can be called multiple times without error."""
         from unittest.mock import patch
 
-        with patch("run_agent.AIAgent.__init__", return_value=None):
-            from run_agent import AIAgent
-            agent = AIAgent.__new__(AIAgent)
+        with patch("run_brain.AIBrain.__init__", return_value=None):
+            from run_brain import AIBrain
+            agent = AIBrain.__new__(AIBrain)
             agent.session_id = "test-close-idempotent"
             agent._active_children = []
             agent._active_children_lock = threading.Lock()
@@ -138,9 +138,9 @@ class TestAgentCloseMethod:
         """close() should call close() on all active child agents."""
         from unittest.mock import MagicMock, patch
 
-        with patch("run_agent.AIAgent.__init__", return_value=None):
-            from run_agent import AIAgent
-            agent = AIAgent.__new__(AIAgent)
+        with patch("run_brain.AIBrain.__init__", return_value=None):
+            from run_brain import AIBrain
+            agent = AIBrain.__new__(AIBrain)
             agent.session_id = "test-close-children"
             agent._active_children_lock = threading.Lock()
             agent.client = None
@@ -159,9 +159,9 @@ class TestAgentCloseMethod:
         """close() continues cleanup even if one step fails."""
         from unittest.mock import patch
 
-        with patch("run_agent.AIAgent.__init__", return_value=None):
-            from run_agent import AIAgent
-            agent = AIAgent.__new__(AIAgent)
+        with patch("run_brain.AIBrain.__init__", return_value=None):
+            from run_brain import AIBrain
+            agent = AIBrain.__new__(AIBrain)
             agent.session_id = "test-close-partial"
             agent._active_children = []
             agent._active_children_lock = threading.Lock()
@@ -170,9 +170,9 @@ class TestAgentCloseMethod:
             with patch(
                 "tools.process_registry.process_registry"
             ) as mock_reg, patch(
-                "run_agent.cleanup_vm"
+                "run_brain.cleanup_vm"
             ) as mock_vm, patch(
-                "run_agent.cleanup_browser"
+                "run_brain.cleanup_browser"
             ) as mock_browser:
                 mock_reg.kill_all.side_effect = RuntimeError("boom")
 

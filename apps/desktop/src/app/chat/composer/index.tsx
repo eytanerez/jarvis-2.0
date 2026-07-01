@@ -13,7 +13,7 @@ import {
   useState
 } from 'react'
 
-import { hermesDirectiveFormatter, type SlashChipKind } from '@/components/assistant-ui/directive-text'
+import { jarvisDirectiveFormatter, type SlashChipKind } from '@/components/assistant-ui/directive-text'
 import { composerFill, composerSurfaceGlass } from '@/components/chat/composer-dock'
 import { Button } from '@/components/ui/button'
 import { useMediaQuery } from '@/hooks/use-media-query'
@@ -57,7 +57,7 @@ import { $gatewayState, $messages, setSessionPickerOpen } from '@/store/session'
 import { $threadScrolledUp } from '@/store/thread-scroll'
 import { useTheme } from '@/themes'
 
-import { extractDroppedFiles, HERMES_PATHS_MIME, partitionDroppedFiles } from '../hooks/use-composer-actions'
+import { extractDroppedFiles, JARVIS_PATHS_MIME, partitionDroppedFiles } from '../hooks/use-composer-actions'
 
 import { AttachmentList } from './attachments'
 import { ContextMenu } from './context-menu'
@@ -288,7 +288,7 @@ export function ChatBar({
   }, [followUpPlaceholders, newSessionPlaceholders, sessionId])
 
   // When the transport is disabled it's because the gateway isn't open.
-  // Distinguish a cold start ("Starting Hermes...") from a dropped connection
+  // Distinguish a cold start ("Starting Jarvis...") from a dropped connection
   // we're trying to restore. During reconnect, keep the textbox editable so a
   // flaky network doesn't block drafting; only submit/backend actions stay
   // disabled until the gateway is open again.
@@ -682,8 +682,7 @@ export function ChatBar({
   // Suppress the "No matches" empty state once a slash command is past its name:
   // a no-arg command has nothing to offer, and a fully-typed arg commits on
   // Space/Tab — neither should dead-end on a popover.
-  const argStageEmpty =
-    trigger?.kind === '/' && slashArgStage(trigger.query) && !triggerLoading && !triggerItems.length
+  const argStageEmpty = trigger?.kind === '/' && slashArgStage(trigger.query) && !triggerLoading && !triggerItems.length
 
   const closeTrigger = () => {
     setTrigger(null)
@@ -710,7 +709,14 @@ export function ChatBar({
       id: text,
       type: 'slash',
       label: text.slice(1),
-      metadata: { command: slashCommandToken(trigger.query), display: text, meta: '', group: '', action: '', rawText: text }
+      metadata: {
+        command: slashCommandToken(trigger.query),
+        display: text,
+        meta: '',
+        group: '',
+        action: '',
+        rawText: text
+      }
     })
   }
 
@@ -741,7 +747,7 @@ export function ChatBar({
       return
     }
 
-    const serialized = hermesDirectiveFormatter.serialize(item)
+    const serialized = jarvisDirectiveFormatter.serialize(item)
     const starter = serialized.endsWith(':')
 
     // Picking a bare arg-taking command (e.g. `/personality`) shouldn't commit
@@ -834,10 +840,7 @@ export function ChatBar({
 
     // Non-collapsed Backspace/Delete: native selection-delete is ~O(n²) on large
     // drafts (Ctrl+A → Delete froze ~1.3s). Collapsed carets fall through.
-    if (
-      (event.key === 'Backspace' || event.key === 'Delete') &&
-      deleteSelectionInEditor(event.currentTarget)
-    ) {
+    if ((event.key === 'Backspace' || event.key === 'Delete') && deleteSelectionInEditor(event.currentTarget)) {
       event.preventDefault()
       flushEditorToDraft(event.currentTarget)
 
@@ -1079,7 +1082,7 @@ export function ChatBar({
   }
 
   const handleDragEnter = (event: ReactDragEvent<HTMLFormElement>) => {
-    if (!onAttachDroppedItems || !dragHasAttachments(event.dataTransfer, HERMES_PATHS_MIME)) {
+    if (!onAttachDroppedItems || !dragHasAttachments(event.dataTransfer, JARVIS_PATHS_MIME)) {
       return
     }
 
@@ -1092,7 +1095,7 @@ export function ChatBar({
   }
 
   const handleDragOver = (event: ReactDragEvent<HTMLFormElement>) => {
-    if (!onAttachDroppedItems || !dragHasAttachments(event.dataTransfer, HERMES_PATHS_MIME)) {
+    if (!onAttachDroppedItems || !dragHasAttachments(event.dataTransfer, JARVIS_PATHS_MIME)) {
       return
     }
 
@@ -1149,7 +1152,7 @@ export function ChatBar({
   }
 
   const handleInputDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
-    if (!dragHasAttachments(event.dataTransfer, HERMES_PATHS_MIME)) {
+    if (!dragHasAttachments(event.dataTransfer, JARVIS_PATHS_MIME)) {
       return
     }
 
@@ -1159,7 +1162,7 @@ export function ChatBar({
   }
 
   const handleInputDrop = (event: ReactDragEvent<HTMLDivElement>) => {
-    if (!dragHasAttachments(event.dataTransfer, HERMES_PATHS_MIME)) {
+    if (!dragHasAttachments(event.dataTransfer, JARVIS_PATHS_MIME)) {
       return
     }
 
@@ -1821,7 +1824,7 @@ export function ChatBar({
     <>
       <ComposerPrimitive.Unstable_TriggerPopoverRoot>
         <ComposerPrimitive.Root
-          className="group/composer absolute bottom-0 left-1/2 z-30 w-[min(var(--composer-width),calc(100%-2rem))] max-w-full -translate-x-1/2 rounded-2xl pt-2 pb-[var(--composer-shell-pad-block-end)]"
+          className="group/composer absolute bottom-0 left-1/2 z-30 w-[min(var(--composer-width),calc(100%-2rem))] max-w-full -translate-x-1/2 rounded-lg pt-2 pb-[var(--composer-shell-pad-block-end)]"
           data-drag-active={dragActive ? '' : undefined}
           data-slot="composer-root"
           data-status-stack={statusStackVisible ? '' : undefined}
@@ -1902,14 +1905,16 @@ export function ChatBar({
               <div
                 className={cn(
                   'relative z-1 flex min-h-0 w-full flex-col gap-(--composer-row-gap) overflow-hidden rounded-[inherit] px-(--composer-surface-pad-x) py-(--composer-surface-pad-y) transition-opacity duration-200 ease-out',
-                  scrolledUp ? 'opacity-30 group-hover/composer:opacity-100 group-focus-within/composer-surface:opacity-100' : 'opacity-100'
+                  scrolledUp
+                    ? 'opacity-30 group-hover/composer:opacity-100 group-focus-within/composer-surface:opacity-100'
+                    : 'opacity-100'
                 )}
                 data-slot="composer-fade"
               >
                 <VoiceActivity state={voiceActivityState} />
                 <VoicePlaybackActivity />
                 {queueEdit && editingQueuedPrompt && (
-                  <div className="flex items-center justify-between gap-2 rounded-lg border border-[color-mix(in_srgb,var(--dt-composer-ring)_32%,transparent)] bg-accent/18 px-2 py-1">
+                  <div className="flex items-center justify-between gap-2 rounded-md border border-[color-mix(in_srgb,var(--dt-composer-ring)_32%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] px-2 py-1">
                     <div className="min-w-0 text-[0.7rem] text-muted-foreground/88">
                       {t.composer.editingQueuedInComposer}
                     </div>
@@ -1967,7 +1972,7 @@ export function ChatBarFallback() {
   return (
     <div
       className={cn(
-        'group/composer absolute bottom-0 left-1/2 z-30 w-[min(var(--composer-width),calc(100%-2rem))] max-w-full -translate-x-1/2 rounded-2xl pt-2 pb-[var(--composer-shell-pad-block-end)]',
+        'group/composer absolute bottom-0 left-1/2 z-30 w-[min(var(--composer-width),calc(100%-2rem))] max-w-full -translate-x-1/2 rounded-lg pt-2 pb-[var(--composer-shell-pad-block-end)]',
         'bg-linear-to-b from-transparent to-background/55'
       )}
       data-slot="composer-root"

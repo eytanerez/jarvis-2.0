@@ -1,9 +1,9 @@
 """End-to-end tests for inline image inputs on /v1/chat/completions and /v1/responses.
 
 Covers the multimodal normalization path added to the API server.  Unlike the
-adapter-level tests that patch ``_run_agent``, these tests patch
-``AIAgent.run_conversation`` instead so the adapter's full request-handling
-path (including the ``run_agent`` prologue that used to crash on list content)
+adapter-level tests that patch ``_run_brain``, these tests patch
+``AIBrain.run_conversation`` instead so the adapter's full request-handling
+path (including the ``run_brain`` prologue that used to crash on list content)
 executes against a real aiohttp app.
 """
 
@@ -143,8 +143,8 @@ def adapter():
 
 class TestChatCompletionsMultimodalHTTP:
     @pytest.mark.asyncio
-    async def test_inline_image_preserved_to_run_agent(self, adapter):
-        """Multimodal user content reaches _run_agent as a list of parts."""
+    async def test_inline_image_preserved_to_run_brain(self, adapter):
+        """Multimodal user content reaches _run_brain as a list of parts."""
         image_payload = [
             {"type": "text", "text": "What's in this image?"},
             {"type": "image_url", "image_url": {"url": "https://example.com/cat.png", "detail": "high"}},
@@ -154,7 +154,7 @@ class TestChatCompletionsMultimodalHTTP:
         async with TestClient(TestServer(app)) as cli:
             with patch.object(
                 adapter,
-                "_run_agent",
+                "_run_brain",
                 new=MagicMock(),
             ) as mock_run:
                 async def _stub(**kwargs):
@@ -168,7 +168,7 @@ class TestChatCompletionsMultimodalHTTP:
                 resp = await cli.post(
                     "/v1/chat/completions",
                     json={
-                        "model": "hermes-agent",
+                        "model": "jarvis-agent",
                         "messages": [{"role": "user", "content": image_payload}],
                     },
                 )
@@ -181,7 +181,7 @@ class TestChatCompletionsMultimodalHTTP:
         """Text-only array becomes a plain string so logging stays unchanged."""
         app = _create_app(adapter)
         async with TestClient(TestServer(app)) as cli:
-            with patch.object(adapter, "_run_agent", new=MagicMock()) as mock_run:
+            with patch.object(adapter, "_run_brain", new=MagicMock()) as mock_run:
                 async def _stub(**kwargs):
                     mock_run.captured = kwargs
                     return (
@@ -193,7 +193,7 @@ class TestChatCompletionsMultimodalHTTP:
                 resp = await cli.post(
                     "/v1/chat/completions",
                     json={
-                        "model": "hermes-agent",
+                        "model": "jarvis-agent",
                         "messages": [
                             {"role": "user", "content": [{"type": "text", "text": "hello"}]},
                         ],
@@ -210,7 +210,7 @@ class TestChatCompletionsMultimodalHTTP:
             resp = await cli.post(
                 "/v1/chat/completions",
                 json={
-                    "model": "hermes-agent",
+                    "model": "jarvis-agent",
                     "messages": [
                         {"role": "user", "content": [{"type": "file", "file": {"file_id": "f_1"}}]},
                     ],
@@ -228,7 +228,7 @@ class TestChatCompletionsMultimodalHTTP:
             resp = await cli.post(
                 "/v1/chat/completions",
                 json={
-                    "model": "hermes-agent",
+                    "model": "jarvis-agent",
                     "messages": [
                         {
                             "role": "user",
@@ -252,7 +252,7 @@ class TestResponsesMultimodalHTTP:
     async def test_input_image_canonicalized_and_forwarded(self, adapter):
         app = _create_app(adapter)
         async with TestClient(TestServer(app)) as cli:
-            with patch.object(adapter, "_run_agent", new=MagicMock()) as mock_run:
+            with patch.object(adapter, "_run_brain", new=MagicMock()) as mock_run:
                 async def _stub(**kwargs):
                     mock_run.captured = kwargs
                     return (
@@ -264,7 +264,7 @@ class TestResponsesMultimodalHTTP:
                 resp = await cli.post(
                     "/v1/responses",
                     json={
-                        "model": "hermes-agent",
+                        "model": "jarvis-agent",
                         "input": [
                             {
                                 "role": "user",
@@ -294,7 +294,7 @@ class TestResponsesMultimodalHTTP:
             resp = await cli.post(
                 "/v1/responses",
                 json={
-                    "model": "hermes-agent",
+                    "model": "jarvis-agent",
                     "input": [
                         {
                             "role": "user",

@@ -30,7 +30,7 @@ import tempfile
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from hermes_constants import get_hermes_home
+from jarvis_constants import get_jarvis_home
 from typing import Dict, Any, List, Optional
 
 from utils import atomic_replace
@@ -49,12 +49,12 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 # Where memory files live — resolved dynamically so profile overrides
-# (HERMES_HOME env var changes) are always respected.  The old module-level
+# (JARVIS_HOME env var changes) are always respected.  The old module-level
 # constant was cached at import time and could go stale if a profile switch
 # happened after the first import.
 def get_memory_dir() -> Path:
     """Return the profile-scoped memories directory."""
-    return get_hermes_home() / "memories"
+    return get_jarvis_home() / "memories"
 
 ENTRY_DELIMITER = "\n§\n"
 
@@ -112,7 +112,7 @@ def _drift_error(path: "Path", bak_path: str) -> Dict[str, Any]:
 
 class MemoryStore:
     """
-    Bounded curated memory with file persistence. One instance per AIAgent.
+    Bounded curated memory with file persistence. One instance per AIBrain.
 
     Maintains two parallel states:
       - _system_prompt_snapshot: frozen at load time, used for system prompt injection.

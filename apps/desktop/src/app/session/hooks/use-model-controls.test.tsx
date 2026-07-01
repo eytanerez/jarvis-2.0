@@ -2,21 +2,15 @@ import { QueryClient } from '@tanstack/react-query'
 import { cleanup, render, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { getGlobalModelInfo } from '@/hermes'
-import {
-  $activeSessionId,
-  $currentModel,
-  $currentProvider,
-  setCurrentModel,
-  setCurrentProvider
-} from '@/store/session'
+import { getGlobalModelInfo } from '@/jarvis'
+import { $activeSessionId, $currentModel, $currentProvider, setCurrentModel, setCurrentProvider } from '@/store/session'
 
 import { useModelControls } from './use-model-controls'
 
 const setGlobalModel = vi.fn()
 const notifyError = vi.fn()
 
-vi.mock('@/hermes', () => ({
+vi.mock('@/jarvis', () => ({
   getGlobalModelInfo: vi.fn(),
   setGlobalModel: (...args: Parameters<typeof setGlobalModel>) => setGlobalModel(...args)
 }))
@@ -120,11 +114,7 @@ describe('useModelControls', () => {
     let controls!: Controls
 
     render(
-      <Harness
-        activeSessionId="session-1"
-        onReady={value => (controls = value)}
-        requestGateway={requestGateway}
-      />
+      <Harness activeSessionId="session-1" onReady={value => (controls = value)} requestGateway={requestGateway} />
     )
 
     await expect(
@@ -146,13 +136,7 @@ describe('useModelControls', () => {
     const requestGateway = vi.fn()
     let controls!: Controls
 
-    render(
-      <Harness
-        activeSessionId={null}
-        onReady={value => (controls = value)}
-        requestGateway={requestGateway}
-      />
-    )
+    render(<Harness activeSessionId={null} onReady={value => (controls = value)} requestGateway={requestGateway} />)
 
     await expect(
       controls.selectModel({

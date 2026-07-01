@@ -1,7 +1,7 @@
 """Regression test for /reload-mcp refreshing cached agent tool lists.
 
 Before this fix, the gateway's _execute_mcp_reload reconnected MCP servers
-and updated the global _servers registry, but cached AIAgent instances kept
+and updated the global _servers registry, but cached AIBrain instances kept
 their original tools list. Users had to run /new (discarding conversation
 history) for the agent to pick up the new tools.
 

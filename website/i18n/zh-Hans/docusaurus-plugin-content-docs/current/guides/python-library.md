@@ -1,49 +1,49 @@
 ---
 sidebar_position: 5
-title: "将 Hermes 作为 Python 库使用"
-description: "将 AIAgent 嵌入你自己的 Python 脚本、Web 应用或自动化流水线——无需 CLI"
+title: "将 Jarvis 作为 Python 库使用"
+description: "将 AIBrain 嵌入你自己的 Python 脚本、Web 应用或自动化流水线——无需 CLI"
 ---
 
-# 将 Hermes 作为 Python 库使用
+# 将 Jarvis 作为 Python 库使用
 
-Hermes 不仅仅是一个 CLI 工具。你可以直接导入 `AIAgent`，在自己的 Python 脚本、Web 应用或自动化流水线中以编程方式使用它。本指南将介绍具体方法。
+Jarvis 不仅仅是一个 CLI 工具。你可以直接导入 `AIBrain`，在自己的 Python 脚本、Web 应用或自动化流水线中以编程方式使用它。本指南将介绍具体方法。
 
 ---
 
 ## 安装
 
-直接从仓库安装 Hermes：
+直接从仓库安装 Jarvis：
 
 ```bash
-pip install git+https://github.com/NousResearch/hermes-agent.git
+pip install git+https://github.com/NousResearch/jarvis-agent.git
 ```
 
 或使用 [uv](https://docs.astral.sh/uv/)：
 
 ```bash
-uv pip install git+https://github.com/NousResearch/hermes-agent.git
+uv pip install git+https://github.com/NousResearch/jarvis-agent.git
 ```
 
 也可以在 `requirements.txt` 中固定版本：
 
 ```text
-hermes-agent @ git+https://github.com/NousResearch/hermes-agent.git
+jarvis-agent @ git+https://github.com/NousResearch/jarvis-agent.git
 ```
 
 :::tip
-将 Hermes 作为库使用时，CLI 所需的环境变量同样必须设置。至少需要设置 `OPENROUTER_API_KEY`（若直接访问提供商，则设置 `OPENAI_API_KEY` 或 `ANTHROPIC_API_KEY`）。
+将 Jarvis 作为库使用时，CLI 所需的环境变量同样必须设置。至少需要设置 `OPENROUTER_API_KEY`（若直接访问提供商，则设置 `OPENAI_API_KEY` 或 `ANTHROPIC_API_KEY`）。
 :::
 
 ---
 
 ## 基本用法
 
-使用 Hermes 最简单的方式是 `chat()` 方法——传入一条消息，返回一个字符串：
+使用 Jarvis 最简单的方式是 `chat()` 方法——传入一条消息，返回一个字符串：
 
 ```python
-from run_agent import AIAgent
+from run_brain import AIBrain
 
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4",
     quiet_mode=True,
 )
@@ -54,7 +54,7 @@ print(response)
 `chat()` 在内部处理完整的对话循环——工具调用、重试等一切事务——并仅返回最终的文本响应。
 
 :::warning
-将 Hermes 嵌入自己的代码时，务必设置 `quiet_mode=True`。否则，agent 会打印 CLI 的加载动画、进度指示器及其他终端输出，从而干扰你的应用输出。
+将 Jarvis 嵌入自己的代码时，务必设置 `quiet_mode=True`。否则，agent 会打印 CLI 的加载动画、进度指示器及其他终端输出，从而干扰你的应用输出。
 :::
 
 ---
@@ -64,7 +64,7 @@ print(response)
 如需对对话进行更精细的控制，可直接使用 `run_conversation()`。它返回一个包含完整响应、消息历史和元数据的字典：
 
 ```python
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4",
     quiet_mode=True,
 )
@@ -101,14 +101,14 @@ result = agent.run_conversation(
 
 ```python
 # 仅启用 Web 工具（浏览、搜索）
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4",
     enabled_toolsets=["web"],
     quiet_mode=True,
 )
 
 # 启用除终端访问外的所有功能
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4",
     disabled_toolsets=["terminal"],
     quiet_mode=True,
@@ -126,7 +126,7 @@ agent = AIAgent(
 通过将消息历史传回来维护多轮对话的状态：
 
 ```python
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4",
     quiet_mode=True,
 )
@@ -152,7 +152,7 @@ print(result2["final_response"])  # "Your name is Alice."
 启用轨迹保存，以 ShareGPT 格式捕获对话——适用于生成训练数据或调试：
 
 ```python
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4",
     save_trajectories=True,
     quiet_mode=True,
@@ -171,7 +171,7 @@ agent.chat("Write a Python function to sort a list")
 使用 `ephemeral_system_prompt` 设置自定义系统 prompt，用于引导 agent 的行为，但**不会**保存到轨迹文件中（保持训练数据的整洁）：
 
 ```python
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4",
     ephemeral_system_prompt="You are a SQL expert. Only answer database questions.",
     quiet_mode=True,
@@ -187,17 +187,17 @@ print(response)
 
 ## 批量处理
 
-如需并行运行大量 prompt，Hermes 提供了 `batch_runner.py`，它可管理并发的 `AIAgent` 实例并进行适当的资源隔离：
+如需并行运行大量 prompt，Jarvis 提供了 `batch_runner.py`，它可管理并发的 `AIBrain` 实例并进行适当的资源隔离：
 
 ```bash
 python batch_runner.py --input prompts.jsonl --output results.jsonl
 ```
 
-每个 prompt 都有自己的 `task_id` 和隔离环境。如果需要自定义批处理逻辑，可以直接使用 `AIAgent` 构建：
+每个 prompt 都有自己的 `task_id` 和隔离环境。如果需要自定义批处理逻辑，可以直接使用 `AIBrain` 构建：
 
 ```python
 import concurrent.futures
-from run_agent import AIAgent
+from run_brain import AIBrain
 
 prompts = [
     "Explain recursion",
@@ -207,7 +207,7 @@ prompts = [
 
 def process_prompt(prompt):
     # 每个任务创建一个新的 agent 实例以保证线程安全
-    agent = AIAgent(
+    agent = AIBrain(
         model="anthropic/claude-sonnet-4",
         quiet_mode=True,
         skip_memory=True,
@@ -222,7 +222,7 @@ for prompt, result in zip(prompts, results):
 ```
 
 :::warning
-务必为**每个线程或任务创建一个新的 `AIAgent` 实例**。agent 维护着内部状态（对话历史、工具会话、迭代计数器），这些状态不是线程安全的，不能共享。
+务必为**每个线程或任务创建一个新的 `AIBrain` 实例**。agent 维护着内部状态（对话历史、工具会话、迭代计数器），这些状态不是线程安全的，不能共享。
 :::
 
 ---
@@ -234,7 +234,7 @@ for prompt, result in zip(prompts, results):
 ```python
 from fastapi import FastAPI
 from pydantic import BaseModel
-from run_agent import AIAgent
+from run_brain import AIBrain
 
 app = FastAPI()
 
@@ -244,7 +244,7 @@ class ChatRequest(BaseModel):
 
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    agent = AIAgent(
+    agent = AIBrain(
         model=request.model,
         quiet_mode=True,
         skip_context_files=True,
@@ -258,7 +258,7 @@ async def chat(request: ChatRequest):
 
 ```python
 import discord
-from run_agent import AIAgent
+from run_brain import AIBrain
 
 client = discord.Client(intents=discord.Intents.default())
 
@@ -266,9 +266,9 @@ client = discord.Client(intents=discord.Intents.default())
 async def on_message(message):
     if message.author == client.user:
         return
-    if message.content.startswith("!hermes "):
+    if message.content.startswith("!jarvis "):
         query = message.content[8:]
-        agent = AIAgent(
+        agent = AIBrain(
             model="anthropic/claude-sonnet-4",
             quiet_mode=True,
             skip_context_files=True,
@@ -287,11 +287,11 @@ client.run("YOUR_DISCORD_TOKEN")
 #!/usr/bin/env python3
 """CI step: auto-review a PR diff."""
 import subprocess
-from run_agent import AIAgent
+from run_brain import AIBrain
 
 diff = subprocess.check_output(["git", "diff", "main...HEAD"]).decode()
 
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4",
     quiet_mode=True,
     skip_context_files=True,
@@ -335,7 +335,7 @@ print(review)
 :::
 
 :::warning
-- **线程安全**：每个线程或任务创建一个 `AIAgent` 实例。切勿在并发调用中共享同一实例。
+- **线程安全**：每个线程或任务创建一个 `AIBrain` 实例。切勿在并发调用中共享同一实例。
 - **资源清理**：agent 在对话结束时会自动清理资源（终端会话、浏览器实例）。若在长期运行的进程中使用，请确保每次对话正常结束。
 - **迭代限制**：默认的 `max_iterations=90` 较为宽松。对于简单的问答场景，建议适当降低该值（如 `max_iterations=10`），以防止工具调用循环失控并控制成本。
 :::

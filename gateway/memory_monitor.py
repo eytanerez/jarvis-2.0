@@ -9,7 +9,7 @@ in a single log line — you only see it by watching RSS climb over hours.
 
 This module emits a single structured ``[MEMORY] ...`` line every N
 minutes (default 5) so maintainers investigating a suspected leak can
-grep ``agent.log`` / ``gateway.log`` for a time series of RSS + Python
+grep ``brain.log`` / ``gateway.log`` for a time series of RSS + Python
 GC stats.  The timer runs in a background thread and shuts down cleanly
 with the gateway.
 
@@ -25,7 +25,7 @@ Design notes (parity with the Cline port):
     the monitor rather than crashing the gateway.
 
 Config: ``logging.memory_monitor`` in ``config.yaml`` — see
-``hermes_cli/config.py`` for the defaults block.
+``jarvis_cli/config.py`` for the defaults block.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ def _get_rss_mb() -> Optional[int]:
     """Return current process resident set size in MB, or None if unavailable.
 
     Tries ``resource.getrusage`` first (Linux/macOS, no extra deps), then
-    falls back to ``psutil`` which is an optional hermes-agent dep.
+    falls back to ``psutil`` which is an optional jarvis-agent dep.
     """
     # Linux / macOS — resource is stdlib.  On Linux ru_maxrss is in KB,
     # on macOS it is in bytes (yes, really).  We use it as a cheap

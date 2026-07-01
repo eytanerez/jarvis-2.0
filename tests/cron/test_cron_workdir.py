@@ -260,7 +260,7 @@ class TestRunJobTerminalCwd:
     """
     run_job sets TERMINAL_CWD + flips skip_context_files=False when workdir
     is set, and restores the prior TERMINAL_CWD in finally — even on error.
-    We stub AIAgent so no real API call happens.
+    We stub AIBrain so no real API call happens.
     """
 
     @staticmethod
@@ -287,12 +287,12 @@ class TestRunJobTerminalCwd:
             def get_activity_summary(self):
                 return {"seconds_since_activity": 0.0}
 
-        fake_mod = type(sys)("run_agent")
-        fake_mod.AIAgent = FakeAgent
-        monkeypatch.setitem(sys.modules, "run_agent", fake_mod)
+        fake_mod = type(sys)("run_brain")
+        fake_mod.AIBrain = FakeAgent
+        monkeypatch.setitem(sys.modules, "run_brain", fake_mod)
 
-        # Bypass the real provider resolver — it reads ~/.hermes and credentials.
-        from hermes_cli import runtime_provider as _rtp
+        # Bypass the real provider resolver — it reads ~/.jarvis and credentials.
+        from jarvis_cli import runtime_provider as _rtp
         monkeypatch.setattr(
             _rtp,
             "resolve_runtime_provider",
@@ -310,9 +310,9 @@ class TestRunJobTerminalCwd:
         monkeypatch.setattr(sched, "_resolve_delivery_target", lambda job: None)
         monkeypatch.setattr(sched, "_resolve_cron_enabled_toolsets", lambda job, cfg: None)
         # Unlimited inactivity so the poll loop returns immediately.
-        monkeypatch.setenv("HERMES_CRON_TIMEOUT", "0")
+        monkeypatch.setenv("JARVIS_CRON_TIMEOUT", "0")
 
-        # run_job calls load_dotenv(~/.hermes/.env, override=True), which will
+        # run_job calls load_dotenv(~/.jarvis/.env, override=True), which will
         # happily clobber TERMINAL_CWD out from under us if the real user .env
         # has TERMINAL_CWD set (common on dev boxes).  Stub it out.
         import dotenv
@@ -342,7 +342,7 @@ class TestRunJobTerminalCwd:
         success, _output, response, error = sched.run_job(job)
         assert success is True, f"run_job failed: error={error!r} response={response!r}"
 
-        # AIAgent was built with skip_context_files=False (feature ON).
+        # AIBrain was built with skip_context_files=False (feature ON).
         assert observed["skip_context_files"] is False
         assert observed["load_soul_identity"] is True
         # TERMINAL_CWD was pointing at the job workdir while the agent ran.

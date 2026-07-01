@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/pagination'
 import { TextTab, TextTabMeta } from '@/components/ui/text-tab'
 import { Tip } from '@/components/ui/tooltip'
-import { getSessionMessages, listAllProfileSessions } from '@/hermes'
+import { getSessionMessages, listAllProfileSessions } from '@/jarvis'
 import { type Translations, useI18n } from '@/i18n'
 import { sessionTitle } from '@/lib/chat-runtime'
 import { ExternalLink, ExternalLinkIcon, hostPathLabel, urlSlugTitleLabel, useLinkTitle } from '@/lib/external-link'
@@ -26,7 +26,7 @@ import { FileImage, FileText, FolderOpen, Link2 } from '@/lib/icons'
 import { mediaExternalUrl } from '@/lib/media'
 import { cn } from '@/lib/utils'
 import { notifyError } from '@/store/notifications'
-import type { SessionInfo, SessionMessage } from '@/types/hermes'
+import type { SessionInfo, SessionMessage } from '@/types/jarvis'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
@@ -477,17 +477,20 @@ export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
     }
   }, [artifacts])
 
-  const openArtifact = useCallback(async (href: string) => {
-    try {
-      if (window.hermesDesktop?.openExternal) {
-        await window.hermesDesktop.openExternal(href)
-      } else {
-        window.open(href, '_blank', 'noopener,noreferrer')
+  const openArtifact = useCallback(
+    async (href: string) => {
+      try {
+        if (window.jarvisDesktop?.openExternal) {
+          await window.jarvisDesktop.openExternal(href)
+        } else {
+          window.open(href, '_blank', 'noopener,noreferrer')
+        }
+      } catch (err) {
+        notifyError(err, a.openFailed)
       }
-    } catch (err) {
-      notifyError(err, a.openFailed)
-    }
-  }, [a])
+    },
+    [a]
+  )
 
   const markImageFailed = useCallback((id: string) => {
     setFailedImageIds(current => {
@@ -839,7 +842,8 @@ const ARTIFACT_COLUMNS: readonly ArtifactColumn[] = [
   {
     Cell: PrimaryCell,
     bodyClassName: 'p-0',
-    header: (filter, a) => (filter === 'link' ? a.colTitleLink : filter === 'file' ? a.colTitleFile : a.colTitleDefault),
+    header: (filter, a) =>
+      filter === 'link' ? a.colTitleLink : filter === 'file' ? a.colTitleFile : a.colTitleDefault,
     id: 'primary',
     width: filter => (filter === 'link' ? 'w-[50%]' : 'w-[35%]')
   },

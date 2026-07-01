@@ -6,7 +6,7 @@ description: "How the ACP adapter works: lifecycle, sessions, event bridge, appr
 
 # ACP Internals
 
-The ACP adapter wraps Hermes' synchronous `AIAgent` in an async JSON-RPC stdio server.
+The ACP adapter wraps Jarvis' synchronous `AIBrain` in an async JSON-RPC stdio server.
 
 Key implementation files:
 
@@ -22,22 +22,22 @@ Key implementation files:
 ## Boot flow
 
 ```text
-hermes acp / hermes-acp / python -m acp_adapter
+jarvis acp / jarvis-acp / python -m acp_adapter
   -> acp_adapter.entry.main()
   -> parse --version / --check / --setup before server startup
-  -> load ~/.hermes/.env
+  -> load ~/.jarvis/.env
   -> configure stderr logging
-  -> construct HermesACPAgent
-  -> acp.run_agent(agent, use_unstable_protocol=True)
+  -> construct JarvisACPAgent
+  -> acp.run_brain(agent, use_unstable_protocol=True)
 ```
 
-The Zed ACP Registry path launches the same adapter through `uvx --from 'hermes-agent[acp]==<version>' hermes-acp`, pointed at the `hermes-agent` PyPI release.
+The Zed ACP Registry path launches the same adapter through `uvx --from 'jarvis-agent[acp]==<version>' jarvis-acp`, pointed at the `jarvis-agent` PyPI release.
 
 Stdout is reserved for ACP JSON-RPC transport. Human-readable logs go to stderr.
 
 ## Major components
 
-### `HermesACPAgent`
+### `JarvisACPAgent`
 
 `acp_adapter/server.py` implements the ACP agent protocol.
 
@@ -47,7 +47,7 @@ Responsibilities:
 - new/load/resume/fork/list/cancel session methods
 - prompt execution
 - session model switching
-- wiring sync AIAgent callbacks into ACP async notifications
+- wiring sync AIBrain callbacks into ACP async notifications
 
 ### `SessionManager`
 
@@ -74,7 +74,7 @@ The manager is thread-safe and supports:
 
 ### Event bridge
 
-`acp_adapter/events.py` converts AIAgent callbacks into ACP `session_update` events.
+`acp_adapter/events.py` converts AIBrain callbacks into ACP `session_update` events.
 
 Bridged callbacks:
 
@@ -82,7 +82,7 @@ Bridged callbacks:
 - `thinking_callback` (currently set to `None` in the ACP bridge — reasoning is forwarded through `step_callback` instead)
 - `step_callback`
 
-Because `AIAgent` runs in a worker thread while ACP I/O lives on the main event loop, the bridge uses:
+Because `AIBrain` runs in a worker thread while ACP I/O lives on the main event loop, the bridge uses:
 
 ```python
 asyncio.run_coroutine_threadsafe(...)
@@ -94,15 +94,15 @@ asyncio.run_coroutine_threadsafe(...)
 
 Mapping:
 
-- `allow_once` -> Hermes `once`
-- `allow_always` -> Hermes `always`
-- reject options -> Hermes `deny`
+- `allow_once` -> Jarvis `once`
+- `allow_always` -> Jarvis `always`
+- reject options -> Jarvis `deny`
 
 Timeouts and bridge failures deny by default.
 
 ### Tool rendering helpers
 
-`acp_adapter/tools.py` maps Hermes tools to ACP tool kinds and builds editor-facing content.
+`acp_adapter/tools.py` maps Jarvis tools to ACP tool kinds and builds editor-facing content.
 
 Examples:
 
@@ -116,14 +116,14 @@ Examples:
 ```text
 new_session(cwd)
   -> create SessionState
-  -> create AIAgent(platform="acp", enabled_toolsets=["hermes-acp"])
+  -> create AIBrain(platform="acp", enabled_toolsets=["jarvis-acp"])
   -> bind task_id/session_id to cwd override
 
 prompt(..., session_id)
   -> extract text from ACP content blocks
   -> reset cancel event
   -> install callbacks + approval bridge
-  -> run AIAgent in ThreadPoolExecutor
+  -> run AIBrain in ThreadPoolExecutor
   -> update session history
   -> emit final agent message chunk
 ```
@@ -144,12 +144,12 @@ prompt(..., session_id)
 
 ACP does not implement its own auth store.
 
-Instead it reuses Hermes' runtime resolver:
+Instead it reuses Jarvis' runtime resolver:
 
 - `acp_adapter/auth.py`
-- `hermes_cli/runtime_provider.py`
+- `jarvis_cli/runtime_provider.py`
 
-So ACP advertises and uses the currently configured Hermes provider/credentials. It also always advertises a terminal setup auth method (`hermes-setup`, args `--setup`) so first-run registry clients can open Hermes' interactive model/provider configuration before starting a normal ACP session.
+So ACP advertises and uses the currently configured Jarvis provider/credentials. It also always advertises a terminal setup auth method (`jarvis-setup`, args `--setup`) so first-run registry clients can open Jarvis' interactive model/provider configuration before starting a normal ACP session.
 
 ## Working directory binding
 
@@ -172,13 +172,13 @@ ACP temporarily installs an approval callback on the terminal tool during prompt
 
 ## Current limitations
 
-- ACP sessions are persisted to the shared `~/.hermes/state.db` (SessionDB) and transparently restored across process restarts; they appear in `session_search`
+- ACP sessions are persisted to the shared `~/.jarvis/state.db` (SessionDB) and transparently restored across process restarts; they appear in `session_search`
 - non-text prompt blocks are currently ignored for request text extraction
 - editor-specific UX varies by ACP client implementation
 
 ## Related files
 
 - `tests/acp/` — ACP test suite
-- `toolsets.py` — `hermes-acp` toolset definition
-- `hermes_cli/main.py` — `hermes acp` CLI subcommand
-- `pyproject.toml` — `[acp]` optional dependency + `hermes-acp` script
+- `toolsets.py` — `jarvis-acp` toolset definition
+- `jarvis_cli/main.py` — `jarvis acp` CLI subcommand
+- `pyproject.toml` — `[acp]` optional dependency + `jarvis-acp` script

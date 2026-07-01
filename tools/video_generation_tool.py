@@ -6,14 +6,14 @@ Video Generation Tool
 Single ``video_generate`` tool that dispatches to a plugin-registered
 video generation provider. Mirrors the ``image_generate`` design:
 
-- ``agent/video_gen_provider.py`` defines the :class:`VideoGenProvider` ABC.
-- ``agent/video_gen_registry.py`` holds the active providers (populated by
+- ``brain/video_gen_provider.py`` defines the :class:`VideoGenProvider` ABC.
+- ``brain/video_gen_registry.py`` holds the active providers (populated by
   plugins at import time).
 - Each provider lives under ``plugins/video_gen/<name>/``.
 
 The tool itself is intentionally backend-agnostic and ships **no in-tree
-provider** — turn on a backend by enabling a plugin (``hermes plugins
-enable video_gen/<name>``) and selecting it in ``hermes tools`` → Video
+provider** — turn on a backend by enabling a plugin (``jarvis plugins
+enable video_gen/<name>``) and selecting it in ``jarvis tools`` → Video
 Generation.
 
 Unified surface
@@ -46,7 +46,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from agent.video_gen_provider import (
+from brain.video_gen_provider import (
     COMMON_ASPECT_RATIOS,
     COMMON_RESOLUTIONS,
     DEFAULT_ASPECT_RATIO,
@@ -65,7 +65,7 @@ VIDEO_GENERATE_SCHEMA: Dict[str, Any] = {
     # actual capabilities (which modalities / resolutions / duration
     # ranges the user's currently-selected model supports).
     # See _build_dynamic_video_schema() below and the dynamic-tool-schemas
-    # skill at github/hermes-agent-dev/references/dynamic-tool-schemas.md.
+    # skill at github/jarvis-agent-dev/references/dynamic-tool-schemas.md.
     "description": "(rebuilt at get_definitions() time — see _build_dynamic_video_schema)",
     "parameters": {
         "type": "object",
@@ -149,7 +149,7 @@ VIDEO_GENERATE_SCHEMA: Dict[str, Any] = {
                 "type": "string",
                 "description": (
                     "Optional model override. If omitted, the user's "
-                    "configured ``video_gen.model`` (set via `hermes tools` "
+                    "configured ``video_gen.model`` (set via `jarvis tools` "
                     "→ Video Generation) is used. Models that the active "
                     "provider does not know are rejected."
                 ),
@@ -167,7 +167,7 @@ VIDEO_GENERATE_SCHEMA: Dict[str, Any] = {
 
 def _read_video_gen_section() -> Dict[str, Any]:
     try:
-        from hermes_cli.config import load_config
+        from jarvis_cli.config import load_config
 
         cfg = load_config()
         section = cfg.get("video_gen") if isinstance(cfg, dict) else None
@@ -203,8 +203,8 @@ def check_video_generation_requirements() -> bool:
     visible to the toolset gate.
     """
     try:
-        from agent.video_gen_registry import list_providers
-        from hermes_cli.plugins import _ensure_plugins_discovered
+        from brain.video_gen_registry import list_providers
+        from jarvis_cli.plugins import _ensure_plugins_discovered
 
         _ensure_plugins_discovered()
         for provider in list_providers():
@@ -230,8 +230,8 @@ def _resolve_active_provider():
     where a long-lived session was started before a plugin was installed.
     """
     try:
-        from agent.video_gen_registry import get_active_provider
-        from hermes_cli.plugins import _ensure_plugins_discovered
+        from brain.video_gen_registry import get_active_provider
+        from jarvis_cli.plugins import _ensure_plugins_discovered
 
         _ensure_plugins_discovered()
         provider = get_active_provider()
@@ -248,8 +248,8 @@ def _missing_provider_error(configured: Optional[str]) -> str:
     if configured:
         msg = (
             f"video_gen.provider='{configured}' is set but no plugin "
-            f"registered that name. Run `hermes plugins list` to see "
-            f"installed video gen backends, or `hermes tools` → Video "
+            f"registered that name. Run `jarvis plugins list` to see "
+            f"installed video gen backends, or `jarvis tools` → Video "
             f"Generation to pick one."
         )
         return json.dumps(error_response(
@@ -257,7 +257,7 @@ def _missing_provider_error(configured: Optional[str]) -> str:
             provider=configured,
         ))
     msg = (
-        "No video generation backend is configured. Run `hermes tools` → "
+        "No video generation backend is configured. Run `jarvis tools` → "
         "Video Generation to enable one (xAI, FAL, or Google Veo)."
     )
     return json.dumps(error_response(
@@ -408,7 +408,7 @@ def _handle_video_generate(args: Dict[str, Any], **_kw: Any) -> str:
 #
 # Memoization: model_tools.get_tool_definitions() keys its cache on
 # config.yaml mtime, so when the user changes provider/model via
-# `hermes tools` or `/skills`, the schema rebuilds automatically.
+# `jarvis tools` or `/skills`, the schema rebuilds automatically.
 
 
 _GENERIC_DESCRIPTION = (
@@ -417,7 +417,7 @@ _GENERIC_DESCRIPTION = (
     "generation backend. Pass `image_url` to animate that image; omit it "
     "to generate from text alone. The backend auto-routes to the right "
     "endpoint. The backend and model family are user-configured via "
-    "`hermes tools` → Video Generation; the agent does not pick them. "
+    "`jarvis tools` → Video Generation; the agent does not pick them. "
     "Long-running generations may take 30 seconds to several minutes — "
     "the call blocks until the video is ready. Returns either an HTTP "
     "URL or an absolute file path in the `video` field; display it with "
@@ -470,13 +470,13 @@ def _build_dynamic_video_schema() -> Dict[str, Any]:
     if not configured:
         parts.append(
             "\nNo video backend is configured. Calls will return an error "
-            "until the user picks one via `hermes tools` → Video Generation."
+            "until the user picks one via `jarvis tools` → Video Generation."
         )
         return {"description": "\n".join(parts)}
 
     try:
-        from agent.video_gen_registry import get_provider
-        from hermes_cli.plugins import _ensure_plugins_discovered
+        from brain.video_gen_registry import get_provider
+        from jarvis_cli.plugins import _ensure_plugins_discovered
 
         _ensure_plugins_discovered()
         provider = get_provider(configured)

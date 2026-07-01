@@ -15,7 +15,7 @@ import types
 
 import pytest
 
-from agent.auxiliary_client import extract_content_or_reasoning
+from brain.auxiliary_client import extract_content_or_reasoning
 
 
 # ── helpers ────────────────────────────────────────────────────────────────
@@ -203,7 +203,7 @@ class TestSourceLinesAreGuarded:
 # ── extract_content_or_reasoning() ────────────────────────────────────────
 
 class TestExtractContentOrReasoning:
-    """agent/auxiliary_client.py — extract_content_or_reasoning()"""
+    """brain/auxiliary_client.py — extract_content_or_reasoning()"""
 
     def test_normal_content_returned(self):
         response = _make_response("  Hello world  ")

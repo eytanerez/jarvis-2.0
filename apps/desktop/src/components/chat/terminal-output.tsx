@@ -42,11 +42,14 @@ export function TerminalOutput({ className, text }: TerminalOutputProps) {
 
   return (
     <div
-      className={cn('max-h-16 overflow-auto overscroll-contain', className)}
+      className={cn(
+        'max-h-16 overflow-auto overscroll-contain rounded-md bg-[color-mix(in_srgb,#000_22%,transparent)]',
+        className
+      )}
       data-selectable-text="true"
       ref={ref}
     >
-      <pre className="w-max min-w-full font-mono text-[0.5625rem] leading-[0.85rem] whitespace-pre text-muted-foreground/70">
+      <pre className="w-max min-w-full px-2 py-1.5 font-mono text-[0.5625rem] leading-[0.85rem] whitespace-pre text-(--ui-text-tertiary)">
         {text}
       </pre>
     </div>

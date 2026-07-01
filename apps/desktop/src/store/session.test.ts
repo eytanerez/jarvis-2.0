@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { SessionInfo } from '@/types/hermes'
+import type { SessionInfo } from '@/types/jarvis'
 
 import {
   $activeSessionId,
@@ -148,13 +148,8 @@ describe('mergeSessionPage', () => {
     // the sidebar showed both the old tip and the new tip as separate rows.
     // The old tip must be evicted because its lineage key matches the incoming
     // new tip's lineage key.
-    const previous = [
-      session({ id: 'tip-4', _lineage_root_id: 'root' }),
-      session({ id: 'other' }),
-    ] as SessionInfo[]
-    const incoming = [
-      session({ id: 'tip-5', _lineage_root_id: 'root' }),
-    ] as SessionInfo[]
+    const previous = [session({ id: 'tip-4', _lineage_root_id: 'root' }), session({ id: 'other' })] as SessionInfo[]
+    const incoming = [session({ id: 'tip-5', _lineage_root_id: 'root' })] as SessionInfo[]
 
     // 'tip-4' is in the keep set (e.g. it was the active/working session),
     // but should still be evicted because the incoming page carries the same
@@ -171,11 +166,9 @@ describe('mergeSessionPage', () => {
     // from a different lineage that happen to be in the keep set.
     const previous = [
       session({ id: 'a-old', _lineage_root_id: 'lineage-a' }),
-      session({ id: 'b', _lineage_root_id: 'lineage-b' }),
+      session({ id: 'b', _lineage_root_id: 'lineage-b' })
     ] as SessionInfo[]
-    const incoming = [
-      session({ id: 'a-new', _lineage_root_id: 'lineage-a' }),
-    ] as SessionInfo[]
+    const incoming = [session({ id: 'a-new', _lineage_root_id: 'lineage-a' })] as SessionInfo[]
 
     const merged = mergeSessionPage(previous, incoming, ['b'])
 
@@ -189,20 +182,20 @@ describe('workspaceCwdForNewSession', () => {
     $connection.set(null)
     $currentCwd.set('')
     $activeSessionId.set(null)
-    window.localStorage.removeItem('hermes.desktop.workspace-cwd')
-    window.localStorage.removeItem('hermes.desktop.workspace-cwd.remote.http%3A%2F%2Fbackend-a.default')
-    window.localStorage.removeItem('hermes.desktop.workspace-cwd.remote.http%3A%2F%2Fbackend-b.default')
+    window.localStorage.removeItem('jarvis.desktop.workspace-cwd')
+    window.localStorage.removeItem('jarvis.desktop.workspace-cwd.remote.http%3A%2F%2Fbackend-a.default')
+    window.localStorage.removeItem('jarvis.desktop.workspace-cwd.remote.http%3A%2F%2Fbackend-b.default')
   })
 
   it('prefers the configured default over the sticky remembered workspace', () => {
-    window.localStorage.setItem('hermes.desktop.workspace-cwd', '/home/user/sticky')
+    window.localStorage.setItem('jarvis.desktop.workspace-cwd', '/home/user/sticky')
     applyConfiguredDefaultProjectDir('/home/user/configured')
 
     expect(workspaceCwdForNewSession()).toBe('/home/user/configured')
   })
 
   it('falls back to the remembered workspace when no configured default is set', () => {
-    window.localStorage.setItem('hermes.desktop.workspace-cwd', '/home/user/sticky')
+    window.localStorage.setItem('jarvis.desktop.workspace-cwd', '/home/user/sticky')
 
     expect(workspaceCwdForNewSession()).toBe('/home/user/sticky')
   })
@@ -223,7 +216,7 @@ describe('workspaceCwdForNewSession', () => {
   })
 
   it('keeps remote workspace memory separate from local and other remotes', () => {
-    window.localStorage.setItem('hermes.desktop.workspace-cwd', '/local/project')
+    window.localStorage.setItem('jarvis.desktop.workspace-cwd', '/local/project')
     $currentCwd.set('/live/session/path')
     $connection.set({ baseUrl: 'http://backend-a', mode: 'remote' } as never)
 

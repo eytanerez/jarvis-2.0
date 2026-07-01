@@ -33,7 +33,7 @@ from typing import Any, Dict
 
 import requests
 
-from agent.browser_provider import BrowserProvider
+from brain.browser_provider import BrowserProvider
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +104,7 @@ class FirecrawlBrowserProvider(BrowserProvider):
             )
 
         data = response.json()
-        session_name = f"hermes_{task_id}_{uuid.uuid4().hex[:8]}"
+        session_name = f"jarvis_{task_id}_{uuid.uuid4().hex[:8]}"
 
         logger.info("Created Firecrawl browser session %s", session_name)
 

@@ -118,27 +118,27 @@
 
 @layer base {
   :root {
-    color-scheme: light;
+    color-scheme: dark;
 
-    --theme-foreground: #17171a;
-    --theme-primary: #0053fd;
-    --theme-secondary: color-mix(in srgb, #0053fd 7%, #ffffff);
-    --theme-accent-soft: color-mix(in srgb, #0053fd 10%, #ffffff);
-    --theme-midground: #0053fd;
-    --theme-warm: #cf806d;
-    --theme-background-seed: #f8faff;
-    --theme-sidebar-seed: #f3f7ff;
-    --theme-card-seed: #ffffff;
-    --theme-elevated-seed: #ffffff;
-    --theme-bubble-seed: color-mix(in srgb, #0053fd 6%, #ffffff);
-    --theme-neutral-chrome: #f3f3f3;
-    --theme-neutral-sidebar: #f3f3f3;
-    --theme-neutral-card: #fcfcfc;
-    --theme-mix-chrome: 92%;
+    --theme-foreground: #eaf4ff;
+    --theme-primary: #5fd7ff;
+    --theme-secondary: #121b2b;
+    --theme-accent-soft: #0d263a;
+    --theme-midground: #3cbff6;
+    --theme-warm: #5fd7ff;
+    --theme-background-seed: #060a12;
+    --theme-sidebar-seed: #050811;
+    --theme-card-seed: #0b111c;
+    --theme-elevated-seed: #0d1422;
+    --theme-bubble-seed: #081726;
+    --theme-neutral-chrome: #02040a;
+    --theme-neutral-sidebar: #040711;
+    --theme-neutral-card: #0c111a;
+    --theme-mix-chrome: 74%;
     --theme-mix-sidebar: 100%;
-    --theme-mix-card: 22%;
-    --theme-mix-elevated: 28%;
-    --theme-mix-bubble: 0%;
+    --theme-mix-card: 38%;
+    --theme-mix-elevated: 46%;
+    --theme-mix-bubble: 46%;
     --theme-fill-primary-accent-mix: 16%;
     --theme-fill-secondary-accent-mix: 11%;
     --theme-fill-tertiary-accent-mix: 8%;
@@ -157,13 +157,13 @@
     --ui-accent: var(--theme-midground);
     --ui-accent-secondary: var(--theme-primary);
     --ui-warm: var(--theme-warm);
-    --ui-red: #cf2d56;
-    --ui-orange: #db704b;
-    --ui-yellow: #c08532;
-    --ui-green: #1f8a65;
-    --ui-cyan: #4c7f8c;
-    --ui-blue: #0053fd;
-    --ui-purple: #9e94d5;
+    --ui-red: #ff4d6a;
+    --ui-orange: #f59b57;
+    --ui-yellow: #e5c45b;
+    --ui-green: #4fd69a;
+    --ui-cyan: #5fd7ff;
+    --ui-blue: #3cbff6;
+    --ui-purple: #8da2ff;
     --ui-bg-chrome: color-mix(
       in srgb,
       var(--theme-background-seed) var(--theme-mix-chrome),
@@ -181,7 +181,7 @@
       var(--theme-neutral-card)
     );
     --ui-bg-card: color-mix(in srgb, var(--ui-accent) 4%, color-mix(in srgb, var(--ui-base) 4%, transparent));
-    --ui-bg-input: #fcfcfc;
+    --ui-bg-input: color-mix(in srgb, var(--theme-card-seed) 82%, #02040a);
     --ui-bg-primary: color-mix(
       in srgb,
       var(--ui-accent) var(--theme-fill-primary-accent-mix),
@@ -277,7 +277,7 @@
     --dt-popover: color-mix(in srgb, var(--ui-bg-elevated) 96%, transparent);
     --dt-popover-foreground: var(--ui-text-primary);
     --dt-primary: var(--theme-primary);
-    --dt-primary-foreground: #fcfcfc;
+    --dt-primary-foreground: #02050b;
     --dt-secondary: var(--theme-secondary);
     --dt-secondary-foreground: var(--ui-text-secondary);
     --dt-accent: var(--theme-accent-soft);
@@ -287,7 +287,7 @@
     --dt-ring: var(--ui-stroke-primary);
     --dt-midground: var(--theme-midground);
     --dt-composer-ring: var(--ui-base);
-    --dt-destructive: #cf2d56;
+    --dt-destructive: #ff4d6a;
     --dt-destructive-foreground: #ffffff;
     --dt-sidebar-bg: var(--ui-bg-sidebar);
     --dt-sidebar-border: var(--ui-stroke-secondary);
@@ -385,26 +385,36 @@
     --backdrop-invert-mul: 1;
 
     /* J.A.R.V.I.S cockpit / orb.
-       The voice-first orb surface. Everything is derived from --theme-primary,
-       so a skin change re-tints the orb and cockpit chrome for free. The stage
-       itself is intrinsically deep/dark (an emissive orb needs a night backdrop
-       to bloom) rather than following light/dark mode. These vars are consumed
-       as CSS by the cockpit chrome AND read into the WebGL orb's uniforms via
-       getComputedStyle: one source of truth for both. */
-    --theme-jarvis-blue: var(--theme-primary);
-    --theme-jarvis-bg: #05070d;
-    --theme-jarvis-bg-deep: #010205;
-    --theme-jarvis-panel: color-mix(in srgb, #0b1120 88%, var(--theme-primary));
-    --theme-jarvis-stroke: color-mix(in srgb, var(--theme-primary) 20%, transparent);
-    --theme-jarvis-stroke-strong: color-mix(in srgb, var(--theme-primary) 42%, transparent);
-    --theme-jarvis-text-tech: #9db4d6;
-    --theme-jarvis-text-dim: color-mix(in srgb, #9db4d6 52%, transparent);
-    --theme-orb-core: color-mix(in srgb, var(--theme-primary) 16%, #eaf2ff);
-    --theme-orb-glow: color-mix(in srgb, var(--theme-primary) 80%, #3f9bff);
-    --theme-orb-ring: color-mix(in srgb, var(--theme-primary) 52%, #7fb6ff);
-    --theme-orb-particle: color-mix(in srgb, var(--theme-primary) 38%, #a9d2ff);
+       The voice-first orb surface is deliberately electric blue, independent of
+       teal-leaning skins. These vars are consumed as CSS by the cockpit chrome
+       AND read into the WebGL orb's uniforms via getComputedStyle: one source
+       of truth for both. */
+    --theme-jarvis-blue: #0053fd;
+    --theme-jarvis-bg: #050811;
+    --theme-jarvis-bg-deep: #010308;
+    --theme-jarvis-panel: color-mix(in srgb, #0b1320 82%, #0053fd);
+    --theme-jarvis-panel-soft: color-mix(in srgb, var(--theme-jarvis-panel) 72%, transparent);
+    --theme-jarvis-stroke: color-mix(in srgb, #0053fd 24%, #24364b);
+    --theme-jarvis-stroke-strong: color-mix(in srgb, #38a3ff 48%, #365472);
+    --theme-jarvis-text-tech: #b7cce8;
+    --theme-jarvis-text-dim: color-mix(in srgb, #b7cce8 58%, transparent);
+    --theme-orb-core: #edf7ff;
+    --theme-orb-glow: #0053fd;
+    --theme-orb-ring: #38a3ff;
+    --theme-orb-particle: #a7d9ff;
     --theme-orb-error: #ff4d6a;
     --theme-orb-approval: color-mix(in srgb, #ffd24a 70%, #7fb6ff);
+
+    --jarvis-bg: var(--theme-jarvis-bg-deep);
+    --jarvis-panel: var(--theme-jarvis-panel);
+    --jarvis-panel-soft: var(--theme-jarvis-panel-soft);
+    --jarvis-blue: var(--theme-orb-glow);
+    --jarvis-blue-soft: color-mix(in srgb, var(--theme-orb-ring) 18%, transparent);
+    --jarvis-blue-glow: color-mix(in srgb, var(--theme-orb-glow) 34%, transparent);
+    --jarvis-hairline: var(--theme-jarvis-stroke);
+    --jarvis-text: var(--theme-foreground);
+    --jarvis-muted: var(--theme-jarvis-text-dim);
+    --jarvis-danger: var(--theme-orb-error);
   }
 
   :root.dark {
@@ -413,14 +423,14 @@
     --theme-mix-card: 38%;
     --theme-mix-elevated: 46%;
     --theme-mix-bubble: 46%;
-    --theme-neutral-chrome: #0d0d0e;
-    --theme-neutral-sidebar: #0a0a0b;
-    --theme-neutral-card: #161618;
+    --theme-neutral-chrome: #02040a;
+    --theme-neutral-sidebar: #040711;
+    --theme-neutral-card: #0c111a;
 
     /* Dark-only accent palette overrides. */
-    --ui-red: #e75e78;
-    --ui-green: #55a583;
-    --ui-cyan: #6f9ba6;
+    --ui-red: #ff5f7b;
+    --ui-green: #4fd69a;
+    --ui-cyan: #5fd7ff;
 
     --sidebar-edge-border: color-mix(in srgb, var(--ui-base) 12%, transparent);
     --composer-ring-strength: 1.3;
@@ -453,7 +463,10 @@
 
   body {
     margin: 0;
-    background: var(--ui-chat-surface-background);
+    background:
+      radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--jarvis-blue) 14%, transparent), transparent 56%),
+      radial-gradient(80% 70% at 100% 0%, color-mix(in srgb, var(--jarvis-blue) 8%, transparent), transparent 62%),
+      var(--jarvis-bg);
     color: var(--dt-foreground);
     font-family: var(--dt-font-sans);
     font-size: 0.8125rem;
@@ -656,19 +669,17 @@
   }
 }
 
-/* No focus rings, anywhere. Kills the native outline plus Tailwind's
-   `focus-visible:ring-*` (a box-shadow driven by --tw-ring-*). Unlayered so it
-   beats the utilities layer without !important on the outline. The composer /
-   .desktop-input-chrome focus glow is untouched — those set `box-shadow`
-   directly rather than through the ring vars. */
+/* Accessible focus: a thin cockpit-blue rail that reads like the hover system,
+   not a browser default. Component-specific rings can still layer their own
+   box-shadow; the outline is the global keyboard contract. */
 *:focus,
 *:focus-visible {
   outline: none;
 }
 
 *:focus-visible {
-  --tw-ring-shadow: 0 0 #0000 !important;
-  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  outline: 0.0625rem solid color-mix(in srgb, var(--jarvis-blue) 72%, transparent);
+  outline-offset: 0.125rem;
 }
 
 button {
@@ -676,25 +687,100 @@ button {
 }
 
 /* Button variant styling lives entirely in the cva in components/ui/button.tsx
-   (the single source of truth). Don't re-add [data-slot='button'] rules here —
-   attribute selectors out-specify the Tailwind utilities and silently override
-   the variants. */
+   (the single source of truth). The rules below only add primitive-level motion
+   materials that Tailwind variants cannot express cleanly. */
+.jarvis-button:not([data-variant='link']):not([data-variant='text']):not([data-variant='textStrong'])::before,
+.jarvis-button:not([data-variant='link']):not([data-variant='text']):not([data-variant='textStrong'])::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  border-radius: inherit;
+  inset: 0;
+}
+
+.jarvis-button:not([data-variant='link']):not([data-variant='text']):not([data-variant='textStrong'])::before {
+  opacity: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    color-mix(in srgb, var(--jarvis-blue) 0%, transparent) 32%,
+    color-mix(in srgb, var(--jarvis-blue) 26%, transparent) 50%,
+    color-mix(in srgb, var(--jarvis-blue) 0%, transparent) 68%,
+    transparent 100%
+  );
+  transform: translateX(-125%);
+  transition:
+    opacity 150ms ease-out,
+    transform 170ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.jarvis-button:not([data-variant='link']):not([data-variant='text']):not([data-variant='textStrong'])::after {
+  opacity: 0;
+  box-shadow:
+    inset 0 0 0 0.0625rem color-mix(in srgb, var(--jarvis-blue) 0%, transparent),
+    inset 0 0.0625rem 0 color-mix(in srgb, #ffffff 0%, transparent);
+  clip-path: polygon(0 0, calc(100% - 0.5rem) 0, 100% 0.5rem, 100% 100%, 0 100%);
+  transition:
+    opacity 150ms ease-out,
+    box-shadow 150ms ease-out;
+}
+
+.jarvis-button:not(:disabled):not([aria-disabled='true']):not([data-variant='link']):not([data-variant='text']):not(
+    [data-variant='textStrong']
+  ):is(:hover, :focus-visible)::before {
+  opacity: 1;
+  transform: translateX(125%);
+}
+
+.jarvis-button:not(:disabled):not([aria-disabled='true']):not([data-variant='link']):not([data-variant='text']):not(
+    [data-variant='textStrong']
+  ):is(:hover, :focus-visible)::after {
+  opacity: 1;
+  box-shadow:
+    inset 0 0 0 0.0625rem color-mix(in srgb, var(--jarvis-blue) 44%, transparent),
+    inset 0 0.0625rem 0 color-mix(in srgb, #ffffff 10%, transparent);
+}
+
+.jarvis-button:not(:disabled):not([aria-disabled='true']):not([data-variant='link']):not([data-variant='text']):not(
+    [data-variant='textStrong']
+  ):hover {
+  text-shadow:
+    0.045rem 0 color-mix(in srgb, var(--jarvis-blue) 35%, transparent),
+    -0.04rem 0 color-mix(in srgb, #ffffff 16%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jarvis-button::before,
+  .jarvis-button::after {
+    transition: none;
+  }
+
+  .jarvis-button:hover {
+    text-shadow: none;
+  }
+}
 
 [data-slot='dropdown-menu-content'],
 [data-slot='select-content'],
 [data-slot='dialog-content'] {
-  border-color: var(--ui-stroke-secondary);
-  background: color-mix(in srgb, var(--ui-bg-elevated) 96%, transparent);
-  box-shadow: var(--shadow-md);
-  backdrop-filter: blur(0.75rem) saturate(1.08);
-  -webkit-backdrop-filter: blur(0.75rem) saturate(1.08);
+  border-color: color-mix(in srgb, var(--jarvis-hairline) 84%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #ffffff 4%, transparent), transparent 42%),
+    color-mix(in srgb, var(--ui-bg-elevated) 94%, #02040a);
+  box-shadow:
+    inset 0 0.0625rem 0 color-mix(in srgb, #ffffff 7%, transparent),
+    0 0 0 0.0625rem color-mix(in srgb, var(--jarvis-blue) 8%, transparent),
+    0 1.25rem 3rem -1.5rem color-mix(in srgb, #000 76%, transparent),
+    0 0 1.75rem color-mix(in srgb, var(--jarvis-blue) 8%, transparent);
+  backdrop-filter: blur(0.875rem) saturate(1.16);
+  -webkit-backdrop-filter: blur(0.875rem) saturate(1.16);
 }
 
 [data-slot='dropdown-menu-item']:focus,
 [data-slot='dropdown-menu-checkbox-item']:focus,
 [data-slot='dropdown-menu-radio-item']:focus {
-  background: var(--ui-bg-tertiary);
-  color: var(--ui-text-primary);
+  background: color-mix(in srgb, var(--jarvis-blue) 12%, transparent);
+  color: white;
 }
 
 input,
@@ -732,30 +818,38 @@ canvas {
 
 /* Shared input chrome — mirrors composer hover/focus FX. Unlayered to beat Tailwind utilities. */
 .desktop-input-chrome {
-  --ring-pct: 18%;
+  --ring-pct: 24%;
   --ring-fall: var(--dt-input);
-  background: color-mix(in srgb, var(--dt-card) 68%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #ffffff 3%, transparent), transparent 60%),
+    color-mix(in srgb, var(--dt-card) 78%, #02040a);
   border-color: color-mix(
     in srgb,
     var(--dt-composer-ring) calc(var(--ring-pct) * var(--composer-ring-strength)),
     var(--ring-fall)
   );
-  box-shadow: none;
+  box-shadow: inset 0 0.0625rem 0 color-mix(in srgb, #ffffff 5%, transparent);
   transition:
     background-color 200ms ease-out,
-    border-color 200ms ease-out;
+    border-color 200ms ease-out,
+    box-shadow 200ms ease-out;
 }
 
 .desktop-input-chrome:hover {
-  --ring-pct: 30%;
-  background: color-mix(in srgb, var(--dt-card) 86%, transparent);
+  --ring-pct: 36%;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #ffffff 4%, transparent), transparent 60%),
+    color-mix(in srgb, var(--dt-card) 90%, #02040a);
 }
 
 .desktop-input-chrome:focus {
-  --ring-pct: 45%;
+  --ring-pct: 62%;
   --ring-fall: transparent;
-  background: var(--dt-card);
-  box-shadow: none;
+  background: color-mix(in srgb, var(--dt-card) 92%, #02040a);
+  box-shadow:
+    inset 0 0.0625rem 0 color-mix(in srgb, #ffffff 6%, transparent),
+    0 0 0 0.0625rem color-mix(in srgb, var(--jarvis-blue) 38%, transparent),
+    0 0 1.25rem color-mix(in srgb, var(--jarvis-blue) 12%, transparent);
   outline: none;
 }
 
@@ -1037,7 +1131,19 @@ canvas {
 }
 
 [data-slot='composer-surface'] {
-  border-color: var(--ui-stroke-secondary) !important;
+  border-color: color-mix(in srgb, var(--jarvis-hairline) 86%, transparent) !important;
+  box-shadow:
+    inset 0 0.0625rem 0 color-mix(in srgb, #ffffff 6%, transparent),
+    0 0 0 0.0625rem color-mix(in srgb, var(--jarvis-blue) 7%, transparent),
+    0 1rem 2.5rem -1.75rem color-mix(in srgb, #000 90%, transparent);
+}
+
+[data-slot='composer-surface']:focus-within {
+  box-shadow:
+    inset 0 0.0625rem 0 color-mix(in srgb, #ffffff 8%, transparent),
+    0 0 0 0.0625rem color-mix(in srgb, var(--jarvis-blue) 34%, transparent),
+    0 0 1.5rem color-mix(in srgb, var(--jarvis-blue) 14%, transparent),
+    0 1.125rem 2.75rem -1.75rem color-mix(in srgb, #000 90%, transparent);
 }
 
 [data-slot='composer-fade'] {
@@ -1062,23 +1168,23 @@ canvas {
    different backdrops. */
 :root {
   /* Fallback for drawers outside the main composer (e.g. edit-message). */
-  --composer-fill: color-mix(in srgb, var(--dt-card) 90%, var(--dt-background));
+  --composer-fill: color-mix(in srgb, var(--dt-card) 90%, #02040a);
 }
 
 [data-slot='composer-root'] {
-  --composer-fill: color-mix(in srgb, var(--dt-card) 72%, transparent);
+  --composer-fill: color-mix(in srgb, var(--dt-card) 78%, #02040a);
 }
 
 [data-slot='composer-root'][data-thread-scrolled-up] {
-  --composer-fill: color-mix(in srgb, var(--dt-card) 48%, transparent);
+  --composer-fill: color-mix(in srgb, var(--dt-card) 58%, #02040a);
 }
 
 [data-slot='composer-root']:has([data-slot='composer-surface']:focus-within) {
-  --composer-fill: var(--ui-chat-bubble-background);
+  --composer-fill: color-mix(in srgb, var(--ui-chat-bubble-background) 86%, #02040a);
 }
 
 [data-slot='composer-root']:has([data-slot='composer-completion-drawer']) {
-  --composer-fill: color-mix(in srgb, var(--dt-card) 90%, var(--dt-background));
+  --composer-fill: color-mix(in srgb, var(--dt-card) 94%, #02040a);
 }
 
 /* Tool/thinking blocks now live at message-text alignment (no leading
@@ -1402,16 +1508,18 @@ canvas {
     color: color-mix(in srgb, var(--theme-orb-core) 88%, transparent);
   }
 
-  /* Deep cockpit backdrop: a night sky the orb can bloom against. Two soft
-     radial pools of the accent over near-black, so the center reads lit and the
-     edges fall to graphite. Sits behind the canvas; the orb owns the glow. */
+  /* Deep cockpit backdrop: a night sky the orb can bloom against. Electric blue
+     graphite pools stay low-contrast so the WebGL bloom remains the focal
+     point. Sits behind the canvas; the orb owns the glow. */
   .jarvis-stage {
     background:
       radial-gradient(
-        120% 90% at 50% 38%,
-        color-mix(in srgb, var(--theme-orb-glow) 16%, transparent) 0%,
-        transparent 58%
+        120% 82% at 50% 34%,
+        color-mix(in srgb, var(--theme-orb-glow) 18%, transparent) 0%,
+        transparent 56%
       ),
+      radial-gradient(85% 55% at 100% 12%, color-mix(in srgb, var(--theme-orb-ring) 10%, transparent), transparent 62%),
+      linear-gradient(180deg, color-mix(in srgb, var(--theme-jarvis-panel) 24%, transparent), transparent 32%),
       radial-gradient(140% 120% at 50% 120%, var(--theme-jarvis-bg) 0%, var(--theme-jarvis-bg-deep) 100%);
   }
 }

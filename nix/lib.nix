@@ -33,7 +33,7 @@ in
   #   nodejs                     — fixed nodejs version for all packages we use in the repo
   #
   # Usage:
-  #   npm = hermesNpmLib.mkNpmPassthru { folder = "ui-tui"; attr = "tui"; pname = "hermes-tui"; };
+  #   npm = jarvisNpmLib.mkNpmPassthru { folder = "ui-tui"; attr = "tui"; pname = "jarvis-tui"; };
   #   pkgs.buildNpmPackage (npm // {
   #     sourceRoot = "ui-tui";
   #     buildPhase = '' ... '';

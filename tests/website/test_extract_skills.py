@@ -77,7 +77,7 @@ def test_source_url_synthesizes_clawhub_strips_prefix(mod):
 
 
 def test_source_url_synthesizes_lobehub(mod):
-    assert mod._source_url("lobehub", "lobehub/chinese-paper", {}) == "https://lobehub.com/agent/chinese-paper"
+    assert mod._source_url("lobehub", "lobehub/chinese-paper", {}) == "https://lobehub.com/brain/chinese-paper"
 
 
 def test_source_url_empty_for_unknown_source_without_identifier(mod):

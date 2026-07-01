@@ -9,7 +9,7 @@ incorrectly halved context_length via get_next_probe_tier().
 The fix introduces:
   * parse_available_output_tokens_from_error() — detects this specific
     error class and returns the available output token budget.
-  * _ephemeral_max_output_tokens on AIAgent — a one-shot override that
+  * _ephemeral_max_output_tokens on AIBrain — a one-shot override that
     caps the output for one retry without touching context_length.
   * get_context_length_from_provider_error() — accepts only concrete
     provider-reported lower context limits and refuses guessed probe-tier
@@ -39,7 +39,7 @@ class TestParseAvailableOutputTokens:
     """Pure-function tests; no I/O required."""
 
     def _parse(self, msg):
-        from agent.model_metadata import parse_available_output_tokens_from_error
+        from brain.model_metadata import parse_available_output_tokens_from_error
         return parse_available_output_tokens_from_error(msg)
 
     # ── Should detect and extract ────────────────────────────────────────
@@ -111,15 +111,15 @@ class TestContextOverflowLimitSelection:
     """Context-overflow recovery must not invent a lower window size.
 
     Some providers only say "input exceeds the context window" without telling
-    Hermes what the actual maximum is.  In that case we may compress the
+    Jarvis what the actual maximum is.  In that case we may compress the
     conversation, but must not silently probe-step from a user-configured 1M
     window down to 256K/128K/64K/etc.
     """
 
     def test_generic_overflow_without_provider_limit_keeps_context_length(self):
-        from agent.model_metadata import get_context_length_from_provider_error
-        from agent.model_metadata import get_next_probe_tier
-        from agent.model_metadata import parse_context_limit_from_error
+        from brain.model_metadata import get_context_length_from_provider_error
+        from brain.model_metadata import get_next_probe_tier
+        from brain.model_metadata import parse_context_limit_from_error
 
         old_ctx = 1_000_000
         error_msg = (
@@ -132,14 +132,14 @@ class TestContextOverflowLimitSelection:
         assert get_context_length_from_provider_error(error_msg, old_ctx) is None
 
     def test_explicit_provider_limit_still_selects_that_limit(self):
-        from agent.model_metadata import get_context_length_from_provider_error
+        from brain.model_metadata import get_context_length_from_provider_error
 
         error_msg = "prompt is too long: 300000 tokens > 272000 maximum"
 
         assert get_context_length_from_provider_error(error_msg, 1_000_000) == 272_000
 
     def test_reported_limit_not_lower_than_current_is_ignored(self):
-        from agent.model_metadata import get_context_length_from_provider_error
+        from brain.model_metadata import get_context_length_from_provider_error
 
         error_msg = "maximum context length is 1000000 tokens"
 
@@ -156,7 +156,7 @@ class TestBuildAnthropicKwargsClamping:
     """
 
     def _build(self, model, max_tokens=None, context_length=None):
-        from agent.anthropic_adapter import build_anthropic_kwargs
+        from brain.anthropic_adapter import build_anthropic_kwargs
         return build_anthropic_kwargs(
             model=model,
             messages=[{"role": "user", "content": "hi"}],
@@ -202,10 +202,10 @@ class TestEphemeralMaxOutputTokens:
     """
 
     def _make_agent(self):
-        """Return a minimal AIAgent with api_mode='anthropic_messages' and
+        """Return a minimal AIBrain with api_mode='anthropic_messages' and
         a stubbed context_compressor, bypassing full __init__ cost."""
-        from run_agent import AIAgent
-        agent = object.__new__(AIAgent)
+        from run_brain import AIBrain
+        agent = object.__new__(AIBrain)
         # Minimal attributes used by _build_api_kwargs
         agent.api_mode = "anthropic_messages"
         agent.model = "claude-opus-4-6"
@@ -273,10 +273,10 @@ class TestContextNotHalvedOnOutputCapError:
     """
 
     def _make_agent_with_compressor(self, context_length=200_000):
-        from run_agent import AIAgent
-        from agent.context_compressor import ContextCompressor
+        from run_brain import AIBrain
+        from brain.context_compressor import ContextCompressor
 
-        agent = object.__new__(AIAgent)
+        agent = object.__new__(AIBrain)
         agent.api_mode = "anthropic_messages"
         agent.model = "claude-opus-4-6"
         agent.base_url = "https://api.anthropic.com"
@@ -285,7 +285,7 @@ class TestContextNotHalvedOnOutputCapError:
         agent.reasoning_config = None
         agent._is_anthropic_oauth = False
         agent._ephemeral_max_output_tokens = None
-        agent.log_prefix = ""
+        brain.log_prefix = ""
         agent.quiet_mode = True
         agent.verbose_logging = False
 
@@ -305,14 +305,14 @@ class TestContextNotHalvedOnOutputCapError:
     def test_output_cap_error_sets_ephemeral_not_context_length(self):
         """On 'max_tokens too large' error, _ephemeral_max_output_tokens is set
         and compressor.context_length is left unchanged."""
-        from agent.model_metadata import parse_available_output_tokens_from_error
+        from brain.model_metadata import parse_available_output_tokens_from_error
 
         error_msg = (
             "max_tokens: 128000 > context_window: 200000 "
             "- input_tokens: 180000 = available_tokens: 20000"
         )
 
-        # Simulate the handler logic from run_agent.py
+        # Simulate the handler logic from run_brain.py
         agent = self._make_agent_with_compressor(context_length=200_000)
         old_ctx = agent.context_compressor.context_length
 
@@ -328,8 +328,8 @@ class TestContextNotHalvedOnOutputCapError:
 
     def test_prompt_too_long_with_explicit_limit_uses_provider_limit(self):
         """Prompt-too-long errors only change context_length when they report a concrete limit."""
-        from agent.model_metadata import get_context_length_from_provider_error
-        from agent.model_metadata import parse_available_output_tokens_from_error
+        from brain.model_metadata import get_context_length_from_provider_error
+        from brain.model_metadata import parse_available_output_tokens_from_error
 
         error_msg = "prompt is too long: 205000 tokens > 200000 maximum"
 
@@ -339,7 +339,7 @@ class TestContextNotHalvedOnOutputCapError:
 
     def test_output_cap_error_safety_margin(self):
         """The ephemeral value includes a 64-token safety margin below available_out."""
-        from agent.model_metadata import parse_available_output_tokens_from_error
+        from brain.model_metadata import parse_available_output_tokens_from_error
 
         error_msg = (
             "max_tokens: 32768 > context_window: 200000 "
@@ -351,7 +351,7 @@ class TestContextNotHalvedOnOutputCapError:
 
     def test_safety_margin_never_goes_below_one(self):
         """When available_out is very small, safe_out must be at least 1."""
-        from agent.model_metadata import parse_available_output_tokens_from_error
+        from brain.model_metadata import parse_available_output_tokens_from_error
 
         error_msg = (
             "max_tokens: 10 > context_window: 200000 "

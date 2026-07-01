@@ -168,10 +168,10 @@ class TestResolveProxyUrl:
 
 
 class TestRunAgentProxyDispatch:
-    """Test that _run_agent() delegates to proxy when configured."""
+    """Test that _run_brain() delegates to proxy when configured."""
 
     @pytest.mark.asyncio
-    async def test_run_agent_delegates_to_proxy(self, monkeypatch):
+    async def test_run_brain_delegates_to_proxy(self, monkeypatch):
         monkeypatch.setenv("GATEWAY_PROXY_URL", "http://host:8642")
         runner = _make_runner()
         source = _make_source()
@@ -186,9 +186,9 @@ class TestRunAgentProxyDispatch:
             "tools": [],
         }
 
-        runner._run_agent_via_proxy = AsyncMock(return_value=expected_result)
+        runner._run_brain_via_proxy = AsyncMock(return_value=expected_result)
 
-        result = await runner._run_agent(
+        result = await runner._run_brain(
             message="hi",
             context_prompt="",
             history=[],
@@ -199,19 +199,19 @@ class TestRunAgentProxyDispatch:
         )
 
         assert result["final_response"] == "Hello from remote!"
-        runner._run_agent_via_proxy.assert_called_once()
-        assert runner._run_agent_via_proxy.call_args.kwargs["run_generation"] == 7
+        runner._run_brain_via_proxy.assert_called_once()
+        assert runner._run_brain_via_proxy.call_args.kwargs["run_generation"] == 7
 
     @pytest.mark.asyncio
-    async def test_run_agent_skips_proxy_when_not_configured(self, monkeypatch):
+    async def test_run_brain_skips_proxy_when_not_configured(self, monkeypatch):
         monkeypatch.delenv("GATEWAY_PROXY_URL", raising=False)
         runner = _make_runner()
 
-        runner._run_agent_via_proxy = AsyncMock()
+        runner._run_brain_via_proxy = AsyncMock()
 
         with patch("gateway.run._load_gateway_config", return_value={}):
             try:
-                await runner._run_agent(
+                await runner._run_brain(
                     message="hi",
                     context_prompt="",
                     history=[],
@@ -221,7 +221,7 @@ class TestRunAgentProxyDispatch:
             except Exception:
                 pass  # Expected — bare runner can't create a real agent
 
-        runner._run_agent_via_proxy.assert_not_called()
+        runner._run_brain_via_proxy.assert_not_called()
 
 
 class TestRunAgentViaProxy:
@@ -247,7 +247,7 @@ class TestRunAgentViaProxy:
         with patch("gateway.run._load_gateway_config", return_value={}):
             with _patch_aiohttp(session):
                 with patch("aiohttp.ClientTimeout"):
-                    result = await runner._run_agent_via_proxy(
+                    result = await runner._run_brain_via_proxy(
                         message="How are you?",
                         context_prompt="You are helpful.",
                         history=[
@@ -265,7 +265,7 @@ class TestRunAgentViaProxy:
         assert session.captured_headers["Authorization"] == "Bearer test-key-123"
 
         # Verify session ID header
-        assert session.captured_headers["X-Hermes-Session-Id"] == "session-abc"
+        assert session.captured_headers["X-Jarvis-Session-Id"] == "session-abc"
 
         # Verify messages include system, history, and current message
         messages = session.captured_json["messages"]
@@ -293,7 +293,7 @@ class TestRunAgentViaProxy:
         with patch("gateway.run._load_gateway_config", return_value={}):
             with _patch_aiohttp(session):
                 with patch("aiohttp.ClientTimeout"):
-                    result = await runner._run_agent_via_proxy(
+                    result = await runner._run_brain_via_proxy(
                         message="hi",
                         context_prompt="",
                         history=[],
@@ -324,7 +324,7 @@ class TestRunAgentViaProxy:
         with patch("gateway.run._load_gateway_config", return_value={}):
             with patch("aiohttp.ClientSession", return_value=_ErrorSession()):
                 with patch("aiohttp.ClientTimeout"):
-                    result = await runner._run_agent_via_proxy(
+                    result = await runner._run_brain_via_proxy(
                         message="hi",
                         context_prompt="",
                         history=[],
@@ -357,7 +357,7 @@ class TestRunAgentViaProxy:
         with patch("gateway.run._load_gateway_config", return_value={}):
             with _patch_aiohttp(session):
                 with patch("aiohttp.ClientTimeout"):
-                    await runner._run_agent_via_proxy(
+                    await runner._run_brain_via_proxy(
                         message="tell me more",
                         context_prompt="",
                         history=history,
@@ -373,7 +373,7 @@ class TestRunAgentViaProxy:
         assert all(m.get("content") for m in messages)
 
     @pytest.mark.asyncio
-    async def test_result_shape_matches_run_agent(self, monkeypatch):
+    async def test_result_shape_matches_run_brain(self, monkeypatch):
         monkeypatch.setenv("GATEWAY_PROXY_URL", "http://host:8642")
         monkeypatch.delenv("GATEWAY_PROXY_KEY", raising=False)
         runner = _make_runner()
@@ -388,7 +388,7 @@ class TestRunAgentViaProxy:
         with patch("gateway.run._load_gateway_config", return_value={}):
             with _patch_aiohttp(session):
                 with patch("aiohttp.ClientTimeout"):
-                    result = await runner._run_agent_via_proxy(
+                    result = await runner._run_brain_via_proxy(
                         message="hi",
                         context_prompt="",
                         history=[{"role": "user", "content": "prev"}, {"role": "assistant", "content": "ok"}],
@@ -427,7 +427,7 @@ class TestRunAgentViaProxy:
         with patch("gateway.run._load_gateway_config", return_value={}):
             with _patch_aiohttp(session):
                 with patch("aiohttp.ClientTimeout"):
-                    result = await runner._run_agent_via_proxy(
+                    result = await runner._run_brain_via_proxy(
                         message="hi",
                         context_prompt="",
                         history=[],
@@ -457,7 +457,7 @@ class TestRunAgentViaProxy:
         with patch("gateway.run._load_gateway_config", return_value={}):
             with _patch_aiohttp(session):
                 with patch("aiohttp.ClientTimeout"):
-                    await runner._run_agent_via_proxy(
+                    await runner._run_brain_via_proxy(
                         message="hi",
                         context_prompt="",
                         history=[],
@@ -483,7 +483,7 @@ class TestRunAgentViaProxy:
         with patch("gateway.run._load_gateway_config", return_value={}):
             with _patch_aiohttp(session):
                 with patch("aiohttp.ClientTimeout"):
-                    await runner._run_agent_via_proxy(
+                    await runner._run_brain_via_proxy(
                         message="hello",
                         context_prompt="",
                         history=[],
@@ -502,14 +502,14 @@ class TestEnvVarRegistration:
     """Verify GATEWAY_PROXY_URL and GATEWAY_PROXY_KEY are registered."""
 
     def test_proxy_url_in_optional_env_vars(self):
-        from hermes_cli.config import OPTIONAL_ENV_VARS
+        from jarvis_cli.config import OPTIONAL_ENV_VARS
         assert "GATEWAY_PROXY_URL" in OPTIONAL_ENV_VARS
         info = OPTIONAL_ENV_VARS["GATEWAY_PROXY_URL"]
         assert info["category"] == "messaging"
         assert info["password"] is False
 
     def test_proxy_key_in_optional_env_vars(self):
-        from hermes_cli.config import OPTIONAL_ENV_VARS
+        from jarvis_cli.config import OPTIONAL_ENV_VARS
         assert "GATEWAY_PROXY_KEY" in OPTIONAL_ENV_VARS
         info = OPTIONAL_ENV_VARS["GATEWAY_PROXY_KEY"]
         assert info["category"] == "messaging"

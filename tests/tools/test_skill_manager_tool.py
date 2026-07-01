@@ -26,9 +26,9 @@ from tools.skill_manager_tool import (
 @contextmanager
 def _skill_dir(tmp_path):
     """Patch both SKILLS_DIR and get_all_skills_dirs so _find_skill searches
-    only the temp directory — not the real ~/.hermes/skills/."""
+    only the temp directory — not the real ~/.jarvis/skills/."""
     with patch("tools.skill_manager_tool.SKILLS_DIR", tmp_path), \
-         patch("agent.skill_utils.get_all_skills_dirs", return_value=[tmp_path]):
+         patch("brain.skill_utils.get_all_skills_dirs", return_value=[tmp_path]):
         yield
 
 
@@ -239,7 +239,7 @@ class TestCreateSkill:
         skills_dir.mkdir()
 
         with patch("tools.skill_manager_tool.SKILLS_DIR", skills_dir), \
-             patch("agent.skill_utils.get_all_skills_dirs", return_value=[skills_dir]):
+             patch("brain.skill_utils.get_all_skills_dirs", return_value=[skills_dir]):
             result = _create_skill("my-skill", VALID_SKILL_CONTENT, category="../escape")
 
         assert result["success"] is False
@@ -252,7 +252,7 @@ class TestCreateSkill:
         outside = tmp_path / "outside"
 
         with patch("tools.skill_manager_tool.SKILLS_DIR", skills_dir), \
-             patch("agent.skill_utils.get_all_skills_dirs", return_value=[skills_dir]):
+             patch("brain.skill_utils.get_all_skills_dirs", return_value=[skills_dir]):
             result = _create_skill("my-skill", VALID_SKILL_CONTENT, category=str(outside))
 
         assert result["success"] is False
@@ -664,14 +664,14 @@ class TestSecurityScanGate:
         """_guard_agent_created_enabled returns False when config doesn't set it."""
         from tools.skill_manager_tool import _guard_agent_created_enabled
 
-        with patch("hermes_cli.config.load_config", return_value={"skills": {}}):
+        with patch("jarvis_cli.config.load_config", return_value={"skills": {}}):
             assert _guard_agent_created_enabled() is False
 
     def test_guard_flag_reads_config_when_set(self):
         """_guard_agent_created_enabled returns True when user explicitly enables."""
         from tools.skill_manager_tool import _guard_agent_created_enabled
 
-        with patch("hermes_cli.config.load_config",
+        with patch("jarvis_cli.config.load_config",
                    return_value={"skills": {"guard_agent_created": True}}):
             assert _guard_agent_created_enabled() is True
 
@@ -679,7 +679,7 @@ class TestSecurityScanGate:
         """If load_config raises, _guard_agent_created_enabled defaults to False (fail-safe off)."""
         from tools.skill_manager_tool import _guard_agent_created_enabled
 
-        with patch("hermes_cli.config.load_config", side_effect=RuntimeError("boom")):
+        with patch("jarvis_cli.config.load_config", side_effect=RuntimeError("boom")):
             assert _guard_agent_created_enabled() is False
 
     def test_guard_flag_quoted_false_stays_disabled(self):
@@ -687,7 +687,7 @@ class TestSecurityScanGate:
         from tools.skill_manager_tool import _guard_agent_created_enabled
 
         for quoted in ("false", "False", "0", "no", "off"):
-            with patch("hermes_cli.config.load_config",
+            with patch("jarvis_cli.config.load_config",
                        return_value={"skills": {"guard_agent_created": quoted}}):
                 assert _guard_agent_created_enabled() is False, \
                     f"guard_agent_created={quoted!r} must coerce to False"
@@ -697,7 +697,7 @@ class TestSecurityScanGate:
         from tools.skill_manager_tool import _guard_agent_created_enabled
 
         for quoted in ("true", "True", "1", "yes", "on"):
-            with patch("hermes_cli.config.load_config",
+            with patch("jarvis_cli.config.load_config",
                        return_value={"skills": {"guard_agent_created": quoted}}):
                 assert _guard_agent_created_enabled() is True, \
                     f"guard_agent_created={quoted!r} must coerce to True"
@@ -713,7 +713,7 @@ def _two_roots(local_dir: Path, external_dir: Path):
     """Patch the skill manager so local SKILLS_DIR = local_dir and
     get_all_skills_dirs() returns [local_dir, external_dir] in order."""
     with patch("tools.skill_manager_tool.SKILLS_DIR", local_dir), \
-         patch("agent.skill_utils.get_all_skills_dirs",
+         patch("brain.skill_utils.get_all_skills_dirs",
                return_value=[local_dir, external_dir]):
         yield
 
@@ -734,7 +734,7 @@ class TestExternalSkillMutations:
 
     Regression for issues #4759 and #4381: the read-only gate used to refuse
     with 'Skill X is in an external directory and cannot be modified', which
-    caused agents to create duplicate copies in ~/.hermes/skills/ as a
+    caused agents to create duplicate copies in ~/.jarvis/skills/ as a
     workaround.
     """
 
@@ -854,7 +854,7 @@ class TestExternalSkillMutations:
 # ---------------------------------------------------------------------------
 # Pinned-skill guard — skill_manage refuses only `delete` on pinned skills.
 # Patches and edits go through so pinned skills can still evolve as pitfalls
-# come up. The user unpins via `hermes curator unpin <name>` to delete.
+# come up. The user unpins via `jarvis curator unpin <name>` to delete.
 # ---------------------------------------------------------------------------
 
 class TestPinnedGuard:
@@ -909,7 +909,7 @@ class TestPinnedGuard:
         assert result["success"] is False
         assert "pinned" in result["error"].lower()
         assert "cannot be deleted" in result["error"]
-        assert "hermes curator unpin my-skill" in result["error"]
+        assert "jarvis curator unpin my-skill" in result["error"]
         # Skill still exists
         assert (tmp_path / "my-skill" / "SKILL.md").exists()
 
@@ -990,7 +990,7 @@ class TestDeleteSkillRmtreeGuard:
         evil.symlink_to(victim, target_is_directory=True)
         try:
             with patch("tools.skill_manager_tool.SKILLS_DIR", skills), \
-                 patch("agent.skill_utils.get_all_skills_dirs", return_value=[skills]), \
+                 patch("brain.skill_utils.get_all_skills_dirs", return_value=[skills]), \
                  patch("tools.skill_manager_tool._find_skill",
                        return_value={"path": evil}):
                 result = _delete_skill("evil-skill", absorbed_into="")
@@ -1005,7 +1005,7 @@ class TestDeleteSkillRmtreeGuard:
         """If discovery ever hands back the skills root, refuse — rmtree would
         wipe every installed skill."""
         with patch("tools.skill_manager_tool.SKILLS_DIR", tmp_path), \
-             patch("agent.skill_utils.get_all_skills_dirs", return_value=[tmp_path]), \
+             patch("brain.skill_utils.get_all_skills_dirs", return_value=[tmp_path]), \
              patch("tools.skill_manager_tool._find_skill",
                    return_value={"path": tmp_path}):
             result = _delete_skill("root-attack", absorbed_into="")
@@ -1021,7 +1021,7 @@ class TestDeleteSkillRmtreeGuard:
         outside.mkdir()
         (outside / "SKILL.md").write_text("x")
         with patch("tools.skill_manager_tool.SKILLS_DIR", skills), \
-             patch("agent.skill_utils.get_all_skills_dirs", return_value=[skills]), \
+             patch("brain.skill_utils.get_all_skills_dirs", return_value=[skills]), \
              patch("tools.skill_manager_tool._find_skill",
                    return_value={"path": outside}):
             result = _delete_skill("outside", absorbed_into="")

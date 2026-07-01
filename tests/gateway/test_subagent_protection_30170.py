@@ -3,7 +3,7 @@
 #30170: Sending a message while ``delegate_task`` is running killed the
 subagent because the gateway always called ``running_agent.interrupt()``
 on the parent, which then cascaded synchronously through
-``AIAgent._active_children`` and aborted every in-flight subagent. The
+``AIBrain._active_children`` and aborted every in-flight subagent. The
 reporter (and the linked Phase-1 spec) asked for the gateway to demote
 ``busy_input_mode='interrupt'`` to ``queue`` semantics whenever the
 parent is currently driving subagents, while leaving explicit ``/stop``
@@ -106,7 +106,7 @@ def _make_adapter() -> MagicMock:
 def _make_parent_with_subagents(
     *, children: int = 1, with_lock: bool = True
 ) -> MagicMock:
-    """A MagicMock shaped like an AIAgent that currently owns *children* subagents."""
+    """A MagicMock shaped like an AIBrain that currently owns *children* subagents."""
     parent = MagicMock()
     parent._active_children = [MagicMock() for _ in range(children)]
     parent._active_children_lock = threading.Lock() if with_lock else None
@@ -119,7 +119,7 @@ def _make_parent_with_subagents(
 
 
 def _make_parent_no_subagents() -> MagicMock:
-    """A MagicMock shaped like an AIAgent that is NOT delegating."""
+    """A MagicMock shaped like an AIBrain that is NOT delegating."""
     parent = MagicMock()
     parent._active_children = []
     parent._active_children_lock = threading.Lock()
@@ -147,7 +147,7 @@ class TestAgentHasActiveSubagents:
         )
 
     def test_returns_false_when_attribute_missing(self) -> None:
-        """Production AIAgents always have _active_children, but the helper
+        """Production AIBrains always have _active_children, but the helper
         must not blow up on test stubs or partial mocks."""
 
         class StubAgent:

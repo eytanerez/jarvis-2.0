@@ -28,8 +28,8 @@ Wiring
 The outer integration points (multimodal tool-result plumbing, screenshot
 eviction in the Anthropic adapter, image-aware token estimation, the
 COMPUTER_USE_GUIDANCE prompt block, approval hook, and the skill) live
-alongside this package. See agent/anthropic_adapter.py and
-agent/prompt_builder.py for the salvaged hunks from PR #4562.
+alongside this package. See brain/anthropic_adapter.py and
+brain/prompt_builder.py for the salvaged hunks from PR #4562.
 """
 
 from __future__ import annotations

@@ -3,10 +3,10 @@ import { useState } from 'react'
 
 import { useI18n } from '@/i18n'
 import { currentPickerSelection } from '@/lib/model-status-label'
-import type { ModelOptionProvider, ModelOptionsResponse, ModelPricing } from '@/types/hermes'
+import type { ModelOptionProvider, ModelOptionsResponse, ModelPricing } from '@/types/jarvis'
 
-import type { HermesGateway } from '../hermes'
-import { getGlobalModelOptions } from '../hermes'
+import type { JarvisGateway } from '../jarvis'
+import { getGlobalModelOptions } from '../jarvis'
 import { cn } from '../lib/utils'
 import { startManualOnboarding } from '../store/onboarding'
 
@@ -19,7 +19,7 @@ import { Skeleton } from './ui/skeleton'
 interface ModelPickerDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  gw?: HermesGateway
+  gw?: JarvisGateway
   sessionId?: string | null
   currentModel: string
   currentProvider: string
@@ -49,7 +49,7 @@ export function ModelPickerDialog({
   // shouldFilter reorders items by its fuzzy-match score (≈alphabetical with
   // an empty query), which destroys the backend's curated order. We disable
   // it and do a plain substring filter that preserves array order — matching
-  // the `hermes model` CLI picker, which shows the curated list verbatim.
+  // the `jarvis model` CLI picker, which shows the curated list verbatim.
   const [search, setSearch] = useState('')
 
   const modelOptions = useQuery({
@@ -99,7 +99,7 @@ export function ModelPickerDialog({
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className={cn('max-h-[85vh] max-w-2xl gap-0 overflow-hidden p-0', contentClassName)}>
-        <DialogHeader className="border-b border-border px-4 py-3">
+        <DialogHeader className="border-b border-[color-mix(in_srgb,var(--jarvis-hairline)_72%,transparent)] px-4 py-3">
           <DialogTitle>{copy.title}</DialogTitle>
           <DialogDescription className="font-mono text-xs leading-relaxed">
             {copy.current} {optionsModel || currentModel || copy.unknown}
@@ -107,13 +107,11 @@ export function ModelPickerDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Command className="rounded-none bg-card" shouldFilter={false}>
-          <CommandInput
-            autoFocus
-            onValueChange={setSearch}
-            placeholder={copy.search}
-            value={search}
-          />
+        <Command
+          className="rounded-none bg-[color-mix(in_srgb,var(--jarvis-panel)_94%,transparent)]"
+          shouldFilter={false}
+        >
+          <CommandInput autoFocus onValueChange={setSearch} placeholder={copy.search} value={search} />
           <CommandList className="max-h-96">
             {!loading && !error && <CommandEmpty>{copy.noModels}</CommandEmpty>}
             <ModelResults
@@ -128,7 +126,7 @@ export function ModelPickerDialog({
           </CommandList>
         </Command>
 
-        <DialogFooter className="flex-row items-center justify-end gap-2 bg-card p-3">
+        <DialogFooter className="flex-row items-center justify-end gap-2 border-t border-[color-mix(in_srgb,var(--jarvis-hairline)_58%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_72%,transparent)] p-3">
           <Button onClick={addProvider} variant="ghost">
             {copy.addProvider}
           </Button>
@@ -221,9 +219,9 @@ function ModelResults({
               return (
                 <CommandItem
                   className={cn(
-                    'flex items-center gap-2 pl-6 font-mono',
+                    'flex items-center gap-2 rounded-[3px] pl-6 font-mono transition-[border-color,background-color,color] duration-150',
                     isCurrent &&
-                      'bg-primary text-primary-foreground data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground',
+                      'bg-[color-mix(in_srgb,var(--jarvis-blue)_16%,var(--jarvis-panel))] text-white data-[selected=true]:bg-[color-mix(in_srgb,var(--jarvis-blue)_20%,var(--jarvis-panel))] data-[selected=true]:text-white',
                     locked && 'cursor-not-allowed opacity-45'
                   )}
                   disabled={locked}
@@ -236,7 +234,7 @@ function ModelResults({
                   value={`${provider.slug}:${model}`}
                 >
                   <span className="min-w-0 flex-1 truncate">{model}</span>
-                  {locked && <span className="shrink-0 text-[0.62rem] uppercase tracking-wide opacity-80">{copy.pro}</span>}
+                  {locked && <span className="shrink-0 text-[0.62rem] uppercase opacity-80">{copy.pro}</span>}
                   <ModelPrice isCurrent={isCurrent} price={price} />
                 </CommandItem>
               )
@@ -267,8 +265,8 @@ function ModelPrice({ price, isCurrent }: { price?: ModelPricing; isCurrent: boo
     return (
       <span
         className={cn(
-          'shrink-0 rounded-sm px-1 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wide',
-          isCurrent ? 'bg-primary-foreground/20' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+          'shrink-0 rounded-sm px-1 py-0.5 text-[0.62rem] font-semibold uppercase',
+          isCurrent ? 'bg-white/12 text-white' : 'bg-emerald-500/12 text-emerald-300'
         )}
       >
         {copy.free}
@@ -278,10 +276,7 @@ function ModelPrice({ price, isCurrent }: { price?: ModelPricing; isCurrent: boo
 
   return (
     <span
-      className={cn(
-        'shrink-0 text-[0.66rem] tabular-nums',
-        isCurrent ? 'text-primary-foreground/80' : 'text-muted-foreground'
-      )}
+      className={cn('shrink-0 text-[0.66rem] tabular-nums', isCurrent ? 'text-white/78' : 'text-(--jarvis-muted)')}
       title={copy.priceTitle}
     >
       {price.input || '?'} / {price.output || '?'}
@@ -308,11 +303,11 @@ function ProviderHeading({ provider }: { provider: ModelOptionProvider }) {
   // free_tier is only set for Nous. true → "Free tier", false → "Pro".
   const tierBadge =
     provider.free_tier === true ? (
-      <span className="rounded-sm bg-emerald-500/15 px-1 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+      <span className="rounded-sm bg-emerald-500/12 px-1 py-0.5 text-[0.6rem] font-semibold uppercase text-emerald-300">
         {copy.freeTier}
       </span>
     ) : provider.free_tier === false ? (
-      <span className="rounded-sm bg-primary/15 px-1 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-primary">
+      <span className="rounded-sm bg-[color-mix(in_srgb,var(--jarvis-blue)_14%,transparent)] px-1 py-0.5 text-[0.6rem] font-semibold uppercase text-(--jarvis-blue)">
         {copy.pro}
       </span>
     ) : null

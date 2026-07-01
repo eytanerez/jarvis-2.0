@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils'
 /**
  * DesktopInstallOverlay
  *
- * Renders the first-launch install progress for Hermes Agent. Mounted always;
+ * Renders the first-launch install progress for Jarvis. Mounted always;
  * shows itself only when main.cjs reports an in-flight bootstrap (state.active)
  * OR an error from a completed-failed bootstrap (state.error). When the
  * bootstrap finishes successfully the overlay fades out and the rest of the
@@ -270,7 +270,7 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
       return
     }
 
-    const desktop = window.hermesDesktop
+    const desktop = window.jarvisDesktop
 
     if (!desktop || typeof desktop.onBootstrapEvent !== 'function') {
       return
@@ -343,7 +343,7 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
   }
 
   // Unsupported-platform branch: macOS/Linux packaged builds hit this when
-  // there's no Hermes Agent installed yet and we can't drive install.sh
+  // there's no Jarvis installed yet and we can't drive install.sh
   // (no stage protocol equivalent yet). Show a copy-paste install command
   // and the docs URL; user runs it from Terminal and relaunches the app.
   if (state.unsupportedPlatform) {
@@ -351,16 +351,14 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
     const platformLabel = ups.platform === 'darwin' ? 'macOS' : ups.platform === 'linux' ? 'Linux' : ups.platform
 
     return (
-      <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-background/90 backdrop-blur-md">
-        <div className="w-full max-w-xl rounded-xl border border-(--stroke-nous) bg-card p-8 shadow-nous">
-          <h2 className="text-2xl font-semibold tracking-tight">{copy.oneTimeTitle}</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {copy.unsupportedDesc(platformLabel)}
-          </p>
+      <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-[color-mix(in_srgb,var(--jarvis-bg)_92%,transparent)] backdrop-blur-md">
+        <div className="w-full max-w-xl rounded-lg border border-[color-mix(in_srgb,var(--jarvis-blue)_24%,var(--jarvis-hairline))] bg-[color-mix(in_srgb,var(--jarvis-panel)_94%,transparent)] p-8 shadow-[0_24px_80px_rgba(0,0,0,0.58),0_0_42px_color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)]">
+          <h2 className="text-2xl font-semibold">{copy.oneTimeTitle}</h2>
+          <p className="mt-2 text-sm text-(--jarvis-muted)">{copy.unsupportedDesc(platformLabel)}</p>
 
           <div className="mt-4">
-            <div className="mb-1.5 text-xs font-medium text-muted-foreground">{copy.installCommand}</div>
-            <pre className="overflow-x-auto rounded-md border bg-muted/50 px-3 py-2.5 font-mono text-[12px]">
+            <div className="mb-1.5 text-xs font-medium text-(--jarvis-muted)">{copy.installCommand}</div>
+            <pre className="overflow-x-auto rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_68%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_78%,transparent)] px-3 py-2.5 font-mono text-[12px]">
               <code>{ups.installCommand}</code>
             </pre>
             <div className="mt-2 flex items-center gap-2">
@@ -375,7 +373,7 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
               </Button>
               <Button
                 onClick={() => {
-                  window.hermesDesktop?.openExternal?.(ups.docsUrl)
+                  window.jarvisDesktop?.openExternal?.(ups.docsUrl)
                 }}
                 size="sm"
                 variant="ghost"
@@ -385,9 +383,12 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
             </div>
           </div>
 
-          <div className="mt-6 flex items-center justify-between border-t pt-4">
-            <span className="text-xs text-muted-foreground">
-              {copy.installTo} <code className="rounded bg-muted/50 px-1 py-0.5 font-mono">{ups.activeRoot}</code>
+          <div className="mt-6 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--jarvis-hairline)_58%,transparent)] pt-4">
+            <span className="text-xs text-(--jarvis-muted)">
+              {copy.installTo}{' '}
+              <code className="rounded bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_78%,transparent)] px-1 py-0.5 font-mono">
+                {ups.activeRoot}
+              </code>
             </span>
             <Button onClick={() => window.location.reload()} size="sm" variant="default">
               {copy.retryAfterRun}
@@ -412,23 +413,21 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
   const currentElapsed = typeof currentStartedAt === 'number' ? formatElapsed(now - currentStartedAt) : ''
 
   return (
-    <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-background/90 backdrop-blur-md p-4">
-      <div className="flex w-full max-w-2xl max-h-[90vh] flex-col rounded-xl border border-(--stroke-nous) bg-card shadow-nous">
+    <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-[color-mix(in_srgb,var(--jarvis-bg)_92%,transparent)] p-4 backdrop-blur-md">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg border border-[color-mix(in_srgb,var(--jarvis-blue)_24%,var(--jarvis-hairline))] bg-[color-mix(in_srgb,var(--jarvis-panel)_94%,transparent)] shadow-[0_24px_80px_rgba(0,0,0,0.58),0_0_42px_color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)]">
         {/* Header -- always visible, never scrolls */}
         <div className="flex-shrink-0 p-8 pb-4">
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="text-2xl font-semibold">
             {failed ? copy.failedTitle : state.active ? copy.settingUpTitle : copy.finishingTitle}
           </h2>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            {failed ? copy.failedDesc : copy.activeDesc}
-          </p>
+          <p className="mt-1.5 text-sm text-(--jarvis-muted)">{failed ? copy.failedDesc : copy.activeDesc}</p>
         </div>
 
         {/* Scrollable middle: progress, stages, error block, log */}
         <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-2">
           {totalCount > 0 && (
             <div className="mb-4">
-              <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+              <div className="mb-1 flex items-center justify-between text-xs text-(--jarvis-muted)">
                 <span>
                   {copy.progress(completedCount, totalCount)}
                   {currentStage && copy.currentStage(formatStageName(currentStage))}
@@ -436,9 +435,12 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
                 </span>
                 <span className="tabular-nums">{progressPct}%</span>
               </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_86%,transparent)]">
                 <div
-                  className={cn('h-full transition-all duration-300', failed ? 'bg-destructive' : 'bg-primary')}
+                  className={cn(
+                    'h-full transition-all duration-300',
+                    failed ? 'bg-(--jarvis-danger)' : 'bg-(--jarvis-blue)'
+                  )}
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
@@ -446,19 +448,19 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
           )}
 
           {totalCount === 0 && state.active && (
-            <div className="mb-4 flex items-center gap-2.5 text-sm text-muted-foreground">
+            <div className="mb-4 flex items-center gap-2.5 text-sm text-(--jarvis-muted)">
               <Loader className="size-5" type="lemniscate-bloom" />
               <span>{copy.fetchingManifest}</span>
             </div>
           )}
 
           {failed && state.error && (
-            <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm">
-              <div className="mb-1 flex items-center gap-1.5 font-medium text-destructive">
+            <div className="mb-4 rounded-md border border-[color-mix(in_srgb,var(--jarvis-danger)_42%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-danger)_10%,transparent)] p-3 text-sm">
+              <div className="mb-1 flex items-center gap-1.5 font-medium text-(--jarvis-danger)">
                 <AlertTriangle className="h-4 w-4" />
                 <span>{copy.error}</span>
               </div>
-              <p className="whitespace-pre-wrap break-words text-foreground/90">{state.error}</p>
+              <p className="whitespace-pre-wrap break-words text-(--jarvis-text)">{state.error}</p>
             </div>
           )}
 
@@ -478,7 +480,7 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
 
           <div className="pt-3">
             <Button
-              className="-ml-2 text-muted-foreground hover:text-foreground"
+              className="-ml-2 text-(--jarvis-muted) hover:text-white"
               onClick={() => setLogOpen(v => !v)}
               size="xs"
               type="button"
@@ -486,9 +488,7 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
             >
               {logOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
               <span>{logOpen ? copy.hideOutput : copy.showOutput}</span>
-              <span className="ml-1 tabular-nums">
-                ({copy.lines(state.log.length)})
-              </span>
+              <span className="ml-1 tabular-nums">({copy.lines(state.log.length)})</span>
             </Button>
 
             {logOpen && (
@@ -521,7 +521,7 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
                   setCancelling(true)
 
                   try {
-                    await window.hermesDesktop?.cancelBootstrap?.()
+                    await window.jarvisDesktop?.cancelBootstrap?.()
                   } catch {
                     // ignore -- the failed/cancelled event will surface the result
                   }
@@ -542,7 +542,7 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs text-muted-foreground">
                 {copy.transcriptSaved}{' '}
-                <code className="rounded bg-muted/50 px-1 py-0.5 font-mono">%LOCALAPPDATA%\hermes\logs\</code>
+                <code className="rounded bg-muted/50 px-1 py-0.5 font-mono">%LOCALAPPDATA%\jarvis\logs\</code>
               </span>
               <div className="flex gap-2">
                 <Button
@@ -573,7 +573,7 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
                     // and main short-circuits to the latched error without
                     // re-running install.ps1.
                     try {
-                      await window.hermesDesktop?.resetBootstrap?.()
+                      await window.jarvisDesktop?.resetBootstrap?.()
                     } catch {
                       // best-effort -- continue with reload regardless
                     }

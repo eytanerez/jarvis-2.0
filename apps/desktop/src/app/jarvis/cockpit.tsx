@@ -41,8 +41,7 @@ import {
   $orbSpeaking,
   $orbThinking,
   $orbToolActive,
-  resolveOrbState,
-  setCockpitMode
+  resolveOrbState
 } from '@/store/jarvis-cockpit'
 import { $activeProfile } from '@/store/profile'
 import {
@@ -59,6 +58,8 @@ import {
 } from '@/store/session'
 import { getToolDiff } from '@/store/tool-diffs'
 import { $voicePlayback } from '@/store/voice-playback'
+
+const TOOL_ACTIVITY_SETTLED_TTL_MS = 7_000
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(
@@ -148,10 +149,6 @@ function CockpitCommandMenu() {
           <Codicon name="add" size="0.875rem" />
           {t.jarvis.menu.newSession}
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setCockpitMode('classic')}>
-          <Codicon name="terminal" size="0.875rem" />
-          {t.jarvis.menu.classicChat}
-        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => setSessionPickerOpen(true)}>
           <Codicon name="history" size="0.875rem" />
           {t.jarvis.menu.sessions}
@@ -174,7 +171,7 @@ function CockpitCommandMenu() {
 }
 
 // Slim identity/telemetry strip above the orb. Low-frequency subscriptions only.
-function CockpitTopStrip({ onCancel, onExit }: { onCancel: () => Promise<void> | void; onExit: () => void }) {
+function CockpitTopStrip({ onCancel }: { onCancel: () => Promise<void> | void }) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const gatewayState = useStore($gatewayState)
@@ -192,10 +189,14 @@ function CockpitTopStrip({ onCancel, onExit }: { onCancel: () => Promise<void> |
   const activeStoredSession =
     sessions.find(session => session.id === selectedSessionId || session._lineage_root_id === selectedSessionId) || null
 
-  const title = activeStoredSession ? sessionTitle(activeStoredSession) : activeSessionId ? t.jarvis.sessionActive : t.jarvis.newSession
+  const title = activeStoredSession
+    ? sessionTitle(activeStoredSession)
+    : activeSessionId
+      ? t.jarvis.sessionActive
+      : t.jarvis.newSession
 
   return (
-    <div className="flex items-center gap-4 px-5 py-3">
+    <div className="relative z-10 flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--theme-jarvis-stroke)_46%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--theme-jarvis-panel)_46%,transparent),transparent)] px-5 py-3 backdrop-blur-[0.375rem]">
       <span className="jarvis-wordmark text-[0.8125rem]">{t.jarvis.wordmark}</span>
 
       <span className="flex items-center gap-1.5">
@@ -221,23 +222,9 @@ function CockpitTopStrip({ onCancel, onExit }: { onCancel: () => Promise<void> |
             {t.jarvis.interrupt}
           </Button>
         )}
-        <Button
-          onClick={() => navigate(NEW_CHAT_ROUTE)}
-          size="xs"
-          type="button"
-          variant="jarvisGhost"
-        >
+        <Button onClick={() => navigate(NEW_CHAT_ROUTE)} size="xs" type="button" variant="jarvisGhost">
           <Codicon name="add" size="0.75rem" />
           {t.jarvis.newSession}
-        </Button>
-        <Button
-          onClick={onExit}
-          size="xs"
-          title={t.jarvis.classicHint}
-          type="button"
-          variant="jarvisGhost"
-        >
-          {t.jarvis.textMode}
         </Button>
         <CockpitCommandMenu />
       </span>
@@ -247,12 +234,15 @@ function CockpitTopStrip({ onCancel, onExit }: { onCancel: () => Promise<void> |
 
 // Live transcript captions. Isolated so the ~30fps $messages churn during a
 // stream never re-renders the orb (its parent).
-function CockpitCaptions() {
+function CockpitCaptions({ onDismissError }: { onDismissError?: (messageId: string) => void }) {
   const { t } = useI18n()
   const messages = useStore($messages)
 
   let userLine = ''
   let assistantLine = ''
+  let assistantPending = false
+  let errorId = ''
+  let errorText = ''
 
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i]
@@ -261,8 +251,14 @@ function CockpitCaptions() {
       continue
     }
 
+    if (!errorText && message.error) {
+      errorId = message.id
+      errorText = message.error
+    }
+
     if (!assistantLine && message.role === 'assistant') {
       assistantLine = chatMessageText(message).trim()
+      assistantPending = Boolean(message.pending)
 
       continue
     }
@@ -274,7 +270,7 @@ function CockpitCaptions() {
     }
   }
 
-  if (!userLine && !assistantLine) {
+  if (!userLine && !assistantLine && !errorText) {
     return (
       <p aria-live="polite" className="jarvis-tech jarvis-tech-dim text-center">
         {t.jarvis.emptyPrompt}
@@ -284,11 +280,36 @@ function CockpitCaptions() {
 
   return (
     <div aria-live="polite" className="mx-auto flex max-w-[46rem] flex-col items-center gap-2 text-center">
-      {userLine && (
-        <p className="line-clamp-2 text-[0.8125rem] text-(--theme-jarvis-text-dim)">{userLine}</p>
-      )}
+      {userLine && <p className="line-clamp-2 text-[0.8125rem] text-(--theme-jarvis-text-dim)">{userLine}</p>}
       {assistantLine && (
-        <p className="line-clamp-4 text-[0.95rem] leading-relaxed text-(--theme-jarvis-text-tech)">{assistantLine}</p>
+        <p className="line-clamp-4 text-[0.95rem] leading-relaxed text-(--theme-jarvis-text-tech)">
+          {assistantLine}
+          {assistantPending && (
+            <span
+              aria-hidden
+              className="ml-1 inline-block h-4 w-1 animate-pulse rounded-full bg-current align-[-0.15em]"
+            />
+          )}
+        </p>
+      )}
+      {errorText && (
+        <div
+          className="mt-1 flex max-w-full items-start gap-2 rounded-md border border-[color-mix(in_srgb,var(--theme-orb-error)_42%,transparent)] bg-[color-mix(in_srgb,var(--theme-orb-error)_10%,transparent)] px-3 py-2 text-left text-[0.8125rem] leading-5 text-[color-mix(in_srgb,var(--theme-orb-error)_80%,var(--theme-jarvis-text-tech))]"
+          role="alert"
+        >
+          <Codicon className="mt-0.5 shrink-0" name="warning" size="0.875rem" />
+          <span className="min-w-0 flex-1 break-words">{errorText}</span>
+          {onDismissError && (
+            <button
+              aria-label={t.assistant.thread.dismissError}
+              className="-mr-1 grid size-5 shrink-0 place-items-center rounded text-current opacity-70 transition-opacity hover:opacity-100"
+              onClick={() => onDismissError(errorId)}
+              type="button"
+            >
+              <Codicon name="close" size="0.75rem" />
+            </button>
+          )}
+        </div>
       )}
     </div>
   )
@@ -311,11 +332,16 @@ function asToolPart(part: ChatMessagePart): ToolPart | null {
   }
 }
 
+interface CockpitToolActivityModel {
+  id: string
+  view: ReturnType<typeof buildToolView>
+}
+
 function CockpitToolActivity() {
   const { t } = useI18n()
   const messages = useStore($messages)
 
-  const activity = useMemo(() => {
+  const latestActivity = useMemo<CockpitToolActivityModel | null>(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const message = messages[i]
 
@@ -339,6 +365,28 @@ function CockpitToolActivity() {
     return null
   }, [messages])
 
+  const [activity, setActivity] = useState<CockpitToolActivityModel | null>(latestActivity)
+
+  useEffect(() => {
+    if (!latestActivity) {
+      setActivity(null)
+
+      return
+    }
+
+    setActivity(latestActivity)
+
+    if (latestActivity.view.status === 'running') {
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      setActivity(current => (current?.id === latestActivity.id ? null : current))
+    }, TOOL_ACTIVITY_SETTLED_TTL_MS)
+
+    return () => window.clearTimeout(timeout)
+  }, [latestActivity])
+
   if (!activity) {
     return null
   }
@@ -348,7 +396,7 @@ function CockpitToolActivity() {
   return (
     <section
       aria-label={t.jarvis.toolActivity}
-      className="mx-auto flex w-full max-w-[46rem] items-center gap-3 rounded-md bg-[color-mix(in_srgb,var(--theme-jarvis-panel)_74%,transparent)] px-3 py-2 shadow-[inset_0_0_0_1px_var(--theme-jarvis-stroke)]"
+      className="mx-auto flex w-full max-w-[46rem] items-center gap-3 rounded-md border border-[color-mix(in_srgb,var(--theme-jarvis-stroke)_78%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,#fff_5%,transparent),transparent),color-mix(in_srgb,var(--theme-jarvis-panel)_78%,#02040a)] px-3 py-2 shadow-[inset_0_0.0625rem_0_color-mix(in_srgb,#fff_7%,transparent),0_0_1.5rem_color-mix(in_srgb,var(--theme-orb-glow)_10%,transparent)]"
     >
       <Codicon className="text-(--theme-orb-ring)" name={icon} size="0.875rem" />
       <div className="min-w-0 flex-1">
@@ -367,7 +415,13 @@ function CockpitToolActivity() {
  * scrolling thread (the real composer stays mounted below it), reading orb state
  * and live levels from existing gateway/session/voice stores.
  */
-export function JarvisCockpit({ onCancel }: { onCancel: () => Promise<void> | void }) {
+export function JarvisCockpit({
+  onCancel,
+  onDismissError
+}: {
+  onCancel: () => Promise<void> | void
+  onDismissError?: (messageId: string) => void
+}) {
   const { t } = useI18n()
   const reducedMotion = usePrefersReducedMotion()
 
@@ -395,7 +449,7 @@ export function JarvisCockpit({ onCancel }: { onCancel: () => Promise<void> | vo
 
   return (
     <div className="jarvis-stage absolute inset-0 flex flex-col bg-(--theme-jarvis-bg-deep)">
-      <CockpitTopStrip onCancel={onCancel} onExit={() => setCockpitMode('classic')} />
+      <CockpitTopStrip onCancel={onCancel} />
 
       <div className="grid min-h-0 flex-1 place-items-center px-6">
         <JarvisOrb
@@ -407,20 +461,17 @@ export function JarvisCockpit({ onCancel }: { onCancel: () => Promise<void> | vo
       </div>
 
       <div
-        className="flex flex-col items-center gap-4 px-6"
+        className="relative z-10 flex flex-col items-center gap-4 px-6"
         style={{ paddingBottom: 'calc(var(--composer-measured-height, 4rem) + 1rem)' }}
       >
         <span className="jarvis-tech flex items-center gap-2 text-(--theme-orb-ring)">
           <span
-            className={cn(
-              'size-1.5 rounded-full bg-current',
-              !reducedMotion && state !== 'idle' && 'animate-pulse'
-            )}
+            className={cn('size-1.5 rounded-full bg-current', !reducedMotion && state !== 'idle' && 'animate-pulse')}
           />
           {t.jarvis.status[state]}
         </span>
 
-        <CockpitCaptions />
+        <CockpitCaptions onDismissError={onDismissError} />
         <CockpitToolActivity />
       </div>
     </div>

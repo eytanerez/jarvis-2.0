@@ -14,7 +14,7 @@ from gateway.session import SessionSource, build_session_key
 
 @pytest.fixture(autouse=True)
 def _isolated_active_session_registry(tmp_path, monkeypatch):
-    monkeypatch.setenv("HERMES_HOME", str(tmp_path / ".hermes"))
+    monkeypatch.setenv("JARVIS_HOME", str(tmp_path / ".jarvis"))
 
 
 class _FakeAdapter:
@@ -93,7 +93,7 @@ def _occupy_session(runner: GatewayRunner, chat_id: str = "busy"):
 
 
 def _silence_global_gateway_hooks(monkeypatch):
-    monkeypatch.setattr("hermes_cli.plugins.invoke_hook", lambda *args, **kwargs: [])
+    monkeypatch.setattr("jarvis_cli.plugins.invoke_hook", lambda *args, **kwargs: [])
     monkeypatch.setattr("tools.slash_confirm.get_pending", lambda *args, **kwargs: None)
     monkeypatch.setattr("tools.slash_confirm.clear_if_stale", lambda *args, **kwargs: None)
     monkeypatch.setattr("tools.approval.has_blocking_approval", lambda *args, **kwargs: False)
@@ -113,7 +113,7 @@ def test_new_session_gets_clean_error_at_active_session_limit(monkeypatch):
         result = asyncio.run(runner._handle_message(event))
 
     assert result == (
-        "Hermes is at the active session limit (1/1). "
+        "Jarvis is at the active session limit (1/1). "
         "Try again when another session finishes."
     )
     assert new_key not in runner._running_agents
@@ -178,19 +178,19 @@ def test_skill_command_that_would_start_agent_is_blocked_at_limit(monkeypatch):
     _occupy_session(runner, "busy")
 
     monkeypatch.setattr(
-        "agent.skill_commands.get_skill_commands",
+        "brain.skill_commands.get_skill_commands",
         lambda: {"demo": {"name": "demo-skill"}},
     )
     monkeypatch.setattr(
-        "agent.skill_commands.resolve_skill_command_key",
+        "brain.skill_commands.resolve_skill_command_key",
         lambda command: "demo" if command == "demo" else None,
     )
     monkeypatch.setattr(
-        "agent.skill_commands.build_skill_invocation_message",
+        "brain.skill_commands.build_skill_invocation_message",
         lambda *args, **kwargs: "invoke demo skill",
     )
     monkeypatch.setattr(
-        "agent.skill_utils.get_disabled_skill_names",
+        "brain.skill_utils.get_disabled_skill_names",
         lambda *args, **kwargs: [],
     )
 
@@ -203,6 +203,6 @@ def test_skill_command_that_would_start_agent_is_blocked_at_limit(monkeypatch):
         )
 
     assert result == (
-        "Hermes is at the active session limit (1/1). "
+        "Jarvis is at the active session limit (1/1). "
         "Try again when another session finishes."
     )

@@ -2,7 +2,7 @@
 
 Ported from cline/cline#10343.  The module logs a structured
 ``[MEMORY] rss=...MB ...`` line periodically so long-running gateway
-leaks show up as a time series in agent.log / gateway.log.
+leaks show up as a time series in brain.log / gateway.log.
 """
 
 from __future__ import annotations

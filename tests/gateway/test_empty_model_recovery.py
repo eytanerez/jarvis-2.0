@@ -115,9 +115,9 @@ def test_bare_runner_without_cache_attr_does_not_crash(monkeypatch):
 
 
 def _bare_agent():
-    import run_agent
+    import run_brain
 
-    return object.__new__(run_agent.AIAgent)
+    return object.__new__(run_brain.AIBrain)
 
 
 def test_has_pending_fallback_empty_chain():

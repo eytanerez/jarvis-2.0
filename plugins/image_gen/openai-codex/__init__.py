@@ -14,7 +14,7 @@ Selection precedence for the tier (first hit wins):
 3. ``image_gen.model`` in ``config.yaml`` (when it's one of our tier IDs)
 4. :data:`DEFAULT_MODEL` — ``gpt-image-2-medium``
 
-Output is saved as PNG under ``$HERMES_HOME/cache/images/``.
+Output is saved as PNG under ``$JARVIS_HOME/cache/images/``.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-from agent.image_gen_provider import (
+from brain.image_gen_provider import (
     DEFAULT_ASPECT_RATIO,
     ImageGenProvider,
     error_response,
@@ -89,7 +89,7 @@ _CODEX_INSTRUCTIONS = (
 def _load_image_gen_config() -> Dict[str, Any]:
     """Read ``image_gen`` from config.yaml (returns {} on any failure)."""
     try:
-        from hermes_cli.config import load_config
+        from jarvis_cli.config import load_config
 
         cfg = load_config()
         section = cfg.get("image_gen") if isinstance(cfg, dict) else None
@@ -132,7 +132,7 @@ def _read_codex_access_token() -> Optional[str]:
     expiry, credential pool selection, and JWT decoding stay in one place.
     """
     try:
-        from agent.auxiliary_client import _read_codex_access_token as _reader
+        from brain.auxiliary_client import _read_codex_access_token as _reader
 
         token = _reader()
         if isinstance(token, str) and token.strip():
@@ -245,7 +245,7 @@ def _iter_sse_json(response: Any):
 def _collect_image_b64(token: str, *, prompt: str, size: str, quality: str) -> Optional[str]:
     """Stream a Codex Responses image_generation call and return the b64 image."""
     import httpx
-    from agent.auxiliary_client import _codex_cloudflare_headers
+    from brain.auxiliary_client import _codex_cloudflare_headers
 
     headers = _codex_cloudflare_headers(token)
     headers.update({
@@ -322,7 +322,7 @@ class OpenAICodexImageGenProvider(ImageGenProvider):
             "tag": "gpt-image-2 via ChatGPT/Codex OAuth — no API key required (text-to-image only)",
             "env_vars": [],
             "post_setup_hint": (
-                "Sign in with `hermes auth codex` (or `hermes setup` → Codex) "
+                "Sign in with `jarvis auth codex` (or `jarvis setup` → Codex) "
                 "if you haven't already. No API key needed."
             ),
         }
@@ -374,7 +374,7 @@ class OpenAICodexImageGenProvider(ImageGenProvider):
             return error_response(
                 error=(
                     "No Codex/ChatGPT OAuth credentials available. Run "
-                    "`hermes auth codex` (or `hermes setup` → Codex) to sign in."
+                    "`jarvis auth codex` (or `jarvis setup` → Codex) to sign in."
                 ),
                 error_type="auth_required",
                 provider="openai-codex",
@@ -399,7 +399,7 @@ class OpenAICodexImageGenProvider(ImageGenProvider):
             return error_response(
                 error=(
                     "No Codex/ChatGPT OAuth credentials available. Run "
-                    "`hermes auth codex` (or `hermes setup` → Codex) to sign in."
+                    "`jarvis auth codex` (or `jarvis setup` → Codex) to sign in."
                 ),
                 error_type="auth_required",
                 provider="openai-codex",

@@ -464,7 +464,7 @@ class TestTranscribeAudioDispatchToCommandProvider:
     """Verify ``transcribe_audio()`` picks command providers correctly.
 
     These tests bypass the lazy-load STT detection (faster-whisper /
-    HERMES_LOCAL_STT_COMMAND) by patching ``_load_stt_config`` directly.
+    JARVIS_LOCAL_STT_COMMAND) by patching ``_load_stt_config`` directly.
     """
 
     def _config_with_command_provider(self, name: str, command: str) -> dict:
@@ -537,8 +537,8 @@ class TestCommandWinsOverPlugin:
         }
 
         # Register a plugin under the SAME name. It must NOT fire.
-        from agent.transcription_provider import TranscriptionProvider
-        from agent.transcription_registry import (
+        from brain.transcription_provider import TranscriptionProvider
+        from brain.transcription_registry import (
             _reset_for_tests,
             register_provider,
         )
@@ -570,8 +570,8 @@ class TestCommandWinsOverPlugin:
         audio = _make_silent_wav(tmp_path / "audio.wav")
         cfg = {"provider": "fake-plugin"}
 
-        from agent.transcription_provider import TranscriptionProvider
-        from agent.transcription_registry import (
+        from brain.transcription_provider import TranscriptionProvider
+        from brain.transcription_registry import (
             _reset_for_tests,
             register_provider,
         )

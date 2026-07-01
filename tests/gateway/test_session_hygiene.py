@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, AsyncMock
 
 import pytest
 
-from agent.model_metadata import estimate_messages_tokens_rough
+from brain.model_metadata import estimate_messages_tokens_rough
 from gateway.config import GatewayConfig, Platform, PlatformConfig
 from gateway.platforms.base import BasePlatformAdapter, MessageEvent, SendResult
 from gateway.session import SessionEntry, SessionSource
@@ -320,9 +320,9 @@ async def test_session_hygiene_messages_stay_in_originating_topic(monkeypatch, t
             self.session_id = f"{self.session_id}_compressed"
             return ([{"role": "assistant", "content": "compressed"}], None)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = FakeCompressAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = FakeCompressAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
     gateway_run = importlib.import_module("gateway.run")
     GatewayRunner = gateway_run.GatewayRunner
@@ -354,7 +354,7 @@ async def test_session_hygiene_messages_stay_in_originating_topic(monkeypatch, t
     runner._session_db = None
     runner._is_user_authorized = lambda _source: True
     runner._set_session_env = lambda _context: None
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         return_value={
             "final_response": "ok",
             "messages": [],
@@ -364,10 +364,10 @@ async def test_session_hygiene_messages_stay_in_originating_topic(monkeypatch, t
         }
     )
 
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "fake"})
     monkeypatch.setattr(
-        "agent.model_metadata.get_model_context_length",
+        "brain.model_metadata.get_model_context_length",
         lambda *_args, **_kwargs: 100,
     )
     monkeypatch.setenv("TELEGRAM_HOME_CHANNEL", "795544298")
@@ -429,9 +429,9 @@ async def test_session_hygiene_warns_user_when_compression_aborts(monkeypatch, t
             # Abort path: messages preserved unchanged, session NOT rotated.
             return (messages, None)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = FakeCompressAgentWithSummaryFailure
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = FakeCompressAgentWithSummaryFailure
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
     gateway_run = importlib.import_module("gateway.run")
     GatewayRunner = gateway_run.GatewayRunner
@@ -463,7 +463,7 @@ async def test_session_hygiene_warns_user_when_compression_aborts(monkeypatch, t
     runner._session_db = None
     runner._is_user_authorized = lambda _source: True
     runner._set_session_env = lambda _context: None
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         return_value={
             "final_response": "ok",
             "messages": [],
@@ -473,10 +473,10 @@ async def test_session_hygiene_warns_user_when_compression_aborts(monkeypatch, t
         }
     )
 
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
     monkeypatch.setattr(
-        "agent.model_metadata.get_model_context_length",
+        "brain.model_metadata.get_model_context_length",
         lambda *_args, **_kwargs: 100,
     )
     monkeypatch.setenv("TELEGRAM_HOME_CHANNEL", "795544298")
@@ -549,9 +549,9 @@ async def test_session_hygiene_informs_user_when_aux_model_fails_but_recovers(mo
             self.session_id = f"{self.session_id}_compressed"
             return ([{"role": "assistant", "content": "real summary"}], None)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = FakeCompressAgentWithAuxRecovery
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = FakeCompressAgentWithAuxRecovery
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
     gateway_run = importlib.import_module("gateway.run")
     GatewayRunner = gateway_run.GatewayRunner
@@ -583,7 +583,7 @@ async def test_session_hygiene_informs_user_when_aux_model_fails_but_recovers(mo
     runner._session_db = None
     runner._is_user_authorized = lambda _source: True
     runner._set_session_env = lambda _context: None
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         return_value={
             "final_response": "ok",
             "messages": [],
@@ -593,10 +593,10 @@ async def test_session_hygiene_informs_user_when_aux_model_fails_but_recovers(mo
         }
     )
 
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
     monkeypatch.setattr(
-        "agent.model_metadata.get_model_context_length",
+        "brain.model_metadata.get_model_context_length",
         lambda *_args, **_kwargs: 100,
     )
     monkeypatch.setenv("TELEGRAM_HOME_CHANNEL", "795544298")
@@ -668,9 +668,9 @@ async def test_session_hygiene_honors_configurable_hard_message_limit(
             self.session_id = f"{self.session_id}_compressed"
             return ([{"role": "assistant", "content": "compressed"}], None)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = FakeCompressAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = FakeCompressAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
     # Write config.yaml with lowered hard-limit
     cfg_path = tmp_path / "config.yaml"
@@ -712,7 +712,7 @@ async def test_session_hygiene_honors_configurable_hard_message_limit(
     runner._session_db = None
     runner._is_user_authorized = lambda _source: True
     runner._set_session_env = lambda _context: None
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         return_value={
             "final_response": "ok",
             "messages": [],
@@ -722,7 +722,7 @@ async def test_session_hygiene_honors_configurable_hard_message_limit(
         }
     )
 
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(
         gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "fake"}
     )
@@ -730,7 +730,7 @@ async def test_session_hygiene_honors_configurable_hard_message_limit(
     # won't trigger for 12 short messages — hard-limit must be the ONLY
     # thing firing compression.
     monkeypatch.setattr(
-        "agent.model_metadata.get_model_context_length",
+        "brain.model_metadata.get_model_context_length",
         lambda *_args, **_kwargs: 1_000_000,
     )
 
@@ -780,9 +780,9 @@ async def test_session_hygiene_default_hard_message_limit_does_not_fire_at_12_me
         def _compress_context(self, messages, *_args, **_kwargs):
             return ([{"role": "assistant", "content": "compressed"}], None)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = FakeCompressAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = FakeCompressAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
     # No config.yaml — use defaults (hard_limit=400)
     gateway_run = importlib.import_module("gateway.run")
@@ -815,7 +815,7 @@ async def test_session_hygiene_default_hard_message_limit_does_not_fire_at_12_me
     runner._session_db = None
     runner._is_user_authorized = lambda _source: True
     runner._set_session_env = lambda _context: None
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         return_value={
             "final_response": "ok",
             "messages": [],
@@ -825,12 +825,12 @@ async def test_session_hygiene_default_hard_message_limit_does_not_fire_at_12_me
         }
     )
 
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(
         gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "fake"}
     )
     monkeypatch.setattr(
-        "agent.model_metadata.get_model_context_length",
+        "brain.model_metadata.get_model_context_length",
         lambda *_args, **_kwargs: 1_000_000,
     )
 

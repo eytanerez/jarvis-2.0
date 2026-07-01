@@ -7,9 +7,9 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _ensure_redaction_enabled(monkeypatch):
-    """Ensure redaction is active regardless of host HERMES_REDACT_SECRETS."""
-    monkeypatch.delenv("HERMES_REDACT_SECRETS", raising=False)
-    monkeypatch.setattr("agent.redact._REDACT_ENABLED", True)
+    """Ensure redaction is active regardless of host JARVIS_REDACT_SECRETS."""
+    monkeypatch.delenv("JARVIS_REDACT_SECRETS", raising=False)
+    monkeypatch.setattr("brain.redact._REDACT_ENABLED", True)
 
 
 class TestBrowserSecretExfil:
@@ -33,11 +33,11 @@ class TestBrowserSecretExfil:
         from tools.browser_tool import browser_navigate
         # Patch the actual browser command — we only care that the secret
         # check doesn't block a clean URL, not that Chrome starts in CI.
-        mock_result = {"success": True, "data": {"title": "ok", "url": "https://github.com/NousResearch/hermes-agent"}}
+        mock_result = {"success": True, "data": {"title": "ok", "url": "https://github.com/NousResearch/jarvis-agent"}}
         with patch("tools.browser_tool._run_browser_command", return_value=mock_result), \
              patch("tools.browser_tool._get_session_info", return_value={"_first_nav": False}), \
              patch("tools.browser_tool._is_local_backend", return_value=True):
-            result = browser_navigate("https://github.com/NousResearch/hermes-agent")
+            result = browser_navigate("https://github.com/NousResearch/jarvis-agent")
         parsed = json.loads(result)
         # Should NOT be blocked by secret detection
         assert "API key or token" not in parsed.get("error", "")
@@ -86,8 +86,8 @@ class TestWebExtractSecretExfil:
 
     @pytest.mark.asyncio
     async def test_normalizes_non_ascii_url_before_extract_provider(self, monkeypatch):
-        from agent.web_search_provider import WebSearchProvider
-        from agent import web_search_registry
+        from brain.web_search_provider import WebSearchProvider
+        from brain import web_search_registry
         from tools import web_tools
 
         class FakeExtractProvider(WebSearchProvider):
@@ -229,7 +229,7 @@ class TestCamofoxAnnotationRedaction:
 
     def test_annotation_context_secrets_redacted(self):
         """Secrets in accessibility tree annotation should be masked."""
-        from agent.redact import redact_sensitive_text
+        from brain.redact import redact_sensitive_text
 
         fake_token = "ghp_" + "FAKEGITHUBTOKEN12345678901234"
         annotation = (
@@ -245,7 +245,7 @@ class TestCamofoxAnnotationRedaction:
 
     def test_annotation_env_dump_redacted(self):
         """Env var dump in annotation context should be redacted."""
-        from agent.redact import redact_sensitive_text
+        from brain.redact import redact_sensitive_text
 
         fake_anth = "sk-" + "ant" + "-" + "ANTHROPICFAKEKEY123456789ABC"
         fake_oai = "sk-" + "proj" + "-" + "OPENAIFAKEKEY99887766554433"

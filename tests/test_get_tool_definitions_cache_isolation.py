@@ -3,7 +3,7 @@
 The ``quiet_mode=True`` fast path in :func:`model_tools.get_tool_definitions`
 memoizes results to avoid re-walking the registry on every Gateway call. The
 cached object must NOT be aliased into callers' return values \u2014 long-lived
-Gateway processes mutate the returned list (``run_agent`` appends memory and
+Gateway processes mutate the returned list (``run_brain`` appends memory and
 LCM context-engine tool schemas to ``self.tools``), and a shared list would
 poison subsequent agent inits with duplicate tool names. Providers that
 enforce uniqueness (DeepSeek, Xiaomi MiMo, Moonshot/Kimi) then reject the
@@ -53,11 +53,11 @@ class TestQuietModeCacheIsolation:
         assert second is not cached
 
     def test_caller_mutation_does_not_poison_cache(self):
-        """Simulate run_agent appending LCM tool schemas to the returned
+        """Simulate run_brain appending LCM tool schemas to the returned
         list. A second call must NOT see those appended entries."""
         first = model_tools.get_tool_definitions(quiet_mode=True)
         baseline_len = len(first)
-        # Caller mutates the returned list (this is what run_agent does
+        # Caller mutates the returned list (this is what run_brain does
         # when it injects memory + context-engine tool schemas).
         first.append({"type": "function", "function": {"name": "lcm_grep"}})
         first.append({"type": "function", "function": {"name": "lcm_expand"}})

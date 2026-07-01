@@ -1,4 +1,4 @@
-import type { HermesConfigRecord, ToolsetInfo } from '@/types/hermes'
+import type { JarvisConfigRecord, ToolsetInfo } from '@/types/jarvis'
 
 import { BUILTIN_PERSONALITIES, ENUM_OPTIONS, PROVIDER_GROUPS } from './constants'
 
@@ -80,7 +80,7 @@ function safeSet(target: Record<string, unknown>, key: string, value: unknown): 
   })
 }
 
-export function getNested(obj: HermesConfigRecord, path: string): unknown {
+export function getNested(obj: JarvisConfigRecord, path: string): unknown {
   let cur: unknown = obj
 
   for (const part of configPathParts(path)) {
@@ -98,7 +98,7 @@ export function getNested(obj: HermesConfigRecord, path: string): unknown {
   return cur
 }
 
-export function setNested(obj: HermesConfigRecord, path: string, value: unknown): HermesConfigRecord {
+export function setNested(obj: JarvisConfigRecord, path: string, value: unknown): JarvisConfigRecord {
   const clone = structuredClone(obj)
   const parts = configPathParts(path)
   let cur: Record<string, unknown> = clone
@@ -124,8 +124,8 @@ export function setNested(obj: HermesConfigRecord, path: string, value: unknown)
   return clone
 }
 
-function personalityOptions(config: HermesConfigRecord): string[] {
-  const custom = getNested(config, 'agent.personalities')
+function personalityOptions(config: JarvisConfigRecord): string[] {
+  const custom = getNested(config, 'brain.personalities')
 
   const customNames =
     custom && typeof custom === 'object' && !Array.isArray(custom) ? Object.keys(custom as Record<string, unknown>) : []
@@ -136,7 +136,7 @@ function personalityOptions(config: HermesConfigRecord): string[] {
 export function enumOptionsFor(
   key: string,
   value: unknown,
-  config: HermesConfigRecord,
+  config: JarvisConfigRecord,
   dynamicOptions?: string[]
 ): string[] | undefined {
   const opts = dynamicOptions ?? (key === 'display.personality' ? personalityOptions(config) : ENUM_OPTIONS[key])

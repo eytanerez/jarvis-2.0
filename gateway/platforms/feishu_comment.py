@@ -14,7 +14,7 @@ Flow:
        Whole -> list whole comments timeline
        Local -> list comment thread replies
   5. Build prompt (local or whole)
-  6. Create AIAgent with feishu_doc + feishu_drive tools -> agent generates reply
+  6. Create AIBrain with feishu_doc + feishu_drive tools -> agent generates reply
   7. Route reply:
        Whole -> add_whole_comment
        Local -> reply_to_comment (fallback to add_whole_comment on 1069302)
@@ -985,7 +985,7 @@ def _resolve_model_and_runtime() -> Tuple[str, dict]:
     # Fall back to provider's default model if none configured
     if not model and runtime_kwargs.get("provider"):
         try:
-            from hermes_cli.models import get_default_model_for_provider
+            from jarvis_cli.models import get_default_model_for_provider
             model = get_default_model_for_provider(runtime_kwargs["provider"])
         except Exception:
             pass
@@ -1045,14 +1045,14 @@ def _save_session_history(key: str, messages: List[Dict[str, Any]]) -> None:
 
 
 def _run_comment_agent(prompt: str, client: Any, session_key: str = "") -> str:
-    """Create an AIAgent with feishu tools and run the prompt.
+    """Create an AIBrain with feishu tools and run the prompt.
 
     If *session_key* is provided, loads/saves conversation history for
     cross-card memory within the same document.
 
     Returns the agent's final response text, or empty string on failure.
     """
-    from run_agent import AIAgent
+    from run_brain import AIBrain
 
     logger.info("[Feishu-Comment] _run_comment_agent: injecting lark client into tool thread-locals")
     from tools.feishu_doc_tool import set_client as set_doc_client
@@ -1071,7 +1071,7 @@ def _run_comment_agent(prompt: str, client: Any, session_key: str = "") -> str:
             logger.info("[Feishu-Comment] _run_comment_agent: loaded %d history messages from session %s",
                         len(history), session_key)
 
-        agent = AIAgent(
+        agent = AIBrain(
             model=model,
             base_url=runtime_kwargs.get("base_url"),
             api_key=runtime_kwargs.get("api_key"),

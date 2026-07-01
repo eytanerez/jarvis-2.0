@@ -40,7 +40,7 @@ SKILL.md Format (YAML Frontmatter, agentskills.io compatible):
       commands: [curl, jq]        #   Command checks remain advisory only.
     compatibility: Requires X     # Optional (agentskills.io)
     metadata:                     # Optional, arbitrary key-value (agentskills.io)
-      hermes:
+      jarvis:
         tags: [fine-tuning, llm]
         related_skills: [peft, lora]
     ---
@@ -69,7 +69,7 @@ Usage:
 import json
 import logging
 
-from hermes_constants import get_hermes_home, display_hermes_home
+from jarvis_constants import get_jarvis_home, display_jarvis_home
 import os
 import re
 from enum import Enum
@@ -77,9 +77,9 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Dict, Any, List, Optional, Set, Tuple
 
 from tools.registry import registry, tool_error
-from hermes_cli.config import cfg_get
+from jarvis_cli.config import cfg_get
 from utils import env_var_enabled
-from agent.skill_utils import (
+from brain.skill_utils import (
     EXCLUDED_SKILL_DIRS as _EXCLUDED_SKILL_DIRS,
     is_skill_support_path as _is_skill_support_path,
 )
@@ -87,11 +87,11 @@ from agent.skill_utils import (
 logger = logging.getLogger(__name__)
 
 
-# All skills live in ~/.hermes/skills/ (seeded from bundled skills/ on install).
+# All skills live in ~/.jarvis/skills/ (seeded from bundled skills/ on install).
 # This is the single source of truth -- agent edits, hub installs, and bundled
 # skills all coexist here without polluting the git repo.
-HERMES_HOME = get_hermes_home()
-SKILLS_DIR = HERMES_HOME / "skills"
+JARVIS_HOME = get_jarvis_home()
+SKILLS_DIR = JARVIS_HOME / "skills"
 
 # Anthropic-recommended limits for progressive disclosure efficiency
 MAX_NAME_LENGTH = 64
@@ -139,8 +139,8 @@ def _skill_lookup_path_error(name: str) -> Optional[str]:
 
 
 def load_env() -> Dict[str, str]:
-    """Load profile-scoped environment variables from HERMES_HOME/.env."""
-    env_path = get_hermes_home() / ".env"
+    """Load profile-scoped environment variables from JARVIS_HOME/.env."""
+    env_path = get_jarvis_home() / ".env"
     env_vars: Dict[str, str] = {}
     if not env_path.exists():
         return env_vars
@@ -185,7 +185,7 @@ def skill_matches_platform(frontmatter: Dict[str, Any]) -> bool:
     Delegates to ``agent.skill_utils.skill_matches_platform`` — kept here
     as a public re-export so existing callers don't need updating.
     """
-    from agent.skill_utils import skill_matches_platform as _impl
+    from brain.skill_utils import skill_matches_platform as _impl
     return _impl(frontmatter)
 
 
@@ -197,7 +197,7 @@ def skill_matches_environment(frontmatter: Dict[str, Any]) -> bool:
     offer-time relevance gate (kanban/docker/s6), NOT a hard-compatibility gate;
     explicit skill loads bypass it.
     """
-    from agent.skill_utils import skill_matches_environment as _impl
+    from brain.skill_utils import skill_matches_environment as _impl
     return _impl(frontmatter)
 
 
@@ -349,11 +349,11 @@ def _capture_required_environment_variables(
     missing_names = [entry["name"] for entry in missing_entries]
     # Most gateway surfaces (messaging platforms) can't prompt for a secret, so
     # they short-circuit to the "unsupported" hint. Interactive gateway surfaces
-    # — the desktop app / TUI — set HERMES_INTERACTIVE and register a
+    # — the desktop app / TUI — set JARVIS_INTERACTIVE and register a
     # secret-capture callback that routes to a secure secret.request overlay, so
-    # they fall through and actually prompt. (HERMES_INTERACTIVE is the same flag
+    # they fall through and actually prompt. (JARVIS_INTERACTIVE is the same flag
     # tools/approval.py uses to tell an interactive surface from a messaging one.)
-    if _is_gateway_surface() and not env_var_enabled("HERMES_INTERACTIVE"):
+    if _is_gateway_surface() and not env_var_enabled("JARVIS_INTERACTIVE"):
         return {
             "missing_names": missing_names,
             "setup_skipped": False,
@@ -414,10 +414,10 @@ def _capture_required_environment_variables(
 
 
 def _is_gateway_surface() -> bool:
-    if env_var_enabled("HERMES_GATEWAY_SESSION"):
+    if env_var_enabled("JARVIS_GATEWAY_SESSION"):
         return True
     from gateway.session_context import get_session_env
-    return bool(get_session_env("HERMES_SESSION_PLATFORM"))
+    return bool(get_session_env("JARVIS_SESSION_PLATFORM"))
 
 
 def _get_terminal_backend_name() -> str:
@@ -460,7 +460,7 @@ def _gateway_setup_hint() -> str:
 
         return GATEWAY_SECRET_CAPTURE_UNSUPPORTED_MESSAGE
     except Exception:
-        return f"Secure secret entry is not available. Load this skill in the local CLI to be prompted, or add the key to {display_hermes_home()}/.env manually."
+        return f"Secure secret entry is not available. Load this skill in the local CLI to be prompted, or add the key to {display_jarvis_home()}/.env manually."
 
 
 def _build_setup_note(
@@ -488,7 +488,7 @@ def _parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
     Delegates to ``agent.skill_utils.parse_frontmatter`` — kept here
     as a public re-export so existing callers don't need updating.
     """
-    from agent.skill_utils import parse_frontmatter
+    from brain.skill_utils import parse_frontmatter
     return parse_frontmatter(content)
 
 
@@ -496,14 +496,14 @@ def _get_category_from_path(skill_path: Path) -> Optional[str]:
     """
     Extract category from skill path based on directory structure.
 
-    For paths like: ~/.hermes/skills/mlops/axolotl/SKILL.md -> "mlops"
+    For paths like: ~/.jarvis/skills/mlops/axolotl/SKILL.md -> "mlops"
     Also works for external skill dirs configured via skills.external_dirs.
     """
     # Try the module-level SKILLS_DIR first (respects monkeypatching in tests),
     # then fall back to external dirs from config.
     dirs_to_check = [SKILLS_DIR]
     try:
-        from agent.skill_utils import get_external_skills_dirs
+        from brain.skill_utils import get_external_skills_dirs
         dirs_to_check.extend(get_external_skills_dirs())
     except Exception:
         pass
@@ -555,7 +555,7 @@ def _get_disabled_skill_names() -> Set[str]:
     Delegates to ``agent.skill_utils.get_disabled_skill_names`` — kept here
     as a public re-export so existing callers don't need updating.
     """
-    from agent.skill_utils import get_disabled_skill_names
+    from brain.skill_utils import get_disabled_skill_names
     return get_disabled_skill_names()
 
 
@@ -564,11 +564,11 @@ def _get_session_platform() -> str:
 
     Mirrors the platform-resolution logic in
     ``agent.skill_utils.get_disabled_skill_names`` so that
-    ``_is_skill_disabled`` respects ``HERMES_SESSION_PLATFORM``.
+    ``_is_skill_disabled`` respects ``JARVIS_SESSION_PLATFORM``.
     """
     try:
         from gateway.session_context import get_session_env
-        return get_session_env("HERMES_SESSION_PLATFORM") or ""
+        return get_session_env("JARVIS_SESSION_PLATFORM") or ""
     except Exception:
         return ""
 
@@ -578,14 +578,14 @@ def _is_skill_disabled(name: str, platform: str = None) -> bool:
 
     Resolves the active platform from (in order of precedence):
     1. Explicit ``platform`` argument
-    2. ``HERMES_PLATFORM`` environment variable
-    3. ``HERMES_SESSION_PLATFORM`` from gateway session context
+    2. ``JARVIS_PLATFORM`` environment variable
+    3. ``JARVIS_SESSION_PLATFORM`` from gateway session context
     """
     try:
-        from hermes_cli.config import load_config
+        from jarvis_cli.config import load_config
         config = load_config()
         skills_cfg = config.get("skills", {})
-        resolved_platform = platform or os.getenv("HERMES_PLATFORM") or _get_session_platform()
+        resolved_platform = platform or os.getenv("JARVIS_PLATFORM") or _get_session_platform()
         global_disabled = skills_cfg.get("disabled", [])
         if resolved_platform:
             platform_disabled = cfg_get(skills_cfg, "platform_disabled", resolved_platform)
@@ -600,17 +600,17 @@ def _is_skill_disabled(name: str, platform: str = None) -> bool:
 
 
 def _find_all_skills(*, skip_disabled: bool = False) -> List[Dict[str, Any]]:
-    """Recursively find all skills in ~/.hermes/skills/ and external dirs.
+    """Recursively find all skills in ~/.jarvis/skills/ and external dirs.
 
     Args:
         skip_disabled: If True, return ALL skills regardless of disabled
-            state (used by ``hermes skills`` config UI). Default False
+            state (used by ``jarvis skills`` config UI). Default False
             filters out disabled skills.
 
     Returns:
         List of skill metadata dicts (name, description, category).
     """
-    from agent.skill_utils import get_external_skills_dirs, iter_skill_index_files
+    from brain.skill_utils import get_external_skills_dirs, iter_skill_index_files
 
     skills = []
     seen_names: set = set()
@@ -706,7 +706,7 @@ def skills_list(category: str = None, task_id: str = None) -> str:
                     "success": True,
                     "skills": [],
                     "categories": [],
-                    "message": f"No skills found. Skills directory created at {display_hermes_home()}/skills/",
+                    "message": f"No skills found. Skills directory created at {display_jarvis_home()}/skills/",
                 },
                 ensure_ascii=False,
             )
@@ -764,7 +764,7 @@ def _serve_plugin_skill(
     session_id: str | None = None,
 ) -> str:
     """Read a plugin-provided skill, apply guards, return JSON."""
-    from hermes_cli.plugins import _get_disabled_plugins, get_plugin_manager
+    from jarvis_cli.plugins import _get_disabled_plugins, get_plugin_manager
 
     if namespace in _get_disabled_plugins():
         return json.dumps(
@@ -772,7 +772,7 @@ def _serve_plugin_skill(
                 "success": False,
                 "error": (
                     f"Plugin '{namespace}' is disabled. "
-                    f"Re-enable with: hermes plugins enable {namespace}"
+                    f"Re-enable with: jarvis plugins enable {namespace}"
                 ),
             },
             ensure_ascii=False,
@@ -834,7 +834,7 @@ def _serve_plugin_skill(
     rendered_content = content
     if preprocess:
         try:
-            from agent.skill_preprocessing import preprocess_skill_content
+            from brain.skill_preprocessing import preprocess_skill_content
 
             rendered_content = preprocess_skill_content(
                 content,
@@ -901,8 +901,8 @@ def skill_view(
         # Names containing ':' are routed to the plugin skill registry.
         # Bare names fall through to the existing flat-tree scan below.
         if ":" in name:
-            from agent.skill_utils import is_valid_namespace, parse_qualified_name
-            from hermes_cli.plugins import discover_plugins, get_plugin_manager
+            from brain.skill_utils import is_valid_namespace, parse_qualified_name
+            from jarvis_cli.plugins import discover_plugins, get_plugin_manager
 
             namespace, bare = parse_qualified_name(name)
             if not is_valid_namespace(namespace):
@@ -964,7 +964,7 @@ def skill_view(
             if bare:
                 local_category_name = f"{namespace}/{bare}"
 
-        from agent.skill_utils import get_external_skills_dirs
+        from brain.skill_utils import get_external_skills_dirs
 
         # The categorized fall-through form (namespace/bare) joins onto each
         # search dir too; re-validate it since `bare` is not namespace-checked.
@@ -1004,7 +1004,7 @@ def skill_view(
         # the caller — silent shadowing of a local skill by a same-named
         # external skill is a real bug class (`/skills` shows one, agent
         # loaded the other) so we surface it loudly instead of guessing.
-        from agent.skill_utils import iter_skill_index_files
+        from brain.skill_utils import iter_skill_index_files
 
         candidates: List[Tuple[Optional[Path], Path]] = []  # (skill_dir, skill_md)
         seen_md: set = set()
@@ -1154,7 +1154,7 @@ def skill_view(
         if _outside_skills_dir or _injection_detected:
             _warnings = []
             if _outside_skills_dir:
-                _warnings.append(f"skill file is outside the trusted skills directory (~/.hermes/skills/): {skill_md}")
+                _warnings.append(f"skill file is outside the trusted skills directory (~/.jarvis/skills/): {skill_md}")
             if _injection_detected:
                 _warnings.append("skill content contains patterns that may indicate prompt injection")
             logging.getLogger(__name__).warning("Skill security warning for '%s': %s", name, "; ".join(_warnings))
@@ -1183,7 +1183,7 @@ def skill_view(
                     "success": False,
                     "error": (
                         f"Skill '{resolved_name}' is disabled. "
-                        "Enable it with `hermes skills` or inspect the files directly on disk."
+                        "Enable it with `jarvis skills` or inspect the files directly on disk."
                     ),
                 },
                 ensure_ascii=False,
@@ -1339,15 +1339,15 @@ def skill_view(
                     )
 
         # Read tags/related_skills with backward compat:
-        # Check metadata.hermes.* first (agentskills.io convention), fall back to top-level
-        hermes_meta = {}
+        # Check metadata.jarvis.* first (agentskills.io convention), fall back to top-level
+        jarvis_meta = {}
         metadata = frontmatter.get("metadata")
         if isinstance(metadata, dict):
-            hermes_meta = metadata.get("hermes", {}) or {}
+            jarvis_meta = metadata.get("jarvis", {}) or {}
 
-        tags = _parse_tags(hermes_meta.get("tags") or frontmatter.get("tags", ""))
+        tags = _parse_tags(jarvis_meta.get("tags") or frontmatter.get("tags", ""))
         related_skills = _parse_tags(
-            hermes_meta.get("related_skills") or frontmatter.get("related_skills", "")
+            jarvis_meta.get("related_skills") or frontmatter.get("related_skills", "")
         )
 
         # Build linked files structure for clear discovery
@@ -1438,7 +1438,7 @@ def skill_view(
         rendered_content = content
         if preprocess:
             try:
-                from agent.skill_preprocessing import preprocess_skill_content
+                from brain.skill_preprocessing import preprocess_skill_content
 
                 rendered_content = preprocess_skill_content(
                     content,
@@ -1621,7 +1621,7 @@ def _skill_view_with_bump(args, **kw):
                 bump_view(str(resolved))
                 # A skill_view tool call is the agent actively loading the skill
                 # to act on it — that counts as use, not just a browse/view.
-                # Curator's stale timer keys off last_used_at (see agent/curator.py).
+                # Curator's stale timer keys off last_used_at (see brain/curator.py).
                 bump_use(str(resolved))
     except Exception:
         pass

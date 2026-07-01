@@ -8,7 +8,7 @@ import { HUD_HEADING, HUD_ITEM, HUD_POSITION, HUD_SURFACE, HUD_TEXT } from '@/ap
 import { setTerminalTakeover } from '@/app/right-sidebar/store'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { KbdCombo } from '@/components/ui/kbd'
-import { getHermesConfigRecord, listAllProfileSessions } from '@/hermes'
+import { getJarvisConfigRecord, listAllProfileSessions } from '@/jarvis'
 import { useI18n } from '@/i18n'
 import { sessionTitle } from '@/lib/chat-runtime'
 import {
@@ -120,7 +120,7 @@ const paletteFilter = (value: string, search: string, keywords?: string[]): numb
   return needle.split(/\s+/).every(term => haystack.includes(term)) ? 1 : 0
 }
 
-// Hermes session ids: <YYYYMMDD>_<HHMMSS>_<6 hex>. Used to offer a direct
+// Jarvis session ids: <YYYYMMDD>_<HHMMSS>_<6 hex>. Used to offer a direct
 // "Go to session ‹id›" jump for ids that aren't in the recent-200 list.
 const SESSION_ID_RE = /^\d{8}_\d{6}_[a-f0-9]{6}$/
 
@@ -199,7 +199,8 @@ function themeSupportsMode(name: string, target: 'light' | 'dark'): boolean {
     return true
   }
 
-  const background = target === 'dark' ? (resolved.darkColors ?? resolved.colors).background : resolved.colors.background
+  const background =
+    target === 'dark' ? (resolved.darkColors ?? resolved.colors).background : resolved.colors.background
 
   return target === 'dark' ? luminance(background) <= 0.5 : luminance(background) > 0.5
 }
@@ -217,7 +218,7 @@ export function CommandPalette() {
   // the palette is open. react-query handles caching/dedup/staleness.
   const configQuery = useQuery({
     queryKey: ['command-palette', 'config'],
-    queryFn: getHermesConfigRecord,
+    queryFn: getJarvisConfigRecord,
     enabled: open
   })
 

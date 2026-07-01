@@ -18,7 +18,7 @@ The gateway classifier must distinguish:
 
 
 def _classify(agent_result: dict, history_len: int) -> tuple[bool, bool]:
-    """Replicate the gateway classifier from GatewayRunner._run_agent.
+    """Replicate the gateway classifier from GatewayRunner._run_brain.
 
     Returns ``(agent_failed_early, is_context_overflow_failure)``.
     """

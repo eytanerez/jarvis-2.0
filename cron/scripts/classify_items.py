@@ -9,7 +9,7 @@ actually matters -- the classic urgency-monitor pattern (fetch -> classify
 urgency -> surface only what's above the bar).
 
 Design choices:
-  * Uses Hermes' auxiliary client with task="monitor", so the classifier model
+  * Uses Jarvis' auxiliary client with task="monitor", so the classifier model
     is configured once in config.yaml (auxiliary.monitor.{provider,model}) and
     can be a cheap fast model independent of the main chat model.
   * Reads items as JSON (a list of objects) from stdin or --input-file.
@@ -156,7 +156,7 @@ def main() -> int:
 
     # Import here so --help works without the package importable.
     try:
-        from agent.auxiliary_client import call_llm
+        from brain.auxiliary_client import call_llm
     except Exception as e:  # pragma: no cover - import guard
         _eprint(f"classify_items: cannot import auxiliary client: {e}")
         return 3

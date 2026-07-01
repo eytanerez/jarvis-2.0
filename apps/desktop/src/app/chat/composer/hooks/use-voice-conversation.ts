@@ -9,6 +9,8 @@ import { useMicRecorder } from './use-mic-recorder'
 
 export type ConversationStatus = 'idle' | 'listening' | 'transcribing' | 'thinking' | 'speaking'
 
+const MAX_SILENT_TURNS = 3
+
 interface PendingVoiceResponse {
   id: string
   pending: boolean
@@ -44,6 +46,7 @@ export function useVoiceConversation({
   const turnClosingRef = useRef(false)
   const awaitingSpokenResponseRef = useRef(false)
   const responseIdRef = useRef<string | null>(null)
+  const silentTurnCountRef = useRef(0)
   const spokenSourceLengthRef = useRef(0)
   const speechBufferRef = useRef('')
   const enabledRef = useRef(enabled)
@@ -87,6 +90,20 @@ export function useVoiceConversation({
     spokenSourceLengthRef.current = 0
     speechBufferRef.current = ''
   }
+
+  const noteSilentTurn = useCallback(() => {
+    silentTurnCountRef.current += 1
+
+    if (silentTurnCountRef.current < MAX_SILENT_TURNS) {
+      return true
+    }
+
+    pendingStartRef.current = false
+    notify({ kind: 'warning', title: voiceCopy.noSpeechDetected, message: voiceCopy.tryRecordingAgain })
+    onFatalError?.()
+
+    return false
+  }, [onFatalError, voiceCopy.noSpeechDetected, voiceCopy.tryRecordingAgain])
 
   const appendSpeechText = (text: string) => {
     if (!text) {
@@ -152,7 +169,15 @@ export function useVoiceConversation({
         const result = await handle.stop()
 
         if (!result || (!result.heardSpeech && !forceTranscribe) || !onTranscribeAudio) {
-          if (enabledRef.current && !mutedRef.current && !busyRef.current && statusRef.current !== 'speaking') {
+          const shouldContinue = noteSilentTurn()
+
+          if (
+            shouldContinue &&
+            enabledRef.current &&
+            !mutedRef.current &&
+            !busyRef.current &&
+            statusRef.current !== 'speaking'
+          ) {
             pendingStartRef.current = true
           }
 
@@ -165,7 +190,9 @@ export function useVoiceConversation({
           const transcript = (await onTranscribeAudio(result.audio)).trim()
 
           if (!transcript) {
-            if (enabledRef.current) {
+            const shouldContinue = noteSilentTurn()
+
+            if (shouldContinue && enabledRef.current) {
               pendingStartRef.current = true
             }
 
@@ -174,6 +201,7 @@ export function useVoiceConversation({
             return
           }
 
+          silentTurnCountRef.current = 0
           awaitingSpokenResponseRef.current = true
           resetSpeechBuffer()
           await onSubmit(transcript)
@@ -191,7 +219,7 @@ export function useVoiceConversation({
         turnClosingRef.current = false
       }
     },
-    [handle, onSubmit, onTranscribeAudio, voiceCopy.transcriptionFailed]
+    [handle, noteSilentTurn, onSubmit, onTranscribeAudio, voiceCopy.transcriptionFailed]
   )
 
   const startListening = useCallback(async () => {
@@ -228,22 +256,25 @@ export function useVoiceConversation({
     }
   }, [handle, handleTurn, onFatalError, voiceCopy.couldNotStartSession, voiceCopy.microphoneFailed])
 
-  const speak = useCallback(async (text: string) => {
-    setStatus('speaking')
+  const speak = useCallback(
+    async (text: string) => {
+      setStatus('speaking')
 
-    try {
-      await playSpeechText(text, { source: 'voice-conversation' })
-    } catch (error) {
-      notifyError(error, voiceCopy.playbackFailed)
-    } finally {
-      if (enabledRef.current) {
-        pendingStartRef.current = true
-        setStatus('idle')
-      } else {
-        setStatus('idle')
+      try {
+        await playSpeechText(text, { source: 'voice-conversation' })
+      } catch (error) {
+        notifyError(error, voiceCopy.playbackFailed)
+      } finally {
+        if (enabledRef.current) {
+          pendingStartRef.current = true
+          setStatus('idle')
+        } else {
+          setStatus('idle')
+        }
       }
-    }
-  }, [voiceCopy.playbackFailed])
+    },
+    [voiceCopy.playbackFailed]
+  )
 
   const start = useCallback(async () => {
     if (!onTranscribeAudio) {
@@ -258,12 +289,20 @@ export function useVoiceConversation({
     }
 
     setMuted(false)
+    silentTurnCountRef.current = 0
     awaitingSpokenResponseRef.current = false
     resetSpeechBuffer()
     consumePendingResponse()
     pendingStartRef.current = true
     await startListening()
-  }, [consumePendingResponse, onFatalError, onTranscribeAudio, startListening, voiceCopy.configureSpeechToText, voiceCopy.unavailable])
+  }, [
+    consumePendingResponse,
+    onFatalError,
+    onTranscribeAudio,
+    startListening,
+    voiceCopy.configureSpeechToText,
+    voiceCopy.unavailable
+  ])
 
   const end = useCallback(async () => {
     pendingStartRef.current = false
@@ -271,6 +310,7 @@ export function useVoiceConversation({
     stopVoicePlayback()
     handle.cancel()
     turnClosingRef.current = false
+    silentTurnCountRef.current = 0
     awaitingSpokenResponseRef.current = false
     resetSpeechBuffer()
     consumePendingResponse()

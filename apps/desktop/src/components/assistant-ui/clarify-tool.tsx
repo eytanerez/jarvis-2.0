@@ -2,7 +2,7 @@
 
 import { type ToolCallMessagePartProps } from '@assistant-ui/react'
 import { useStore } from '@nanostores/react'
-import { type FormEvent, type KeyboardEvent, useCallback, useMemo, useRef, useState, type ComponentProps } from 'react'
+import { type ComponentProps, type FormEvent, type KeyboardEvent, useCallback, useMemo, useRef, useState } from 'react'
 
 import { ToolFallback } from '@/components/assistant-ui/tool-fallback'
 import { Button } from '@/components/ui/button'
@@ -36,16 +36,13 @@ function readClarifyArgs(args: unknown): ClarifyArgs {
 }
 
 // Choice and "Other" rows share a layout; only color/hover differs.
-const OPTION_ROW_CLASS = 'flex w-full items-start gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors'
+const OPTION_ROW_CLASS =
+  'flex w-full items-start gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-[border-color,background-color,color,transform] duration-150'
 
 const CLARIFY_SHELL_CLASS =
-  'relative mb-3 mt-2 rounded-[0.5rem] border border-border/70 bg-card/40 text-sm shadow-[inset_0_1px_0_color-mix(in_srgb,var(--foreground)_3%,transparent)]'
+  'relative mb-3 mt-2 rounded-md border border-[color-mix(in_srgb,var(--jarvis-blue)_28%,var(--jarvis-hairline))] bg-[color-mix(in_srgb,var(--jarvis-panel)_86%,transparent)] text-sm shadow-[0_0_28px_color-mix(in_srgb,var(--jarvis-blue)_9%,transparent),inset_0_1px_0_color-mix(in_srgb,var(--jarvis-blue)_8%,transparent)]'
 
-function ClarifyShell({
-  children,
-  className,
-  ...props
-}: ComponentProps<'div'>) {
+function ClarifyShell({ children, className, ...props }: ComponentProps<'div'>) {
   return (
     <div className={cn(CLARIFY_SHELL_CLASS, className)} data-slot="clarify-inline" {...props}>
       <span aria-hidden className="arc-border" />
@@ -60,10 +57,12 @@ function RadioDot({ selected }: { selected: boolean }) {
       aria-hidden
       className={cn(
         'mt-0.5 grid size-3.5 shrink-0 place-items-center rounded-full border transition-colors',
-        selected ? 'border-primary' : 'border-muted-foreground/40'
+        selected
+          ? 'border-(--jarvis-blue) bg-[color-mix(in_srgb,var(--jarvis-blue)_12%,transparent)]'
+          : 'border-[color-mix(in_srgb,var(--jarvis-muted)_42%,transparent)]'
       )}
     >
-      {selected && <span className="size-1.5 rounded-full bg-primary" />}
+      {selected && <span className="size-1.5 rounded-full bg-(--jarvis-blue)" />}
     </span>
   )
 }
@@ -71,7 +70,7 @@ function RadioDot({ selected }: { selected: boolean }) {
 export const ClarifyTool = (props: ToolCallMessagePartProps) => {
   const isPending = props.result === undefined
 
-  // Once Hermes records an answer, fall back to the standard tool block so
+  // Once Jarvis records an answer, fall back to the standard tool block so
   // the past Q/A renders consistently with every other tool in the thread.
   if (!isPending) {
     return <ToolFallback {...props} />
@@ -151,7 +150,7 @@ function ClarifyToolPending({ args }: ToolCallMessagePartProps) {
         setSubmitting(false)
       }
     },
-    [gateway, matchingRequest, ready]
+    [copy.gatewayDisconnected, copy.notReady, copy.sendFailed, gateway, matchingRequest, ready]
   )
 
   const handleTextareaKey = useCallback(
@@ -191,7 +190,7 @@ function ClarifyToolPending({ args }: ToolCallMessagePartProps) {
         className="grid min-h-24 place-items-center px-3 py-6"
         role="status"
       >
-        <Loader2 aria-hidden className="size-5 animate-spin text-muted-foreground/80" />
+        <Loader2 aria-hidden className="size-5 animate-spin text-(--jarvis-muted)" />
       </ClarifyShell>
     )
   }
@@ -201,11 +200,11 @@ function ClarifyToolPending({ args }: ToolCallMessagePartProps) {
       <div className="flex items-start gap-2.5">
         <span
           aria-hidden
-          className="mt-px grid size-6 shrink-0 place-items-center rounded-md bg-[color-mix(in_srgb,var(--dt-primary)_14%,transparent)] text-primary ring-1 ring-inset ring-primary/15"
+          className="mt-px grid size-6 shrink-0 place-items-center rounded-md border border-[color-mix(in_srgb,var(--jarvis-blue)_28%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_12%,transparent)] text-(--jarvis-blue)"
         >
           <HelpCircle className="size-3.5" />
         </span>
-        <span className="flex-1 whitespace-pre-wrap font-medium leading-snug text-foreground">{question}</span>
+        <span className="flex-1 whitespace-pre-wrap font-medium leading-snug text-(--jarvis-text)">{question}</span>
       </div>
 
       {!typing && hasChoices && (
@@ -214,8 +213,9 @@ function ClarifyToolPending({ args }: ToolCallMessagePartProps) {
             <button
               className={cn(
                 OPTION_ROW_CLASS,
-                'text-foreground/95 hover:bg-accent/60 disabled:cursor-not-allowed disabled:opacity-55',
-                selectedChoice === choice && 'bg-accent/60'
+                'border border-transparent text-(--jarvis-text) hover:border-[color-mix(in_srgb,var(--jarvis-blue)_22%,transparent)] hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] hover:text-white disabled:cursor-not-allowed disabled:opacity-55',
+                selectedChoice === choice &&
+                  'border-[color-mix(in_srgb,var(--jarvis-blue)_34%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_12%,transparent)] text-white'
               )}
               data-choice
               disabled={submitting}
@@ -228,11 +228,16 @@ function ClarifyToolPending({ args }: ToolCallMessagePartProps) {
             >
               <RadioDot selected={selectedChoice === choice} />
               <span className="flex-1 wrap-anywhere">{choice}</span>
-              {selectedChoice === choice && <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />}
+              {selectedChoice === choice && (
+                <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-(--jarvis-blue)" />
+              )}
             </button>
           ))}
           <button
-            className={cn(OPTION_ROW_CLASS, 'text-muted-foreground hover:bg-accent/40 hover:text-foreground')}
+            className={cn(
+              OPTION_ROW_CLASS,
+              'border border-transparent text-(--jarvis-muted) hover:border-[color-mix(in_srgb,var(--jarvis-blue)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_8%,transparent)] hover:text-white'
+            )}
             disabled={submitting}
             onClick={() => {
               setTyping(true)
@@ -249,7 +254,7 @@ function ClarifyToolPending({ args }: ToolCallMessagePartProps) {
       {(typing || !hasChoices) && (
         <form className="grid gap-2" onSubmit={handleSubmitFreeform}>
           <Textarea
-            className="min-h-20 resize-y rounded-lg border-transparent bg-accent/40 text-sm focus-visible:bg-background/60"
+            className="desktop-input-chrome min-h-20 resize-y rounded-md text-sm"
             disabled={submitting}
             onChange={event => setDraft(event.target.value)}
             onKeyDown={handleTextareaKey}

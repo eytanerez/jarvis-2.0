@@ -32,8 +32,8 @@ from typing import Optional
 
 import pytest
 
-from agent import tts_registry
-from agent.tts_provider import TTSProvider
+from brain import tts_registry
+from brain.tts_provider import TTSProvider
 from tools import tts_tool
 
 

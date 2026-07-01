@@ -1,4 +1,4 @@
-# Streaming LLM Response Support for Hermes Agent
+# Streaming LLM Response Support for Jarvis
 
 ## Overview
 
@@ -12,10 +12,10 @@ code paths remain intact as the default.
 1. **Feature-flagged**: `streaming.enabled: true` in config.yaml. Off by default.
    When off, all existing code paths are unchanged — zero risk to current behavior.
 2. **Callback-based**: A simple `stream_callback(text_delta: str)` function injected
-   into AIAgent. The agent doesn't know or care what the consumer does with tokens.
+   into AIBrain. The agent doesn't know or care what the consumer does with tokens.
 3. **Graceful degradation**: If the provider doesn't support streaming, or streaming
    fails for any reason, silently fall back to the non-streaming path.
-4. **Platform-agnostic core**: The streaming mechanism in AIAgent works the same
+4. **Platform-agnostic core**: The streaming mechanism in AIBrain works the same
    regardless of whether the consumer is CLI, Telegram, Discord, or the API server.
 
 ---
@@ -62,15 +62,15 @@ streaming:
 ### Environment variables
 
 ```
-HERMES_STREAMING_ENABLED=true    # Master switch via env
+JARVIS_STREAMING_ENABLED=true    # Master switch via env
 ```
 
 ### How the flag is read
 
-- **CLI**: `load_cli_config()` reads `streaming.enabled`, sets env var. AIAgent
+- **CLI**: `load_cli_config()` reads `streaming.enabled`, sets env var. AIBrain
   checks at init time.
-- **Gateway**: `_run_agent()` reads config, decides whether to pass
-  `stream_callback` to the AIAgent constructor.
+- **Gateway**: `_run_brain()` reads config, decides whether to pass
+  `stream_callback` to the AIBrain constructor.
 - **API server**: For Chat Completions `stream=true` requests, always uses streaming
   regardless of config (the client is explicitly requesting it). For non-stream
   requests, uses config.
@@ -86,9 +86,9 @@ HERMES_STREAMING_ENABLED=true    # Master switch via env
 
 ## Implementation Plan
 
-### Phase 1: Core streaming infrastructure in AIAgent
+### Phase 1: Core streaming infrastructure in AIBrain
 
-**File: run_agent.py**
+**File: run_brain.py**
 
 #### 1a. Add stream_callback parameter to __init__ (~5 lines)
 
@@ -250,7 +250,7 @@ Consumers check: `if delta is None: finalize()`
 
 #### 2a. Read streaming config (~15 lines)
 
-In `_run_agent()`, before creating the AIAgent:
+In `_run_brain()`, before creating the AIBrain:
 
 ```python
 # Read streaming config
@@ -266,7 +266,7 @@ try:
 except Exception:
     pass
 # Env var override
-if os.getenv("HERMES_STREAMING_ENABLED", "").lower() in ("true", "1", "yes"):
+if os.getenv("JARVIS_STREAMING_ENABLED", "").lower() in ("true", "1", "yes"):
     _streaming_enabled = True
 ```
 
@@ -289,7 +289,7 @@ if _streaming_enabled:
             _stream_q.put(delta)
 ```
 
-Pass `stream_callback=_on_token` to the AIAgent constructor.
+Pass `stream_callback=_on_token` to the AIBrain constructor.
 
 #### 2c. Telegram/Discord stream preview task (~50 lines)
 
@@ -371,7 +371,7 @@ was already delivered via progressive edits. Skip the normal `self.send()`
 call to avoid duplicating the message.
 
 This is the most delicate integration point — we need to communicate from
-the gateway's `_run_agent` back to the base adapter's response sender that
+the gateway's `_run_brain` back to the base adapter's response sender that
 the response was already delivered. Options:
 
 - **Option A**: Return a special marker in the result dict:
@@ -498,8 +498,8 @@ if stream:
     def _api_stream_callback(delta):
         _stream_q.put(delta)  # None = done
     
-    # Pass callback to _run_agent
-    result, usage = await self._run_agent(
+    # Pass callback to _run_brain
+    result, usage = await self._run_brain(
         ..., stream_callback=_api_stream_callback,
     )
 ```
@@ -541,13 +541,13 @@ async def _write_real_sse(self, request, completion_id, model, stream_q):
 **Challenge: concurrent execution**
 
 The agent runs in a thread executor. SSE writing happens in the async event
-loop. The queue bridges them. But `_run_agent()` currently awaits the full
+loop. The queue bridges them. But `_run_brain()` currently awaits the full
 result before returning. For real streaming, we need to start the agent in
 the background and stream tokens while it runs:
 
 ```python
 # Start agent in background
-agent_task = asyncio.create_task(self._run_agent_async(...))
+agent_task = asyncio.create_task(self._run_brain_async(...))
 
 # Stream tokens while agent runs
 await self._write_real_sse(request, ..., stream_q)
@@ -556,7 +556,7 @@ await self._write_real_sse(request, ..., stream_q)
 result, usage = await agent_task
 ```
 
-This requires splitting `_run_agent` into an async version that doesn't
+This requires splitting `_run_brain` into an async version that doesn't
 block waiting for the result, or running it in a separate task.
 
 **Responses API SSE format:**
@@ -650,12 +650,12 @@ The 1.5s edit interval is conservative enough for all platforms. If we get
 
 | File | Phase | Changes |
 |------|-------|---------|
-| `run_agent.py` | 1 | +stream_callback param, +_run_streaming_chat_completion(), modify _run_codex_stream(), modify _interruptible_api_call() |
+| `run_brain.py` | 1 | +stream_callback param, +_run_streaming_chat_completion(), modify _run_codex_stream(), modify _interruptible_api_call() |
 | `gateway/run.py` | 2 | +streaming config reader, +queue/callback setup, +stream_preview task, +skip-final-send logic |
 | `gateway/platforms/base.py` | 2 | +check for _streamed_msg_id in response handler |
 | `cli.py` | 3 | +streaming setup, +token display, +response box integration |
 | `gateway/platforms/api_server.py` | 4 | +real SSE writer, +streaming callback wiring |
-| `hermes_cli/config.py` | 1 | +streaming config defaults |
+| `jarvis_cli/config.py` | 1 | +streaming config defaults |
 | `cli-config.yaml.example` | 1 | +streaming section |
 | `tests/test_streaming.py` | 1-4 | NEW — ~380 lines of tests |
 
@@ -701,5 +701,5 @@ streaming:
 
 ```bash
 # Environment variable override
-HERMES_STREAMING_ENABLED=true
+JARVIS_STREAMING_ENABLED=true
 ```

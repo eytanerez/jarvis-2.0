@@ -28,7 +28,7 @@ def _make_runner():
 
 def test_start_is_known_gateway_command():
     """Telegram sends /start automatically; gateway should intercept it as a no-op."""
-    from hermes_cli.commands import GATEWAY_KNOWN_COMMANDS, resolve_command
+    from jarvis_cli.commands import GATEWAY_KNOWN_COMMANDS, resolve_command
 
     cmd = resolve_command("start")
     assert "start" in GATEWAY_KNOWN_COMMANDS
@@ -40,7 +40,7 @@ def test_start_is_known_gateway_command():
 async def test_help_sanitizes_slash_command_mentions_for_telegram(monkeypatch):
     """Telegram help output must not expose invalid uppercase/hyphenated slashes."""
     monkeypatch.setattr(
-        "agent.skill_commands.get_skill_commands",
+        "brain.skill_commands.get_skill_commands",
         lambda: {
             "/Linear": {"description": "Open Linear"},
             "/Custom-Thing": {"description": "Run a custom thing"},
@@ -61,7 +61,7 @@ async def test_help_sanitizes_slash_command_mentions_for_telegram(monkeypatch):
 async def test_commands_sanitizes_slash_command_mentions_for_telegram(monkeypatch):
     """Paginated Telegram /commands output uses Telegram-valid slash mentions."""
     monkeypatch.setattr(
-        "agent.skill_commands.get_skill_commands",
+        "brain.skill_commands.get_skill_commands",
         lambda: {"/Linear": {"description": "Open Linear"}},
     )
 
@@ -77,7 +77,7 @@ async def test_commands_sanitizes_slash_command_mentions_for_telegram(monkeypatc
 async def test_help_keeps_non_telegram_slash_command_mentions_unchanged(monkeypatch):
     """Only Telegram needs slash mentions rewritten to Telegram command names."""
     monkeypatch.setattr(
-        "agent.skill_commands.get_skill_commands",
+        "brain.skill_commands.get_skill_commands",
         lambda: {"/Linear": {"description": "Open Linear"}},
     )
 

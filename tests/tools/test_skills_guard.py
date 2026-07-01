@@ -66,7 +66,7 @@ class TestResolveTrustLevel:
 
     def test_official_github_namespace_does_not_resolve_to_builtin(self):
         assert _resolve_trust_level("official/attacker-skill") == "community"
-        assert _resolve_trust_level("official/agent/evil-skill") == "community"
+        assert _resolve_trust_level("official/brain/evil-skill") == "community"
 
     def test_skills_sh_wrapped_trusted_repos(self):
         assert _resolve_trust_level("skills-sh/openai/skills/skill-creator") == "trusted"

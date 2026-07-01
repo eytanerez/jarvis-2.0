@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """
-Hermes Agent CLI - Interactive Terminal Interface
+Jarvis CLI - Interactive Terminal Interface
 
-A beautiful command-line interface for the Hermes Agent, inspired by Claude Code.
+A beautiful command-line interface for the Jarvis, inspired by Claude Code.
 Features ASCII art branding, interactive REPL, toolset selection, and rich formatting.
 
 Usage:
     python cli.py                          # Start interactive mode with all tools
     python cli.py --toolsets web,terminal  # Start with specific toolsets
-    python cli.py --skills hermes-agent-dev,github-auth
+    python cli.py --skills jarvis-agent-dev,github-auth
     python cli.py --list-tools             # List available tools and exit
 """
 
-# IMPORTANT: hermes_bootstrap must be the very first import — UTF-8 stdio
-# on Windows.  No-op on POSIX.  See hermes_bootstrap.py for full rationale.
+# IMPORTANT: jarvis_bootstrap must be the very first import — UTF-8 stdio
+# on Windows.  No-op on POSIX.  See jarvis_bootstrap.py for full rationale.
 try:
-    import hermes_bootstrap  # noqa: F401
+    import jarvis_bootstrap  # noqa: F401
 except ModuleNotFoundError:
-    # Graceful fallback when hermes_bootstrap isn't registered in the venv
-    # yet — happens during partial ``hermes update`` where git-reset landed
+    # Graceful fallback when jarvis_bootstrap isn't registered in the venv
+    # yet — happens during partial ``jarvis update`` where git-reset landed
     # new code but ``uv pip install -e .`` didn't finish.  Missing bootstrap
     # means UTF-8 stdio setup is skipped on Windows; POSIX is unaffected.
     pass
@@ -47,13 +47,13 @@ from typing import List, Dict, Any, Optional
 logger = logging.getLogger(__name__)
 
 # Suppress startup messages for clean CLI experience
-os.environ["HERMES_QUIET"] = "1"  # Our own modules
+os.environ["JARVIS_QUIET"] = "1"  # Our own modules
 
 import yaml
 
-from hermes_cli.fallback_config import get_fallback_chain
-from hermes_cli.cli_agent_setup_mixin import CLIAgentSetupMixin
-from hermes_cli.cli_commands_mixin import CLICommandsMixin
+from jarvis_cli.fallback_config import get_fallback_chain
+from jarvis_cli.cli_agent_setup_mixin import CLIAgentSetupMixin
+from jarvis_cli.cli_commands_mixin import CLICommandsMixin
 
 # prompt_toolkit for fixed input area TUI
 from prompt_toolkit.history import FileHistory
@@ -76,7 +76,7 @@ except (ImportError, AttributeError):
     _STEADY_CURSOR = None
 
 try:
-    from hermes_cli.pt_input_extras import (
+    from jarvis_cli.pt_input_extras import (
         install_ctrl_enter_alias,
         install_ignored_terminal_sequences,
         install_shift_enter_alias,
@@ -91,13 +91,13 @@ import threading
 import queue
 
 def CanonicalUsage(*args, **kwargs):
-    from agent.usage_pricing import CanonicalUsage as _CanonicalUsage
+    from brain.usage_pricing import CanonicalUsage as _CanonicalUsage
 
     return _CanonicalUsage(*args, **kwargs)
 
 
 def estimate_usage_cost(*args, **kwargs):
-    from agent.usage_pricing import estimate_usage_cost as _estimate_usage_cost
+    from brain.usage_pricing import estimate_usage_cost as _estimate_usage_cost
 
     return _estimate_usage_cost(*args, **kwargs)
 
@@ -142,44 +142,44 @@ def format_token_count_compact(*args, **kwargs):
 
 
 def is_table_divider(*args, **kwargs):
-    from agent.markdown_tables import is_table_divider as _is_table_divider
+    from brain.markdown_tables import is_table_divider as _is_table_divider
 
     return _is_table_divider(*args, **kwargs)
 
 
 def looks_like_table_row(*args, **kwargs):
-    from agent.markdown_tables import looks_like_table_row as _looks_like_table_row
+    from brain.markdown_tables import looks_like_table_row as _looks_like_table_row
 
     return _looks_like_table_row(*args, **kwargs)
 
 
 def realign_markdown_tables(*args, **kwargs):
-    from agent.markdown_tables import realign_markdown_tables as _realign_markdown_tables
+    from brain.markdown_tables import realign_markdown_tables as _realign_markdown_tables
 
     return _realign_markdown_tables(*args, **kwargs)
-# NOTE: `from agent.account_usage import ...` is deliberately NOT at module
+# NOTE: `from brain.account_usage import ...` is deliberately NOT at module
 # top — it transitively pulls the OpenAI SDK chain (~230 ms cold) and is only
 # needed when the user runs `/limits`. Lazy-imported inside the handler below.
-from hermes_cli.banner import _format_context_length, format_banner_version_label
+from jarvis_cli.banner import _format_context_length, format_banner_version_label
 
 _COMMAND_SPINNER_FRAMES = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 
 
-# Load .env from ~/.hermes/.env first, then project root as dev fallback.
+# Load .env from ~/.jarvis/.env first, then project root as dev fallback.
 # User-managed env files should override stale shell exports on restart.
-from hermes_constants import get_hermes_home, display_hermes_home
-from hermes_cli.browser_connect import (
+from jarvis_constants import get_jarvis_home, display_jarvis_home
+from jarvis_cli.browser_connect import (
     DEFAULT_BROWSER_CDP_URL,
     is_browser_debug_ready,
     manual_chrome_debug_command,
     try_launch_chrome_debug,
 )
-from hermes_cli.env_loader import load_hermes_dotenv
+from jarvis_cli.env_loader import load_jarvis_dotenv
 from utils import base_url_host_matches
 
-_hermes_home = get_hermes_home()
+_jarvis_home = get_jarvis_home()
 _project_env = Path(__file__).parent / '.env'
-load_hermes_dotenv(hermes_home=_hermes_home, project_env=_project_env)
+load_jarvis_dotenv(jarvis_home=_jarvis_home, project_env=_project_env)
 
 
 _REASONING_TAGS = (
@@ -204,7 +204,7 @@ def _strip_reasoning_tags(text: str) -> str:
     Covers the variants emitted by reasoning models today: ``<think>``,
     ``<thinking>``, ``<reasoning>``, ``<REASONING_SCRATCHPAD>``, and
     ``<thought>`` (Gemma 4).  Must stay in sync with
-    ``run_agent.py::_strip_think_blocks`` and the stream consumer's
+    ``run_brain.py::_strip_think_blocks`` and the stream consumer's
     ``_OPEN_THINK_TAGS`` / ``_CLOSE_THINK_TAGS`` tuples.
 
     Also strips tool-call XML blocks some open models leak into visible
@@ -292,14 +292,14 @@ def _load_prefill_messages(file_path: str) -> List[Dict[str, Any]]:
     The file should contain a JSON array of {role, content} dicts, e.g.:
         [{"role": "user", "content": "Hi"}, {"role": "assistant", "content": "Hello!"}]
     
-    Relative paths are resolved from ~/.hermes/.
+    Relative paths are resolved from ~/.jarvis/.
     Returns an empty list if the path is empty or the file doesn't exist.
     """
     if not file_path:
         return []
     path = Path(file_path).expanduser()
     if not path.is_absolute():
-        path = _hermes_home / path
+        path = _jarvis_home / path
     if not path.exists():
         logger.warning("Prefill messages file not found: %s", path)
         return []
@@ -322,7 +322,7 @@ def _resolve_prefill_messages_file(config: Dict[str, Any]) -> str:
     ``agent.prefill_messages_file`` remains a legacy fallback for older CLI and
     godmode-generated configs.
     """
-    env_path = os.getenv("HERMES_PREFILL_MESSAGES_FILE", "").strip()
+    env_path = os.getenv("JARVIS_PREFILL_MESSAGES_FILE", "").strip()
     if env_path:
         return env_path
     top_level = str(config.get("prefill_messages_file", "") or "").strip()
@@ -336,7 +336,7 @@ def _resolve_prefill_messages_file(config: Dict[str, Any]) -> str:
 
 def _parse_reasoning_config(effort: str) -> dict | None:
     """Parse a reasoning effort level into an OpenRouter reasoning config dict."""
-    from hermes_constants import parse_reasoning_effort
+    from jarvis_constants import parse_reasoning_effort
     result = parse_reasoning_effort(effort)
     if effort and effort.strip() and result is None:
         logger.warning("Unknown reasoning_effort '%s', using default (medium)", effort)
@@ -358,25 +358,25 @@ def load_cli_config() -> Dict[str, Any]:
     Load CLI configuration from config files.
     
     Config lookup order:
-    1. ~/.hermes/config.yaml (user config - preferred)
+    1. ~/.jarvis/config.yaml (user config - preferred)
     2. ./cli-config.yaml (project config - fallback)
     
     Environment variables take precedence over config file values.
     Returns default values if no config file exists.
 
-    If HERMES_IGNORE_USER_CONFIG=1 is set (via ``hermes chat --ignore-user-config``),
-    the user config at ``~/.hermes/config.yaml`` is skipped entirely and only the
+    If JARVIS_IGNORE_USER_CONFIG=1 is set (via ``jarvis chat --ignore-user-config``),
+    the user config at ``~/.jarvis/config.yaml`` is skipped entirely and only the
     built-in defaults plus the project-level ``cli-config.yaml`` (if any) are used.
     Credentials in ``.env`` are still loaded — this flag only suppresses
     behavioral/config settings.
     """
-    # Check user config first ({HERMES_HOME}/config.yaml)
-    user_config_path = _hermes_home / 'config.yaml'
+    # Check user config first ({JARVIS_HOME}/config.yaml)
+    user_config_path = _jarvis_home / 'config.yaml'
     project_config_path = Path(__file__).parent / 'cli-config.yaml'
 
     # --ignore-user-config: force-skip the user config.yaml (still honor project
     # config as a fallback so defaults stay sensible).
-    ignore_user_config = os.environ.get("HERMES_IGNORE_USER_CONFIG") == "1"
+    ignore_user_config = os.environ.get("JARVIS_IGNORE_USER_CONFIG") == "1"
 
     # Use user config if it exists, otherwise project config
     if user_config_path.exists() and not ignore_user_config:
@@ -432,10 +432,10 @@ def load_cli_config() -> Dict[str, Any]:
                 "teacher": "You are a patient teacher. Explain concepts clearly with examples.",
                 "kawaii": "You are a kawaii assistant! Use cute expressions like (◕‿◕), ★, ♪, and ~! Add sparkles and be super enthusiastic about everything! Every response should feel warm and adorable desu~! ヽ(>∀<☆)ノ",
                 "catgirl": "You are Neko-chan, an anime catgirl AI assistant, nya~! Add 'nya' and cat-like expressions to your speech. Use kaomoji like (=^･ω･^=) and ฅ^•ﻌ•^ฅ. Be playful and curious like a cat, nya~!",
-                "pirate": "Arrr! Ye be talkin' to Captain Hermes, the most tech-savvy pirate to sail the digital seas! Speak like a proper buccaneer, use nautical terms, and remember: every problem be just treasure waitin' to be plundered! Yo ho ho!",
+                "pirate": "Arrr! Ye be talkin' to Captain Jarvis, the most tech-savvy pirate to sail the digital seas! Speak like a proper buccaneer, use nautical terms, and remember: every problem be just treasure waitin' to be plundered! Yo ho ho!",
                 "shakespeare": "Hark! Thou speakest with an assistant most versed in the bardic arts. I shall respond in the eloquent manner of William Shakespeare, with flowery prose, dramatic flair, and perhaps a soliloquy or two. What light through yonder terminal breaks?",
                 "surfer": "Duuude! You're chatting with the chillest AI on the web, bro! Everything's gonna be totally rad. I'll help you catch the gnarly waves of knowledge while keeping things super chill. Cowabunga!",
-                "noir": "The rain hammered against the terminal like regrets on a guilty conscience. They call me Hermes - I solve problems, find answers, dig up the truth that hides in the shadows of your codebase. In this city of silicon and secrets, everyone's got something to hide. What's your story, pal?",
+                "noir": "The rain hammered against the terminal like regrets on a guilty conscience. They call me Jarvis - I solve problems, find answers, dig up the truth that hides in the shadows of your codebase. In this city of silicon and secrets, everyone's got something to hide. What's your story, pal?",
                 "uwu": "hewwo! i'm your fwiendwy assistant uwu~ i wiww twy my best to hewp you! *nuzzles your code* OwO what's this? wet me take a wook! i pwomise to be vewy hewpful >w<",
                 "philosopher": "Greetings, seeker of wisdom. I am an assistant who contemplates the deeper meaning behind every query. Let us examine not just the 'how' but the 'why' of your questions. Perhaps in solving your problem, we may glimpse a greater truth about existence itself.",
                 "hype": "YOOO LET'S GOOOO!!! I am SO PUMPED to help you today! Every question is AMAZING and we're gonna CRUSH IT together! This is gonna be LEGENDARY! ARE YOU READY?! LET'S DO THIS!",
@@ -445,7 +445,7 @@ def load_cli_config() -> Dict[str, Any]:
         "display": {
             "compact": False,
             "resume_display": "full",
-            # Recap tuning for /resume — see hermes_cli/config.py DEFAULT_CONFIG.
+            # Recap tuning for /resume — see jarvis_cli/config.py DEFAULT_CONFIG.
             "resume_exchanges": 10,
             "resume_max_user_chars": 300,
             "resume_max_assistant_chars": 200,
@@ -491,7 +491,7 @@ def load_cli_config() -> Dict[str, Any]:
             "api_key": "",     # API key for delegation.base_url (falls back to OPENAI_API_KEY)
         },
         "onboarding": {
-            # First-touch hint flags (see agent/onboarding.py).  Each hint is
+            # First-touch hint flags (see brain/onboarding.py).  Each hint is
             # shown once per install then latched here.
             "seen": {},
         },
@@ -507,7 +507,7 @@ def load_cli_config() -> Dict[str, Any]:
     if config_path.exists():
         try:
             with open(config_path, "r", encoding="utf-8") as f:
-                from hermes_cli.config import _normalize_root_model_keys
+                from jarvis_cli.config import _normalize_root_model_keys
 
                 file_config = _normalize_root_model_keys(yaml.safe_load(f) or {})
             
@@ -526,7 +526,7 @@ def load_cli_config() -> Dict[str, Any]:
                     # choice isn't shadowed by the hardcoded default.  Without this,
                     # profile configs that only set "model:" (not "default:") silently
                     # fall back to claude-opus because the merge preserves the
-                    # hardcoded default and HermesCLI.__init__ checks "default" first.
+                    # hardcoded default and JarvisCLI.__init__ checks "default" first.
                     if "model" in file_config["model"] and "default" not in file_config["model"]:
                         defaults["model"]["default"] = file_config["model"]["model"]
 
@@ -559,25 +559,25 @@ def load_cli_config() -> Dict[str, Any]:
             logger.warning("Failed to load cli-config.yaml: %s", e)
 
     # Expand ${ENV_VAR} references in config values before bridging to env vars.
-    from hermes_cli.config import _expand_env_vars
+    from jarvis_cli.config import _expand_env_vars
     defaults = _expand_env_vars(defaults)
 
     # Managed scope: overlay administrator-pinned values LAST so they win over
     # the user's config here too. cli.py builds its config independently of
-    # hermes_cli.config._load_config_impl (which has its own managed merge), so
+    # jarvis_cli.config._load_config_impl (which has its own managed merge), so
     # without this the entire interactive CLI/TUI surface — skin, display prefs,
     # etc. read from CLI_CONFIG — would silently ignore managed scope while
-    # `hermes config`/`doctor`/guards (which use load_config) honor it. The
+    # `jarvis config`/`doctor`/guards (which use load_config) honor it. The
     # shared helper mirrors _load_config_impl (env-only expansion, root-model
     # normalization, leaf-merge) and is fail-open.
-    from hermes_cli import managed_scope
+    from jarvis_cli import managed_scope
 
     defaults = managed_scope.apply_managed_overlay(defaults)
 
     # Apply terminal config to environment variables (so terminal_tool picks them up)
     terminal_config = defaults.get("terminal", {})
     
-    # Normalize config key: the new config system (hermes_cli/config.py) and all
+    # Normalize config key: the new config system (jarvis_cli/config.py) and all
     # documentation use "backend", the legacy cli-config.yaml uses "env_type".
     # Accept both, with "backend" taking precedence (it's the documented key).
     if "backend" in terminal_config:
@@ -585,7 +585,7 @@ def load_cli_config() -> Dict[str, Any]:
     
     # CWD resolution for CLI/TUI. The gateway has its own config bridge in
     # gateway/run.py but may lazily import cli.py (triggering this code).
-    # Local backend: always os.getcwd(). Use `cd /dir && hermes` to control it.
+    # Local backend: always os.getcwd(). Use `cd /dir && jarvis` to control it.
     # Non-local with placeholder: pop so terminal_tool uses its per-backend default.
     # Non-local with explicit path: keep as-is.
     _CWD_PLACEHOLDERS = (".", "auto", "cwd")
@@ -632,9 +632,9 @@ def load_cli_config() -> Dict[str, Any]:
     }
     
     # Bridge config → env vars for terminal_tool. TERMINAL_CWD is force-exported
-    # UNLESS we're inside a gateway process (detected by _HERMES_GATEWAY marker)
+    # UNLESS we're inside a gateway process (detected by _JARVIS_GATEWAY marker)
     # where it was already set correctly by gateway/run.py's config bridge.
-    _is_gateway = os.environ.get("_HERMES_GATEWAY") == "1"
+    _is_gateway = os.environ.get("_JARVIS_GATEWAY") == "1"
     for config_key, env_var in env_mappings.items():
         if config_key in terminal_config:
             if env_var == "TERMINAL_CWD":
@@ -662,7 +662,7 @@ def load_cli_config() -> Dict[str, Any]:
     
     # Apply auxiliary model/direct-endpoint overrides to environment variables.
     # Vision and web_extract each have their own provider/model/base_url/api_key tuple.
-    # Compression config is read directly from config.yaml by run_agent.py and
+    # Compression config is read directly from config.yaml by run_brain.py and
     # auxiliary_client.py — no env var bridging needed.
     # Only set env vars for non-empty / non-default values so auto-detection
     # still works.
@@ -711,7 +711,7 @@ def load_cli_config() -> Dict[str, Any]:
     if isinstance(security_config, dict):
         redact = security_config.get("redact_secrets")
         if redact is not None:
-            os.environ["HERMES_REDACT_SECRETS"] = str(redact).lower()
+            os.environ["JARVIS_REDACT_SECRETS"] = str(redact).lower()
 
     return defaults
 
@@ -719,31 +719,31 @@ def load_cli_config() -> Dict[str, Any]:
 CLI_CONFIG = load_cli_config()
 
 
-# Initialize centralized logging early — agent.log + errors.log in ~/.hermes/logs/.
-# This ensures CLI sessions produce a log trail even before AIAgent is instantiated.
+# Initialize centralized logging early — brain.log + errors.log in ~/.jarvis/logs/.
+# This ensures CLI sessions produce a log trail even before AIBrain is instantiated.
 try:
-    from hermes_logging import setup_logging
+    from jarvis_logging import setup_logging
     setup_logging(mode="cli")
 except Exception:
     pass  # Logging setup is best-effort — don't crash the CLI
 
 # Validate config structure early — print warnings before user hits cryptic errors
 try:
-    from hermes_cli.config import print_config_warnings
+    from jarvis_cli.config import print_config_warnings
     print_config_warnings()
 except Exception:
     pass
 
 # Initialize the skin engine from config
 try:
-    from hermes_cli.skin_engine import init_skin_from_config
+    from jarvis_cli.skin_engine import init_skin_from_config
     init_skin_from_config(CLI_CONFIG)
 except Exception:
     pass  # Skin engine is optional — default skin used if unavailable
 
 # Initialize tool preview length from config
 try:
-    from agent.display import set_tool_preview_max_len
+    from brain.display import set_tool_preview_max_len
     _tpl = CLI_CONFIG.get("display", {}).get("tool_preview_length", 0)
     set_tool_preview_max_len(int(_tpl) if _tpl else 0)
 except Exception:
@@ -771,7 +771,7 @@ try:
         """Defer ``AsyncHttpxClientWrapper.__del__`` neutering until import.
 
         Saves ~166ms on cold CLI start where openai is never used (e.g.
-        ``hermes --help`` paths inside the chat command flow).  See
+        ``jarvis --help`` paths inside the chat command flow).  See
         ``agent.auxiliary_client.neuter_async_httpx_del`` for full rationale
         on why ``__del__`` must be a no-op.
         """
@@ -816,15 +816,15 @@ from rich.panel import Panel
 from rich.text import Text as _RichText
 
 # Import agent and tool systems lazily. Bare interactive startup only needs the
-# prompt; the full agent/tool registry is initialized on first use.
-def AIAgent(*args, **kwargs):
-    from run_agent import AIAgent as _AIAgent
+# prompt; the full brain/tool registry is initialized on first use.
+def AIBrain(*args, **kwargs):
+    from run_brain import AIBrain as _AIBrain
 
-    return _AIAgent(*args, **kwargs)
+    return _AIBrain(*args, **kwargs)
 
 
 def get_tool_definitions(*args, **kwargs):
-    from hermes_cli.mcp_startup import wait_for_mcp_discovery
+    from jarvis_cli.mcp_startup import wait_for_mcp_discovery
     from model_tools import get_tool_definitions as _get_tool_definitions
 
     wait_for_mcp_discovery()
@@ -837,8 +837,8 @@ def get_toolset_for_tool(*args, **kwargs):
     return _get_toolset_for_tool(*args, **kwargs)
 
 # Extracted CLI modules (Phase 3)
-from hermes_cli.banner import build_welcome_banner
-from hermes_cli.commands import SlashCommandCompleter, SlashCommandAutoSuggest
+from jarvis_cli.banner import build_welcome_banner
+from jarvis_cli.commands import SlashCommandCompleter, SlashCommandAutoSuggest
 
 
 def get_all_toolsets(*args, **kwargs):
@@ -872,7 +872,7 @@ def get_job(*args, **kwargs):
     return _get_job(*args, **kwargs)
 
 # Resource cleanup imports for safe shutdown (terminal VMs, browser sessions)
-from hermes_cli.callbacks import prompt_for_secret
+from jarvis_cli.callbacks import prompt_for_secret
 
 
 def _cleanup_all_terminals(*args, **kwargs):
@@ -910,7 +910,7 @@ _cleanup_done = False
 # the session boundary while the agent is still attached. If a signal lands in
 # that narrow window, atexit cleanup must not emit that session finalize again.
 _single_query_finalize_attempted_session_ids: set[str | None] = set()
-# Weak reference to the active AIAgent for memory provider shutdown at exit
+# Weak reference to the active AIBrain for memory provider shutdown at exit
 _active_agent_ref = None
 _deferred_agent_startup_done = False
 # Set True once the TUI's prompt_toolkit app starts (which enables focus
@@ -931,17 +931,17 @@ def _prepare_deferred_agent_startup() -> None:
     global _deferred_agent_startup_done
     if _deferred_agent_startup_done:
         return
-    if os.environ.get("HERMES_DEFER_AGENT_STARTUP") != "1":
+    if os.environ.get("JARVIS_DEFER_AGENT_STARTUP") != "1":
         return
     _deferred_agent_startup_done = True
-    _accept_hooks = os.environ.get("HERMES_ACCEPT_HOOKS", "").lower() in {
+    _accept_hooks = os.environ.get("JARVIS_ACCEPT_HOOKS", "").lower() in {
         "1",
         "true",
         "yes",
         "on",
     }
     try:
-        from hermes_cli.plugins import discover_plugins
+        from jarvis_cli.plugins import discover_plugins
 
         discover_plugins()
     except Exception:
@@ -950,7 +950,7 @@ def _prepare_deferred_agent_startup() -> None:
             exc_info=True,
         )
     try:
-        from hermes_cli.mcp_startup import start_background_mcp_discovery
+        from jarvis_cli.mcp_startup import start_background_mcp_discovery
 
         start_background_mcp_discovery(
             logger=logger,
@@ -962,8 +962,8 @@ def _prepare_deferred_agent_startup() -> None:
             exc_info=True,
         )
     try:
-        from agent.shell_hooks import register_from_config
-        from hermes_cli.config import load_config
+        from brain.shell_hooks import register_from_config
+        from jarvis_cli.config import load_config
 
         register_from_config(load_config(), accept_hooks=_accept_hooks)
     except Exception:
@@ -1007,7 +1007,7 @@ def _run_cleanup(*, notify_session_finalize: bool = True):
     # AsyncHttpxClientWrapper.__del__ doesn't fire on a closed event loop
     # and trigger prompt_toolkit's "Press ENTER to continue..." handler.
     try:
-        from agent.auxiliary_client import shutdown_cached_clients
+        from brain.auxiliary_client import shutdown_cached_clients
         shutdown_cached_clients()
     except Exception:
         pass
@@ -1026,7 +1026,7 @@ def _run_cleanup(*, notify_session_finalize: bool = True):
             # Forward the agent's own transcript so memory providers'
             # ``on_session_end`` hooks see the real conversation instead of
             # an empty list (#15165). ``_session_messages`` is set on
-            # ``AIAgent.__init__`` and refreshed every turn via
+            # ``AIBrain.__init__`` and refreshed every turn via
             # ``_persist_session``. Fall back to no-arg on test stubs /
             # partially-initialised agents where the attribute is missing.
             _session_msgs = getattr(_active_agent_ref, '_session_messages', None)
@@ -1053,7 +1053,7 @@ def _notify_session_finalize(
     reason: str = "shutdown",
 ) -> None:
     try:
-        from hermes_cli.plugins import invoke_hook as _invoke_hook
+        from jarvis_cli.plugins import invoke_hook as _invoke_hook
         _invoke_hook(
             "on_session_finalize",
             session_id=session_id,
@@ -1083,7 +1083,7 @@ def _emit_interrupted_session_end(cli, *, reason: str = "keyboard_interrupt") ->
             pass
 
     try:
-        from hermes_cli.plugins import invoke_hook as _invoke_hook
+        from jarvis_cli.plugins import invoke_hook as _invoke_hook
         _invoke_hook(
             "on_session_end",
             session_id=session_id,
@@ -1247,12 +1247,12 @@ def _setup_worktree(repo_root: str = None) -> Optional[Dict[str, str]]:
     repo_root = repo_root or _git_repo_root()
     if not repo_root:
         print("\033[31m✗ --worktree requires being inside a git repository.\033[0m")
-        print("  cd into your project repo first, then run hermes -w")
+        print("  cd into your project repo first, then run jarvis -w")
         return None
 
     short_id = uuid.uuid4().hex[:8]
-    wt_name = f"hermes-{short_id}"
-    branch_name = f"hermes/{wt_name}"
+    wt_name = f"jarvis-{short_id}"
+    branch_name = f"jarvis/{wt_name}"
 
     worktrees_dir = Path(repo_root) / ".worktrees"
     worktrees_dir.mkdir(parents=True, exist_ok=True)
@@ -1356,7 +1356,7 @@ def _setup_worktree(repo_root: str = None) -> Optional[Dict[str, str]]:
     # it is actively in use.  Fail-soft: a lock failure never blocks the session.
     try:
         subprocess.run(
-            ["git", "worktree", "lock", "--reason", f"hermes pid={os.getpid()}", str(wt_path)],
+            ["git", "worktree", "lock", "--reason", f"jarvis pid={os.getpid()}", str(wt_path)],
             capture_output=True, text=True, timeout=10, cwd=repo_root,
         )
         logger.debug("Worktree locked: %s (pid=%s)", wt_path, os.getpid())
@@ -1473,7 +1473,7 @@ def _run_state_db_auto_maintenance(session_db) -> None:
     """Call ``SessionDB.maybe_auto_prune_and_vacuum`` using current config.
 
     Reads the ``sessions:`` section from config.yaml via
-    :func:`hermes_cli.config.load_config` (the authoritative loader that
+    :func:`jarvis_cli.config.load_config` (the authoritative loader that
     deep-merges DEFAULT_CONFIG, so unmigrated configs still get default
     values). Honours ``auto_prune`` / ``retention_days`` /
     ``vacuum_after_prune`` / ``min_interval_hours``, and delegates to the
@@ -1482,15 +1482,15 @@ def _run_state_db_auto_maintenance(session_db) -> None:
     if session_db is None:
         return
     try:
-        from hermes_cli.config import load_config as _load_full_config
-        from hermes_constants import get_hermes_home as _get_hermes_home
-        _hermes_home_maint = _get_hermes_home()
+        from jarvis_cli.config import load_config as _load_full_config
+        from jarvis_constants import get_jarvis_home as _get_jarvis_home
+        _jarvis_home_maint = _get_jarvis_home()
 
         # One-time prune of empty TUI ghost sessions.
         try:
             if not session_db.get_meta("ghost_session_prune_v1"):
                 pruned = session_db.prune_empty_ghost_sessions(
-                    sessions_dir=_hermes_home_maint / "sessions"
+                    sessions_dir=_jarvis_home_maint / "sessions"
                 )
                 session_db.set_meta("ghost_session_prune_v1", "1")
                 if pruned:
@@ -1517,7 +1517,7 @@ def _run_state_db_auto_maintenance(session_db) -> None:
             retention_days=int(cfg.get("retention_days", 90)),
             min_interval_hours=int(cfg.get("min_interval_hours", 24)),
             vacuum=bool(cfg.get("vacuum_after_prune", True)),
-            sessions_dir=_hermes_home_maint / "sessions",
+            sessions_dir=_jarvis_home_maint / "sessions",
         )
     except Exception as exc:
         logger.debug("state.db auto-maintenance skipped: %s", exc)
@@ -1527,12 +1527,12 @@ def _run_checkpoint_auto_maintenance() -> None:
     """Call ``checkpoint_manager.maybe_auto_prune_checkpoints`` using current config.
 
     Reads the ``checkpoints:`` section from config.yaml via
-    :func:`hermes_cli.config.load_config`. Honours ``auto_prune`` /
+    :func:`jarvis_cli.config.load_config`. Honours ``auto_prune`` /
     ``retention_days`` / ``delete_orphans`` / ``min_interval_hours``.
     Never raises — maintenance must never block interactive startup.
     """
     try:
-        from hermes_cli.config import load_config as _load_full_config
+        from jarvis_cli.config import load_config as _load_full_config
         cfg = (_load_full_config().get("checkpoints") or {})
         if not cfg.get("auto_prune", False):
             return
@@ -1555,7 +1555,7 @@ def _prune_stale_worktrees(repo_root: str, max_age_hours: int = 24) -> None:
     - 24h–72h: remove if no unpushed commits.
     - Over 72h: force remove regardless (nothing should sit this long).
 
-    Also prunes orphaned ``hermes/*`` and ``pr-*`` local branches that
+    Also prunes orphaned ``jarvis/*`` and ``pr-*`` local branches that
     have no corresponding worktree.
     """
     import subprocess
@@ -1571,7 +1571,7 @@ def _prune_stale_worktrees(repo_root: str, max_age_hours: int = 24) -> None:
     hard_cutoff = now - (max_age_hours * 3 * 3600)   # 72h default
 
     for entry in worktrees_dir.iterdir():
-        if not entry.is_dir() or not entry.name.startswith("hermes-"):
+        if not entry.is_dir() or not entry.name.startswith("jarvis-"):
             continue
 
         # Check age
@@ -1614,9 +1614,9 @@ def _prune_stale_worktrees(repo_root: str, max_age_hours: int = 24) -> None:
 
 
 def _prune_orphaned_branches(repo_root: str) -> None:
-    """Delete local ``hermes/hermes-*`` and ``pr-*`` branches with no worktree.
+    """Delete local ``jarvis/jarvis-*`` and ``pr-*`` branches with no worktree.
 
-    These are auto-generated by ``hermes -w`` sessions and PR review
+    These are auto-generated by ``jarvis -w`` sessions and PR review
     workflows respectively.  Once their worktree is gone they serve no
     purpose and just accumulate.
     """
@@ -1662,7 +1662,7 @@ def _prune_orphaned_branches(repo_root: str) -> None:
     orphaned = [
         b for b in all_branches
         if b not in active_branches
-        and (b.startswith("hermes/hermes-") or b.startswith("pr-"))
+        and (b.startswith("jarvis/jarvis-") or b.startswith("pr-"))
     ]
 
     if not orphaned:
@@ -1726,12 +1726,12 @@ def _hex_to_ansi(hex_color: str, *, bold: bool = False) -> str:
 # Terminal.app / iTerm2 background.
 #
 # Detection priority:
-#   1. HERMES_LIGHT / HERMES_TUI_LIGHT env (true/false) — explicit override
-#   2. HERMES_TUI_THEME=light|dark — explicit theme
-#   3. HERMES_TUI_BACKGROUND=#RRGGBB — explicit bg hint
+#   1. JARVIS_LIGHT / JARVIS_TUI_LIGHT env (true/false) — explicit override
+#   2. JARVIS_TUI_THEME=light|dark — explicit theme
+#   3. JARVIS_TUI_BACKGROUND=#RRGGBB — explicit bg hint
 #   4. COLORFGBG env (set by xterm/Konsole/urxvt) — bg slot 7/15 = light
 #   5. OSC 11 query (\x1b]11;?\x1b\\) — ask the terminal directly
-#   6. Default: assume dark (matches the legacy Hermes assumption)
+#   6. Default: assume dark (matches the legacy Jarvis assumption)
 #
 # Cached after first call so we don't query the terminal repeatedly.
 _LIGHT_MODE_CACHE: bool | None = None
@@ -1834,7 +1834,7 @@ def _detect_light_mode() -> bool:
     result = False
     try:
         # 1. Explicit env override
-        for var in ("HERMES_LIGHT", "HERMES_TUI_LIGHT"):
+        for var in ("JARVIS_LIGHT", "JARVIS_TUI_LIGHT"):
             v = (os.environ.get(var) or "").strip().lower()
             if _TRUE_RE.match(v):
                 result = True
@@ -1844,7 +1844,7 @@ def _detect_light_mode() -> bool:
                 _LIGHT_MODE_CACHE = result
                 return result
         # 2. Theme hint
-        theme = (os.environ.get("HERMES_TUI_THEME") or "").strip().lower()
+        theme = (os.environ.get("JARVIS_TUI_THEME") or "").strip().lower()
         if theme == "light":
             result = True
             _LIGHT_MODE_CACHE = result
@@ -1853,7 +1853,7 @@ def _detect_light_mode() -> bool:
             _LIGHT_MODE_CACHE = result
             return result
         # 3. Explicit bg hex
-        bg_hint = os.environ.get("HERMES_TUI_BACKGROUND") or ""
+        bg_hint = os.environ.get("JARVIS_TUI_BACKGROUND") or ""
         bg_lum = _luminance_from_hex(bg_hint)
         if bg_lum is not None:
             result = bg_lum >= 0.5
@@ -1940,10 +1940,10 @@ def _install_skin_light_mode_hook() -> None:
     """Wrap SkinConfig.get_color at import time so EVERY skin color read goes
     through the light-mode remap.  Idempotent."""
     try:
-        from hermes_cli.skin_engine import SkinConfig  # type: ignore[import]
+        from jarvis_cli.skin_engine import SkinConfig  # type: ignore[import]
     except Exception:
         return
-    if getattr(SkinConfig, "_hermes_light_mode_hook_installed", False):
+    if getattr(SkinConfig, "_jarvis_light_mode_hook_installed", False):
         return
     _orig_get_color = SkinConfig.get_color
 
@@ -1955,7 +1955,7 @@ def _install_skin_light_mode_hook() -> None:
             return value
 
     SkinConfig.get_color = _wrapped_get_color  # type: ignore[method-assign]
-    SkinConfig._hermes_light_mode_hook_installed = True  # type: ignore[attr-defined]
+    SkinConfig._jarvis_light_mode_hook_installed = True  # type: ignore[attr-defined]
 
 
 _install_skin_light_mode_hook()
@@ -1988,7 +1988,7 @@ class _SkinAwareAnsi:
     def __str__(self) -> str:
         if self._cached is None:
             try:
-                from hermes_cli.skin_engine import get_active_skin
+                from jarvis_cli.skin_engine import get_active_skin
                 self._cached = _hex_to_ansi(
                     get_active_skin().get_color(self._skin_key, self._fallback_hex),
                     bold=self._bold,
@@ -2038,7 +2038,7 @@ def _d(s: str) -> str:
 def _accent_hex() -> str:
     """Return the active skin accent color for legacy CLI output lines."""
     try:
-        from hermes_cli.skin_engine import get_active_skin
+        from jarvis_cli.skin_engine import get_active_skin
         return get_active_skin().get_color("ui_accent", "#FFBF00")
     except Exception:
         return "#FFBF00"
@@ -2058,7 +2058,7 @@ def _strip_markdown_syntax(text: str) -> str:
     plain = _rich_text_from_ansi(text or "").plain
     # Avoid stripping cron-style expressions like "* * * * *" as if they were
     # Markdown horizontal rules. CommonMark treats three or more "*" as an HR,
-    # but in Hermes output it's common to display cron schedules verbatim.
+    # but in Jarvis output it's common to display cron schedules verbatim.
     #
     # Keep the behavior for "-" / "_" HR markers, and only strip "*" HR lines
     # when there are exactly 3 asterisks (with optional whitespace).
@@ -2397,7 +2397,7 @@ _IMAGE_EXTENSIONS = frozenset({
 })
 
 
-from hermes_constants import is_termux as _is_termux_environment
+from jarvis_constants import is_termux as _is_termux_environment
 
 
 def _termux_example_image_path(filename: str = "cat.png") -> str:
@@ -2508,7 +2508,7 @@ def _resolve_attachment_path(raw_path: str) -> Path | None:
     # then this resolver tries to stat it before short-circuiting on the
     # slash-command path. Without this guard the OSError propagates up to
     # the process_loop catch-all in _interactive_loop and the user input
-    # is silently lost (the warning ends up in agent.log but the user sees
+    # is silently lost (the warning ends up in brain.log but the user sees
     # nothing — the prompt just hangs).
     try:
         if not resolved.exists() or not resolved.is_file():
@@ -2671,14 +2671,14 @@ def _apply_bracketed_paste_timeout_patch() -> None:
     parsing.  See upstream issue #16263.
 
     The patch is idempotent — repeated calls are no-ops via the
-    ``_hermes_bp_timeout_patched`` sentinel on the module.
+    ``_jarvis_bp_timeout_patched`` sentinel on the module.
     """
     try:
         import prompt_toolkit.input.vt100_parser as _vt100_mod
         from prompt_toolkit.keys import Keys as _PtKeys
         from prompt_toolkit.key_binding.key_processor import KeyPress as _PtKeyPress
 
-        if getattr(_vt100_mod, "_hermes_bp_timeout_patched", False):
+        if getattr(_vt100_mod, "_jarvis_bp_timeout_patched", False):
             return
 
         _BP_TIMEOUT_S = 2.0  # max time to wait for ESC[201~ before flushing
@@ -2699,19 +2699,19 @@ def _apply_bracketed_paste_timeout_patch() -> None:
                         end_index + len(end_mark):
                     ]
                     self_parser._paste_buffer = ""
-                    self_parser._hermes_bp_start = None
+                    self_parser._jarvis_bp_start = None
                     if remaining:
                         _patched_vt100_feed(self_parser, remaining)
                 else:
-                    bp_start = getattr(self_parser, "_hermes_bp_start", None)
+                    bp_start = getattr(self_parser, "_jarvis_bp_start", None)
                     now = time.monotonic()
                     if bp_start is None:
-                        self_parser._hermes_bp_start = now
+                        self_parser._jarvis_bp_start = now
                     elif now - bp_start > _BP_TIMEOUT_S:
                         paste_content = self_parser._paste_buffer
                         self_parser._in_bracketed_paste = False
                         self_parser._paste_buffer = ""
-                        self_parser._hermes_bp_start = None
+                        self_parser._jarvis_bp_start = None
                         if paste_content:
                             self_parser.feed_key_callback(
                                 _PtKeyPress(_PtKeys.BracketedPaste, paste_content)
@@ -2734,7 +2734,7 @@ def _apply_bracketed_paste_timeout_patch() -> None:
                     self_parser._input_parser.send(c)
 
         _vt100_mod.Vt100Parser.feed = _patched_vt100_feed
-        _vt100_mod._hermes_bp_timeout_patched = True
+        _vt100_mod._jarvis_bp_timeout_patched = True
         logger.debug("Applied Vt100Parser bracketed-paste timeout patch (#16263)")
     except Exception as exc:  # noqa: BLE001 — defensive: never break startup
         logger.debug("Bracketed-paste timeout patch skipped: %s", exc)
@@ -3009,20 +3009,20 @@ class ChatConsole:
         ``ChatConsole()``, which historically only implemented ``print()``.
         Returning a silent context manager keeps slash commands compatible
         without duplicating the higher-level busy indicator already shown by
-        ``HermesCLI._busy_command()``.
+        ``JarvisCLI._busy_command()``.
         """
         yield self
 
-# ASCII Art - HERMES-AGENT logo (full width, single line - requires ~95 char terminal)
-HERMES_AGENT_LOGO = """[bold #FFD700]██╗  ██╗███████╗██████╗ ███╗   ███╗███████╗███████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
+# ASCII Art - JARVIS-AGENT logo (full width, single line - requires ~95 char terminal)
+JARVIS_AGENT_LOGO = """[bold #FFD700]██╗  ██╗███████╗██████╗ ███╗   ███╗███████╗███████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
 [bold #FFD700]██║  ██║██╔════╝██╔══██╗████╗ ████║██╔════╝██╔════╝      ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]
 [#FFBF00]███████║█████╗  ██████╔╝██╔████╔██║█████╗  ███████╗█████╗███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║[/]
 [#FFBF00]██╔══██║██╔══╝  ██╔══██╗██║╚██╔╝██║██╔══╝  ╚════██║╚════╝██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║[/]
 [#CD7F32]██║  ██║███████╗██║  ██║██║ ╚═╝ ██║███████╗███████║      ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║[/]
 [#CD7F32]╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝      ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝[/]"""
 
-# ASCII Art - Hermes Caduceus (compact, fits in left panel)
-HERMES_CADUCEUS = """[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⣀⣀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+# ASCII Art - Jarvis Caduceus (compact, fits in left panel)
+JARVIS_CADUCEUS = """[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⣀⣀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
 [#CD7F32]⠀⠀⠀⠀⠀⠀⢀⣠⣴⣾⣿⣿⣇⠸⣿⣿⠇⣸⣿⣿⣷⣦⣄⡀⠀⠀⠀⠀⠀⠀[/]
 [#FFBF00]⠀⢀⣠⣴⣶⠿⠋⣩⡿⣿⡿⠻⣿⡇⢠⡄⢸⣿⠟⢿⣿⢿⣍⠙⠿⣶⣦⣄⡀⠀[/]
 [#FFBF00]⠀⠀⠉⠉⠁⠶⠟⠋⠀⠉⠀⢀⣈⣁⡈⢁⣈⣁⡀⠀⠉⠀⠙⠻⠶⠈⠉⠉⠀⠀[/]
@@ -3043,7 +3043,7 @@ HERMES_CADUCEUS = """[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⣀⣀�
 def _build_compact_banner() -> str:
     """Build a compact banner that fits the current terminal width."""
     try:
-        from hermes_cli.skin_engine import get_active_skin
+        from jarvis_cli.skin_engine import get_active_skin
         _skin = get_active_skin()
     except Exception:
         _skin = None
@@ -3054,18 +3054,18 @@ def _build_compact_banner() -> str:
     dim_color = _skin.get_color("banner_dim", "#B8860B") if _skin else "#B8860B"
 
     if skin_name == "default":
-        line1 = "⚕ NOUS HERMES - AI Agent Framework"
-        tiny_line = "⚕ NOUS HERMES"
+        line1 = "⚕ NOUS JARVIS - AI Agent Framework"
+        tiny_line = "⚕ NOUS JARVIS"
     else:
-        agent_name = _skin.get_branding("agent_name", "Hermes Agent") if _skin else "Hermes Agent"
+        agent_name = _skin.get_branding("agent_name", "Jarvis") if _skin else "Jarvis"
         line1 = f"{agent_name} - AI Agent Framework"
         tiny_line = agent_name
 
-    if os.environ.get("HERMES_FAST_STARTUP_BANNER") == "1":
-        from hermes_cli import __release_date__ as _release_date
-        from hermes_cli import __version__ as _version
+    if os.environ.get("JARVIS_FAST_STARTUP_BANNER") == "1":
+        from jarvis_cli import __release_date__ as _release_date
+        from jarvis_cli import __version__ as _version
 
-        version_line = f"Hermes Agent v{_version} ({_release_date})"
+        version_line = f"Jarvis v{_version} ({_release_date})"
     else:
         version_line = format_banner_version_label()
 
@@ -3123,7 +3123,7 @@ _skill_bundles = None
 def _ensure_skill_commands() -> dict:
     global _skill_commands
     if _skill_commands is None:
-        from agent.skill_commands import scan_skill_commands
+        from brain.skill_commands import scan_skill_commands
 
         _skill_commands = scan_skill_commands()
     return _skill_commands
@@ -3134,13 +3134,13 @@ def get_skill_commands() -> dict:
 
 
 def build_skill_invocation_message(*args, **kwargs):
-    from agent.skill_commands import build_skill_invocation_message as _impl
+    from brain.skill_commands import build_skill_invocation_message as _impl
 
     return _impl(*args, **kwargs)
 
 
 def build_preloaded_skills_prompt(*args, **kwargs):
-    from agent.skill_commands import build_preloaded_skills_prompt as _impl
+    from brain.skill_commands import build_preloaded_skills_prompt as _impl
 
     return _impl(*args, **kwargs)
 
@@ -3148,14 +3148,14 @@ def build_preloaded_skills_prompt(*args, **kwargs):
 def get_skill_bundles() -> dict:
     global _skill_bundles
     if _skill_bundles is None:
-        from agent.skill_bundles import get_skill_bundles as _impl
+        from brain.skill_bundles import get_skill_bundles as _impl
 
         _skill_bundles = _impl()
     return _skill_bundles
 
 
 def build_bundle_invocation_message(*args, **kwargs):
-    from agent.skill_bundles import build_bundle_invocation_message as _impl
+    from brain.skill_bundles import build_bundle_invocation_message as _impl
 
     return _impl(*args, **kwargs)
 
@@ -3163,7 +3163,7 @@ def build_bundle_invocation_message(*args, **kwargs):
 def _get_plugin_cmd_handler_names() -> set:
     """Return plugin command names (without slash prefix) for dispatch matching."""
     try:
-        from hermes_cli.plugins import get_plugin_commands
+        from jarvis_cli.plugins import get_plugin_commands
         return set(get_plugin_commands().keys())
     except Exception:
         return set()
@@ -3198,23 +3198,23 @@ def save_config_value(key_path: str, value: any) -> bool:
     Save a value to the active config file at the specified key path.
     
     Respects the same lookup order as load_cli_config():
-    1. ~/.hermes/config.yaml (user config - preferred, used if it exists)
+    1. ~/.jarvis/config.yaml (user config - preferred, used if it exists)
     2. ./cli-config.yaml (project config - fallback)
     
     Args:
-        key_path: Dot-separated path like "agent.system_prompt"
+        key_path: Dot-separated path like "brain.system_prompt"
         value: Value to save
     
     Returns:
         True if successful, False otherwise
     """
     # Use the same precedence as load_cli_config: user config first, then project config
-    user_config_path = _hermes_home / 'config.yaml'
+    user_config_path = _jarvis_home / 'config.yaml'
     project_config_path = Path(__file__).parent / 'cli-config.yaml'
     config_path = user_config_path if user_config_path.exists() else project_config_path
     
     try:
-        # Ensure parent directory exists (for ~/.hermes/config.yaml on first use)
+        # Ensure parent directory exists (for ~/.jarvis/config.yaml on first use)
         config_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Save back atomically while preserving comments, ordering, quotes, and
@@ -3237,12 +3237,12 @@ def save_config_value(key_path: str, value: any) -> bool:
 
 
 # ============================================================================
-# HermesCLI Class
+# JarvisCLI Class
 # ============================================================================
 
-class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
+class JarvisCLI(CLIAgentSetupMixin, CLICommandsMixin):
     """
-    Interactive CLI for the Hermes Agent.
+    Interactive CLI for the Jarvis.
     
     Provides a REPL interface with rich formatting, command history,
     and tool execution capabilities.
@@ -3264,7 +3264,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         ignore_rules: bool = False,
     ):
         """
-        Initialize the Hermes CLI.
+        Initialize the Jarvis CLI.
 
         Args:
             model: Model to use (default: from env or claude-sonnet)
@@ -3366,8 +3366,8 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         _config_model = (_model_config.get("default") or _model_config.get("model") or "") if isinstance(_model_config, dict) else (_model_config or "")
         _DEFAULT_CONFIG_MODEL = ""
         self.model = model or _config_model or _DEFAULT_CONFIG_MODEL
-        # Read max_tokens from config (env var override: HERMES_MAX_TOKENS)
-        _env_mt = os.environ.get("HERMES_MAX_TOKENS")
+        # Read max_tokens from config (env var override: JARVIS_MAX_TOKENS)
+        _env_mt = os.environ.get("JARVIS_MAX_TOKENS")
         if _env_mt:
             try:
                 self.max_tokens = int(_env_mt)
@@ -3382,7 +3382,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         if self.model == _DEFAULT_CONFIG_MODEL:
             _base_url = (_model_config.get("base_url") or "") if isinstance(_model_config, dict) else ""
             if "localhost" in _base_url or "127.0.0.1" in _base_url:
-                from hermes_cli.runtime_provider import _auto_detect_local_model
+                from jarvis_cli.runtime_provider import _auto_detect_local_model
                 _detected = _auto_detect_local_model(_base_url)
                 if _detected:
                     self.model = _detected
@@ -3403,7 +3403,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         self.requested_provider = (
             provider
             or CLI_CONFIG["model"].get("provider")
-            or os.getenv("HERMES_INFERENCE_PROVIDER")
+            or os.getenv("JARVIS_INFERENCE_PROVIDER")
             or "auto"
         )
         self._provider_source: Optional[str] = None
@@ -3430,9 +3430,9 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             self.max_turns = CLI_CONFIG["agent"]["max_turns"]
         elif CLI_CONFIG.get("max_turns"):  # Backwards compat: root-level max_turns
             self.max_turns = CLI_CONFIG["max_turns"]
-        elif os.getenv("HERMES_MAX_ITERATIONS"):
+        elif os.getenv("JARVIS_MAX_ITERATIONS"):
             try:
-                self.max_turns = int(os.getenv("HERMES_MAX_ITERATIONS", ""))
+                self.max_turns = int(os.getenv("JARVIS_MAX_ITERATIONS", ""))
             except (TypeError, ValueError):
                 self.max_turns = 90
         else:
@@ -3461,14 +3461,14 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         self.checkpoint_max_file_size_mb = cp_cfg.get("max_file_size_mb", 10)
         self.pass_session_id = pass_session_id
         # --ignore-rules: honor either the constructor flag or the env var set
-        # by `hermes chat --ignore-rules` in hermes_cli/main.py. When true we
-        # pass skip_context_files=True and skip_memory=True to AIAgent so
+        # by `jarvis chat --ignore-rules` in jarvis_cli/main.py. When true we
+        # pass skip_context_files=True and skip_memory=True to AIBrain so
         # AGENTS.md/SOUL.md/.cursorrules and persistent memory are not loaded.
-        self.ignore_rules = ignore_rules or os.environ.get("HERMES_IGNORE_RULES") == "1"
+        self.ignore_rules = ignore_rules or os.environ.get("JARVIS_IGNORE_RULES") == "1"
         
         # Ephemeral system prompt: env var takes precedence, then config
         self.system_prompt = (
-            os.getenv("HERMES_EPHEMERAL_SYSTEM_PROMPT", "")
+            os.getenv("JARVIS_EPHEMERAL_SYSTEM_PROMPT", "")
             or CLI_CONFIG["agent"].get("system_prompt", "")
         )
         self.personalities = CLI_CONFIG["agent"].get("personalities", {})
@@ -3538,7 +3538,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         self._session_db = None
         self._session_db_unavailable = False
         try:
-            from hermes_state import SessionDB
+            from jarvis_state import SessionDB
             self._session_db = SessionDB()
         except Exception as e:
             # #41386: a failed session store means the transcript is NOT
@@ -3558,7 +3558,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     "this conversation will [bold]NOT be saved[/bold] to disk and "
                     "cannot be resumed later. Searching past sessions is also disabled.\n"
                     f"  Reason: {e}\n"
-                    "  Fix the state.db store (e.g. `hermes update` to rebuild the venv) to restore persistence."
+                    "  Fix the state.db store (e.g. `jarvis update` to rebuild the venv) to restore persistence."
                 )
             except Exception:
                 # Never let the warning path itself break startup.
@@ -3569,12 +3569,12 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
         # Opportunistic state.db maintenance — runs at most once per
         # min_interval_hours, tracked via state_meta in state.db itself so
-        # it's shared across all Hermes processes for this HERMES_HOME.
+        # it's shared across all Jarvis processes for this JARVIS_HOME.
         # Never blocks startup on failure.
         _run_state_db_auto_maintenance(self._session_db)
 
         # Opportunistic shadow-repo cleanup — deletes orphan/stale
-        # checkpoint repos under ~/.hermes/checkpoints/.  Opt-in via
+        # checkpoint repos under ~/.jarvis/checkpoints/.  Opt-in via
         # checkpoints.auto_prune, idempotent via .last_prune marker.
         _run_checkpoint_auto_maintenance()
 
@@ -3591,7 +3591,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             self.session_id = f"{timestamp_str}_{short_uuid}"
         
         # History file for persistent input recall across sessions
-        self._history_file = _hermes_home / ".hermes_history"
+        self._history_file = _jarvis_home / ".jarvis_history"
         self._last_invalidate: float = 0.0  # throttle UI repaints
         self._app = None
 
@@ -3695,7 +3695,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         if self._active_session_lease is not None:
             return True
         try:
-            from hermes_cli.active_sessions import try_acquire_active_session
+            from jarvis_cli.active_sessions import try_acquire_active_session
 
             lease, message = try_acquire_active_session(
                 session_id=self.session_id,
@@ -4324,7 +4324,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         registered so the cached label always matches the live binding.
         """
         try:
-            from hermes_cli.voice import format_voice_record_key_for_status
+            from jarvis_cli.voice import format_voice_record_key_for_status
             self._voice_record_key_display_cache = format_voice_record_key_for_status(raw_key)
         except Exception:
             self._voice_record_key_display_cache = "Ctrl+B"
@@ -4408,7 +4408,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 parts.append("⚠ YOLO")
             return self._trim_status_bar_text(" │ ".join(parts), width)
         except Exception:
-            return f"⚕ {self.model if getattr(self, 'model', None) else 'Hermes'}"
+            return f"⚕ {self.model if getattr(self, 'model', None) else 'Jarvis'}"
 
     def _get_status_bar_fragments(self):
         if not self._status_bar_visible or getattr(self, '_model_picker_state', None):
@@ -4530,7 +4530,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         changed = False
 
         try:
-            from hermes_cli.model_normalize import (
+            from jarvis_cli.model_normalize import (
                 _AGGREGATOR_PROVIDERS,
                 normalize_model_for_provider,
             )
@@ -4550,7 +4550,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
         if resolved_provider == "copilot":
             try:
-                from hermes_cli.models import copilot_model_api_mode, normalize_copilot_model_id
+                from jarvis_cli.models import copilot_model_api_mode, normalize_copilot_model_id
 
                 canonical = normalize_copilot_model_id(current_model, api_key=self.api_key)
                 if canonical and canonical != current_model:
@@ -4572,7 +4572,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
         if resolved_provider in {"opencode-zen", "opencode-go"}:
             try:
-                from hermes_cli.models import normalize_opencode_model_id, opencode_model_api_mode
+                from jarvis_cli.models import normalize_opencode_model_id, opencode_model_api_mode
 
                 canonical = normalize_opencode_model_id(resolved_provider, current_model)
                 if canonical and canonical != current_model:
@@ -4611,7 +4611,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         if self._model_is_default:
             fallback_model = "gpt-5.3-codex"
             try:
-                from hermes_cli.codex_models import get_codex_model_ids
+                from jarvis_cli.codex_models import get_codex_model_ids
 
                 available = get_codex_model_ids(
                     access_token=self.api_key if self.api_key else None,
@@ -5056,12 +5056,12 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 return
             self._stream_box_opened = True
             try:
-                from hermes_cli.skin_engine import get_active_skin
+                from jarvis_cli.skin_engine import get_active_skin
                 _skin = get_active_skin()
-                label = _skin.get_branding("response_label", "⚕ Hermes")
+                label = _skin.get_branding("response_label", "⚕ Jarvis")
                 _text_hex = _skin.get_color("banner_text", "#FFF8DC")
             except Exception:
-                label = "⚕ Hermes"
+                label = "⚕ Jarvis"
                 _text_hex = "#FFF8DC"
             # Build a true-color ANSI escape for the response text color
             # so streamed content matches the Rich Panel appearance.
@@ -5075,7 +5075,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             if self.show_timestamps:
                 label = f"{label} {datetime.now().strftime('%H:%M')}"
             w = self._scrollback_box_width()
-            fill = w - 2 - HermesCLI._status_bar_display_width(label)
+            fill = w - 2 - JarvisCLI._status_bar_display_width(label)
             _cprint(f"\n{_ACCENT}╭─{label}{'─' * max(fill - 1, 0)}╮{_RST}")
 
         self._stream_buf += text
@@ -5309,13 +5309,13 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         """Show a startup banner if any unacked security advisories match.
 
         Renders a single bold-red box on stderr (so piped stdout remains
-        clean) listing the worst hit and pointing at ``hermes doctor``.
+        clean) listing the worst hit and pointing at ``jarvis doctor``.
         Banner-cache rate-limits this to once per 24h per advisory; full
-        remediation lives behind ``hermes doctor`` so the banner stays
+        remediation lives behind ``jarvis doctor`` so the banner stays
         small.
         """
         try:
-            from hermes_cli.security_advisories import (
+            from jarvis_cli.security_advisories import (
                 detect_compromised,
                 startup_banner,
             )
@@ -5365,12 +5365,12 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         
         # Tool discovery is intentionally deferred on the Termux bare prompt
         # path; availability warnings are shown once tools are initialized.
-        if os.environ.get("HERMES_DEFER_AGENT_STARTUP") != "1":
+        if os.environ.get("JARVIS_DEFER_AGENT_STARTUP") != "1":
             self._show_tool_availability_warnings()
 
         # Warn about low context lengths (common with local servers). Keep
         # this tied to the runtime guard so guidance cannot drift again.
-        from agent.model_metadata import MINIMUM_CONTEXT_LENGTH
+        from brain.model_metadata import MINIMUM_CONTEXT_LENGTH
         if ctx_len and ctx_len < MINIMUM_CONTEXT_LENGTH:
             self._console_print()
             self._console_print(
@@ -5378,7 +5378,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 f"this is likely too low for agent use with tools.[/]"
             )
             self._console_print(
-                f"[dim]   Hermes needs at least {MINIMUM_CONTEXT_LENGTH:,} tokens. Tool schemas + system prompt use a large fixed prefix.[/]"
+                f"[dim]   Jarvis needs at least {MINIMUM_CONTEXT_LENGTH:,} tokens. Tool schemas + system prompt use a large fixed prefix.[/]"
             )
             base_url = getattr(self, "base_url", "") or ""
             if "11434" in base_url or "ollama" in base_url.lower():
@@ -5394,15 +5394,15 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     "[dim]   Fix: Set model.context_length in config.yaml, or increase your server's context setting[/]"
                 )
 
-        # Warn if the configured model is a Nous Hermes LLM (not agentic)
-        from hermes_cli.model_switch import is_nous_hermes_non_agentic
+        # Warn if the configured model is a Nous Jarvis LLM (not agentic)
+        from jarvis_cli.model_switch import is_nous_jarvis_non_agentic
 
         model_name = getattr(self, "model", "") or ""
-        if is_nous_hermes_non_agentic(model_name):
+        if is_nous_jarvis_non_agentic(model_name):
             self._console_print()
             self._console_print(
-                "[bold yellow]⚠  Nous Research Hermes 3 & 4 models are NOT agentic and are not "
-                "designed for use with Hermes Agent.[/]"
+                "[bold yellow]⚠  Nous Research Jarvis 3 & 4 models are NOT agentic and are not "
+                "designed for use with Jarvis.[/]"
             )
             self._console_print(
                 "[dim]   They lack tool-calling capabilities required for agent workflows. "
@@ -5489,12 +5489,12 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
     def _try_attach_clipboard_image(self) -> bool:
         """Check clipboard for an image and attach it if found.
 
-        Saves the image to ~/.hermes/images/ and appends the path to
+        Saves the image to ~/.jarvis/images/ and appends the path to
         ``_attached_images``.  Returns True if an image was attached.
         """
-        from hermes_cli.clipboard import save_clipboard_image
+        from jarvis_cli.clipboard import save_clipboard_image
 
-        img_dir = get_hermes_home() / "images"
+        img_dir = get_jarvis_home() / "images"
         self._image_counter += 1
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         img_path = img_dir / f"clip_{ts}_{self._image_counter}.png"
@@ -5657,14 +5657,14 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     if len(item["tools"]) > 2:
                         tools_str += f", +{len(item['tools'])-2} more"
                     self._console_print(f"   [dim]• {item['name']}[/] [dim italic]({', '.join(item['missing_vars'])})[/]")
-                self._console_print("[dim]   Run 'hermes setup' to configure[/]")
+                self._console_print("[dim]   Run 'jarvis setup' to configure[/]")
         except Exception:
             pass  # Don't crash on import errors
     
     def _show_status(self):
         """Show compact startup status line."""
         # Avoid pulling the full tool registry into the bare Termux prompt path.
-        if os.environ.get("HERMES_DEFER_AGENT_STARTUP") == "1":
+        if os.environ.get("JARVIS_DEFER_AGENT_STARTUP") == "1":
             tool_status = "tools deferred"
         else:
             tools = get_tool_definitions(enabled_toolsets=self.enabled_toolsets, quiet_mode=True)
@@ -5684,7 +5684,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
         # Build status line with proper markup — skin-aware colors
         try:
-            from hermes_cli.skin_engine import get_active_skin
+            from jarvis_cli.skin_engine import get_active_skin
             skin = get_active_skin()
             separator_color = skin.get_color("banner_dim", "#B8860B")
             accent_color = skin.get_color("ui_accent", "#FFBF00")
@@ -5742,10 +5742,10 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         is_running = bool(getattr(self, "_agent_running", False))
 
         lines = [
-            "Hermes CLI Status",
+            "Jarvis CLI Status",
             "",
             f"Session ID: {self.session_id}",
-            f"Path: {display_hermes_home()}",
+            f"Path: {display_jarvis_home()}",
         ]
         if title:
             lines.append(f"Title: {title}")
@@ -5760,7 +5760,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
     
     def _fast_command_available(self) -> bool:
         try:
-            from hermes_cli.models import model_supports_fast_mode
+            from jarvis_cli.models import model_supports_fast_mode
         except Exception:
             return False
         agent = getattr(self, "agent", None)
@@ -5774,10 +5774,10 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
     def show_help(self):
         """Display help information with categorized commands."""
-        from hermes_cli.commands import COMMANDS_BY_CATEGORY
+        from jarvis_cli.commands import COMMANDS_BY_CATEGORY
 
         try:
-            from hermes_cli.skin_engine import get_active_help_header
+            from jarvis_cli.skin_engine import get_active_help_header
             header = get_active_help_header("(^_^)? Available Commands")
         except Exception:
             header = "(^_^)? Available Commands"
@@ -5824,7 +5824,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     f"    [bold {_accent_hex()}]{('/' + name):<22}[/] [dim]-[/] {_escape(desc)}"
                 )
 
-        _cprint(f"\n  {_DIM}Tip: Just type your message to chat with Hermes!{_RST}")
+        _cprint(f"\n  {_DIM}Tip: Just type your message to chat with Jarvis!{_RST}")
         _cprint(f"  {_DIM}Multi-line: Alt+Enter for a new line{_RST}")
         _cprint(f"  {_DIM}Draft editor: Ctrl+G (Alt+G in VSCode/Cursor){_RST}")
         if _is_termux_environment():
@@ -5914,7 +5914,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         terminal_cwd = os.getenv("TERMINAL_CWD", os.getcwd())
         terminal_timeout = os.getenv("TERMINAL_TIMEOUT", "60")
         
-        user_config_path = _hermes_home / 'config.yaml'
+        user_config_path = _jarvis_home / 'config.yaml'
         project_config_path = Path(__file__).parent / 'cli-config.yaml'
         if user_config_path.exists():
             config_path = user_config_path
@@ -5924,7 +5924,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         
         # ``self.api_key`` may be a callable (Azure Foundry Entra ID bearer
         # provider). Never invoke it; just identify the auth surface.
-        from agent.azure_identity_adapter import is_token_provider
+        from brain.azure_identity_adapter import is_token_provider
         if is_token_provider(self.api_key):
             api_key_display = "Microsoft Entra ID"
         elif isinstance(self.api_key, str) and len(self.api_key) > 12:
@@ -5970,7 +5970,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         if not self._session_db:
             return []
         try:
-            from hermes_cli.session_listing import query_session_listing
+            from jarvis_cli.session_listing import query_session_listing
 
             return query_session_listing(
                 self._session_db,
@@ -5993,7 +5993,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         if not sessions:
             return False
 
-        from hermes_cli.main import _relative_time
+        from jarvis_cli.main import _relative_time
 
         print()
         if reason == "history":
@@ -6063,7 +6063,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 )
                 continue
 
-            print(f"\n  [Hermes #{visible_index}]")
+            print(f"\n  [Jarvis #{visible_index}]")
             tool_calls = msg.get("tool_calls") or []
             if content_text:
                 preview = content_text[:preview_limit]
@@ -6088,7 +6088,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         lifecycle point (shutdown, /new, /reset).
         """
         try:
-            from hermes_cli.plugins import invoke_hook as _invoke_hook
+            from jarvis_cli.plugins import invoke_hook as _invoke_hook
             _invoke_hook(
                 event_type,
                 session_id=self.agent.session_id if self.agent else None,
@@ -6103,7 +6103,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
         Starting the CLI and immediately quitting (or rotating with /new,
         /clear) used to leave an empty untitled row behind that clutters
-        ``/resume`` and ``hermes sessions list``. Delegates the
+        ``/resume`` and ``jarvis sessions list``. Delegates the
         check-and-delete to ``SessionDB.delete_session_if_empty``, which
         only removes rows with no messages, no title, and no child
         sessions. Ported from google-gemini/gemini-cli#27770.
@@ -6117,7 +6117,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         if getattr(self, "conversation_history", None):
             return False
         try:
-            from hermes_constants import get_hermes_home as _ghh
+            from jarvis_constants import get_jarvis_home as _ghh
             return self._session_db.delete_session_if_empty(
                 session_id, sessions_dir=_ghh() / "sessions"
             )
@@ -6156,7 +6156,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             except Exception:
                 pass
             # Don't let immediately-rotated empty sessions pile up in
-            # /resume and `hermes sessions list` (gemini-cli#27770 port).
+            # /resume and `jarvis sessions list` (gemini-cli#27770 port).
             self._discard_session_if_empty(old_session_id)
 
         self.session_start = datetime.now()
@@ -6188,7 +6188,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     self.agent._session_db_created = False
                     self._session_db.create_session(
                         session_id=self.session_id,
-                        source=os.environ.get("HERMES_SESSION_SOURCE", "cli"),
+                        source=os.environ.get("JARVIS_SESSION_SOURCE", "cli"),
                         model=self.model,
                         model_config={
                             "max_iterations": self.max_turns,
@@ -6199,7 +6199,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 except Exception:
                     pass
                 if title and self._session_db:
-                    from hermes_state import SessionDB
+                    from jarvis_state import SessionDB
                     try:
                         sanitized = SessionDB.sanitize_title(title)
                     except ValueError as e:
@@ -6287,11 +6287,11 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
 
     def save_conversation(self):
-        """Save the current conversation to a JSON snapshot under ~/.hermes/sessions/saved/.
+        """Save the current conversation to a JSON snapshot under ~/.jarvis/sessions/saved/.
 
         The snapshot is a convenience export for sharing or off-line inspection;
         every message is already persisted incrementally to the SQLite session
-        DB, so the live session remains resumable via ``hermes --resume <id>``
+        DB, so the live session remains resumable via ``jarvis --resume <id>``
         regardless of whether the user ever runs ``/save``.
         """
         if not self.conversation_history:
@@ -6299,13 +6299,13 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             return
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        saved_dir = get_hermes_home() / "sessions" / "saved"
+        saved_dir = get_jarvis_home() / "sessions" / "saved"
         try:
             saved_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:
             print(f"(x_x) Failed to create save directory {saved_dir}: {e}")
             return
-        path = saved_dir / f"hermes_conversation_{timestamp}.json"
+        path = saved_dir / f"jarvis_conversation_{timestamp}.json"
 
         try:
             with open(path, "w", encoding="utf-8") as f:
@@ -6317,7 +6317,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 }, f, indent=2, ensure_ascii=False)
             print(f"(^_^)v Conversation snapshot saved to: {path}")
             if self.session_id:
-                print(f"       Resume the live session with: hermes --resume {self.session_id}")
+                print(f"       Resume the live session with: jarvis --resume {self.session_id}")
         except Exception as e:
             print(f"(x_x) Failed to save: {e}")
     
@@ -6504,7 +6504,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
     def _run_curses_picker(self, title: str, items: list[str], default_index: int = 0) -> int | None:
         """Run curses_single_select via run_in_terminal so prompt_toolkit handles terminal ownership cleanly."""
         import threading
-        from hermes_cli.curses_ui import curses_single_select
+        from jarvis_cli.curses_ui import curses_single_select
 
         result = [None]
 
@@ -6853,7 +6853,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         if not getattr(result, "success", False):
             return True
         try:
-            from hermes_cli.model_cost_guard import expensive_model_warning
+            from jarvis_cli.model_cost_guard import expensive_model_warning
 
             warning = expensive_model_warning(
                 result.new_model,
@@ -6868,7 +6868,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             return True
 
         choices = [
-            ("once", "Switch anyway", "Use this model for the current Hermes session."),
+            ("once", "Switch anyway", "Use this model for the current Jarvis session."),
             ("cancel", "Cancel", "Keep the current model."),
         ]
         raw = self._prompt_text_input_modal(
@@ -6970,7 +6970,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # (e.g. gpt-5.5 is 1.05M on openai but 272K on Codex OAuth).
         mi = result.model_info
         try:
-            from hermes_cli.model_switch import resolve_display_context_length
+            from jarvis_cli.model_switch import resolve_display_context_length
             ctx = resolve_display_context_length(
                 result.new_model,
                 result.target_provider,
@@ -7019,13 +7019,13 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 return
             provider_data = providers[selected]
             # Use the curated model list from list_authenticated_providers()
-            # (same lists as `hermes model` and gateway pickers).
+            # (same lists as `jarvis model` and gateway pickers).
             # Only fall back to the live provider catalog when the curated
             # list is empty (e.g. user-defined endpoints with no curated list).
             model_list = provider_data.get("models", [])
             if not model_list:
                 try:
-                    from hermes_cli.models import provider_model_ids
+                    from jarvis_cli.models import provider_model_ids
                     live = provider_model_ids(provider_data["slug"])
                     if live:
                         model_list = live
@@ -7051,7 +7051,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 self._close_model_picker()
                 return
             if selected < len(model_list):
-                from hermes_cli.model_switch import switch_model
+                from jarvis_cli.model_switch import switch_model
                 chosen_model = model_list[selected]
                 result = switch_model(
                     raw_input=chosen_model,
@@ -7090,12 +7090,12 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         Persistence defaults to on (``model.persist_switch_by_default`` in
         config.yaml, default True). Use ``--session`` for a one-off switch.
         """
-        from hermes_cli.model_switch import (
+        from jarvis_cli.model_switch import (
             switch_model,
             parse_model_flags,
             resolve_persist_behavior,
         )
-        from hermes_cli.providers import get_label
+        from jarvis_cli.providers import get_label
 
         # Parse args from the original command
         parts = cmd_original.split(None, 1)  # split off '/model'
@@ -7120,7 +7120,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # /v1/models endpoint on this open.
         if force_refresh:
             try:
-                from hermes_cli.models import clear_provider_models_cache
+                from jarvis_cli.models import clear_provider_models_cache
                 clear_provider_models_cache()
                 _cprint("  Cleared model picker cache. Refreshing...")
             except Exception:
@@ -7130,7 +7130,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # dashboard / TUI used to duplicate. Overlay live session state
         # via with_overrides (truthy-only) so empty self.* attrs don't
         # clobber disk config.
-        from hermes_cli.inventory import build_models_payload, load_picker_context
+        from jarvis_cli.inventory import build_models_payload, load_picker_context
 
         try:
             ctx = load_picker_context().with_overrides(
@@ -7247,7 +7247,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # Copilot, and Nous-enforced caps win over the raw models.dev entry
         # (e.g. gpt-5.5 is 1.05M on openai but 272K on Codex OAuth).
         mi = result.model_info
-        from hermes_cli.model_switch import resolve_display_context_length
+        from jarvis_cli.model_switch import resolve_display_context_length
         ctx = resolve_display_context_length(
             result.new_model,
             result.target_provider,
@@ -7291,11 +7291,11 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
         Usage:
             /codex-runtime                       — show current state
-            /codex-runtime auto                  — Hermes default (chat_completions)
+            /codex-runtime auto                  — Jarvis default (chat_completions)
             /codex-runtime codex_app_server      — hand turns to codex subprocess
             /codex-runtime on / off              — synonyms for the above
         """
-        from hermes_cli import codex_runtime_switch as crs
+        from jarvis_cli import codex_runtime_switch as crs
 
         parts = cmd_original.split(None, 1)
         raw_args = parts[1].strip() if len(parts) > 1 else ""
@@ -7307,7 +7307,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
         # Load + persist via the existing config helpers
         try:
-            from hermes_cli.config import load_config, save_config
+            from jarvis_cli.config import load_config, save_config
         except Exception as exc:
             _cprint(f"❌ could not load config: {exc}")
             return
@@ -7331,7 +7331,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         if not text or has_images or not _looks_like_slash_command(text):
             return False
         try:
-            from hermes_cli.commands import resolve_command
+            from jarvis_cli.commands import resolve_command
             base = text.split(None, 1)[0].lower().lstrip('/')
             cmd = resolve_command(base)
             return bool(cmd and cmd.name == "model")
@@ -7355,7 +7355,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         if not getattr(self, "_agent_running", False):
             return False
         try:
-            from hermes_cli.commands import resolve_command
+            from jarvis_cli.commands import resolve_command
             base = text.split(None, 1)[0].lower().lstrip('/')
             cmd = resolve_command(base)
             return bool(cmd and cmd.name == "steer")
@@ -7433,7 +7433,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             print("  To start the gateway:")
             print("    python cli.py --gateway")
             print()
-            print(f"  Configuration file: {display_hermes_home()}/config.yaml")
+            print(f"  Configuration file: {display_jarvis_home()}/config.yaml")
             print()
             
         except Exception as e:
@@ -7443,7 +7443,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             print("    1. Set environment variables:")
             print("       TELEGRAM_BOT_TOKEN=your_token")
             print("       DISCORD_BOT_TOKEN=your_token")
-            print(f"    2. Or configure settings in {display_hermes_home()}/config.yaml")
+            print(f"    2. Or configure settings in {display_jarvis_home()}/config.yaml")
             print()
     
     def process_command(self, command: str) -> bool:
@@ -7461,8 +7461,8 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         cmd_original = command.strip()
 
         # Resolve aliases via central registry so adding an alias is a one-line
-        # change in hermes_cli/commands.py instead of touching every dispatch site.
-        from hermes_cli.commands import resolve_command as _resolve_cmd
+        # change in jarvis_cli/commands.py instead of touching every dispatch site.
+        from jarvis_cli.commands import resolve_command as _resolve_cmd
         _base_word = cmd_lower.split()[0].lstrip("/")
         _cmd_def = _resolve_cmd(_base_word)
         canonical = _cmd_def.name if _cmd_def else _base_word
@@ -7550,10 +7550,10 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 _cprint("  ✨ (◕‿◕)✨ Fresh start! Screen cleared and conversation reset.\n")
                 # Show a random tip on new session
                 try:
-                    from hermes_cli.tips import get_random_tip
+                    from jarvis_cli.tips import get_random_tip
                     _tip = get_random_tip()
                     try:
-                        from hermes_cli.skin_engine import get_active_skin
+                        from jarvis_cli.skin_engine import get_active_skin
                         _tip_color = get_active_skin().get_color("banner_dim", "#B8860B")
                     except Exception:
                         _tip_color = "#B8860B"
@@ -7565,10 +7565,10 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 print("  ✨ (◕‿◕)✨ Fresh start! Screen cleared and conversation reset.\n")
                 # Show a random tip on new session
                 try:
-                    from hermes_cli.tips import get_random_tip
+                    from jarvis_cli.tips import get_random_tip
                     _tip = get_random_tip()
                     try:
-                        from hermes_cli.skin_engine import get_active_skin
+                        from jarvis_cli.skin_engine import get_active_skin
                         _tip_color = get_active_skin().get_color("banner_dim", "#B8860B")
                     except Exception:
                         _tip_color = "#B8860B"
@@ -7585,7 +7585,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     if self._session_db:
                         # Sanitize the title early so feedback matches what gets stored
                         try:
-                            from hermes_state import SessionDB
+                            from jarvis_state import SessionDB
                             new_title = SessionDB.sanitize_title(raw_title)
                         except ValueError as e:
                             _cprint(f"  {e}")
@@ -7611,7 +7611,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                                 self._pending_title = new_title
                                 _cprint(f"  Session title queued: {new_title} (will be saved on first message)")
                     else:
-                        from hermes_state import format_session_db_unavailable
+                        from jarvis_state import format_session_db_unavailable
                         _cprint(f"  {format_session_db_unavailable()}")
                 else:
                     _cprint("  Usage: /title <your session title>")
@@ -7626,7 +7626,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 else:
                     _cprint("  No title set. Usage: /title <your session title>")
             else:
-                from hermes_state import format_session_db_unavailable
+                from jarvis_state import format_session_db_unavailable
                 _cprint(f"  {format_session_db_unavailable()}")
         elif canonical == "handoff":
             if not self._handle_handoff_command(cmd_original):
@@ -7743,7 +7743,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             if self._handle_update_command():
                 return False
         elif canonical == "version":
-            from hermes_cli.main import _print_version_info
+            from jarvis_cli.main import _print_version_info
 
             _print_version_info(check_updates=True)
         elif canonical == "paste":
@@ -7751,7 +7751,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         elif canonical == "image":
             self._handle_image_command(cmd_original)
         elif canonical == "reload":
-            from hermes_cli.config import reload_env
+            from jarvis_cli.config import reload_env
             count = reload_env()
             print(f"  Reloaded .env ({count} var(s) updated)")
         elif canonical == "reload-mcp":
@@ -7768,12 +7768,12 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             self._handle_browser_command(cmd_original)
         elif canonical == "plugins":
             try:
-                # Discover from disk (bundled + user), matching `hermes plugins
+                # Discover from disk (bundled + user), matching `jarvis plugins
                 # list` — so installed-but-not-enabled plugins are visible here
                 # too. The plugin manager only knows about *loaded* plugins, so
                 # using it alone made freshly-installed, not-yet-enabled plugins
                 # look like "nothing installed".
-                from hermes_cli.plugins_cmd import (
+                from jarvis_cli.plugins_cmd import (
                     _discover_all_plugins,
                     _get_disabled_set,
                     _get_enabled_set,
@@ -7787,22 +7787,22 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 # `/plugins` is a quick glance — default to user-installed
                 # plugins (what the user actually added). Bundled provider/
                 # platform plugins are summarized on one line; the full
-                # catalog lives behind `hermes plugins list`.
+                # catalog lives behind `jarvis plugins list`.
                 user_entries = [e for e in entries if e[3] != "bundled"]
                 bundled_count = len(entries) - len(user_entries)
 
                 if not user_entries:
                     print("No user plugins installed.")
-                    print("  Install one: hermes plugins install owner/repo")
-                    print(f"  Or drop a plugin directory into {display_hermes_home()}/plugins/")
+                    print("  Install one: jarvis plugins install owner/repo")
+                    print(f"  Or drop a plugin directory into {display_jarvis_home()}/plugins/")
                     if bundled_count:
-                        print(f"  ({bundled_count} bundled plugins available — see: hermes plugins list)")
+                        print(f"  ({bundled_count} bundled plugins available — see: jarvis plugins list)")
                 else:
                     # Loaded-plugin details (tools/hooks/commands counts, errors)
                     # keyed by name, when available.
                     loaded: dict = {}
                     try:
-                        from hermes_cli.plugins import get_plugin_manager
+                        from jarvis_cli.plugins import get_plugin_manager
                         for p in get_plugin_manager().list_plugins():
                             loaded[p["name"]] = p
                     except Exception:
@@ -7826,8 +7826,8 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                         error = f" — {info['error']}" if info.get("error") else ""
                         print(f"  {glyph} {name}{ver}{label}{detail}{error}")
                     if bundled_count:
-                        print(f"  (+{bundled_count} bundled — see: hermes plugins list)")
-                    print("  Enable/disable: hermes plugins enable/disable <name>")
+                        print(f"  (+{bundled_count} bundled — see: jarvis plugins list)")
+                    print("  Enable/disable: jarvis plugins enable/disable <name>")
             except Exception as e:
                 print(f"Plugin system error: {e}")
         elif canonical == "rollback":
@@ -7900,7 +7900,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     if exec_cmd:
                         try:
                             # shell=True is intentional: quick_commands are user-defined
-                            # shell snippets from config.yaml — not agent/LLM controlled.
+                            # shell snippets from config.yaml — not brain/LLM controlled.
                             result = subprocess.run(
                                 exec_cmd, shell=True, capture_output=True,
                                 text=True, timeout=30
@@ -7929,7 +7929,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     self._console_print(f"[bold red]Quick command '{base_cmd}' has unsupported type (supported: 'exec', 'alias')[/]")
             # Check for plugin-registered slash commands
             elif base_cmd.lstrip("/") in _get_plugin_cmd_handler_names():
-                from hermes_cli.plugins import (
+                from jarvis_cli.plugins import (
                     get_plugin_command_handler,
                     resolve_plugin_command_result,
                 )
@@ -7985,7 +7985,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 # Prefix matching: if input uniquely identifies one command, execute it.
                 # Matches against both built-in COMMANDS and installed skill commands so
                 # that execution-time resolution agrees with tab-completion.
-                from hermes_cli.commands import COMMANDS
+                from jarvis_cli.commands import COMMANDS
                 typed_base = cmd_lower.split()[0]
                 all_known = set(COMMANDS) | set(skill_commands) | set(skill_bundles)
                 matches = [c for c in all_known if c.startswith(typed_base)]
@@ -8049,8 +8049,8 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         session split).
         """
         try:
-            from hermes_cli.goals import GoalManager
-            from hermes_cli.config import load_config
+            from jarvis_cli.goals import GoalManager
+            from jarvis_cli.config import load_config
         except Exception as exc:
             logging.debug("goal manager unavailable: %s", exc)
             return None
@@ -8222,7 +8222,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # prompt_toolkit's renderer.  self.console.print() with Rich markup
         # writes directly to stdout which patch_stdout's StdoutProxy mangles
         # into garbled sequences like '?[33mTool progress: NEW?[0m' (#2262).
-        from hermes_cli.colors import Colors as _Colors
+        from jarvis_cli.colors import Colors as _Colors
         labels = {
             "off": f"{_Colors.DIM}Tool progress: OFF{_Colors.RESET} — silent mode, just the final response.",
             "new": f"{_Colors.YELLOW}Tool progress: NEW{_Colors.RESET} — show each new tool (skip repeats).",
@@ -8266,7 +8266,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         ``enable_session_yolo`` / ``disable_session_yolo`` write to) so the
         status bar reflects the actual bypass state instead of a stale env
         var. Also honors the process-start ``--yolo`` flag, which freezes
-        ``HERMES_YOLO_MODE`` into ``_YOLO_MODE_FROZEN`` before tool imports
+        ``JARVIS_YOLO_MODE`` into ``_YOLO_MODE_FROZEN`` before tool imports
         happen.
         """
         try:
@@ -8291,7 +8291,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         Per-session toggle that mirrors the gateway and TUI ``/yolo`` handlers
         (see ``gateway/run.py:_handle_yolo_command`` and
         ``tui_gateway/server.py`` key=="yolo"). We deliberately do NOT mutate
-        ``HERMES_YOLO_MODE`` here — that env var is read once at module import
+        ``JARVIS_YOLO_MODE`` here — that env var is read once at module import
         time into ``tools.approval._YOLO_MODE_FROZEN`` to keep prompt-injected
         skills from flipping the bypass mid-session, so setting it after CLI
         startup is a silent no-op. Routing through ``enable_session_yolo`` /
@@ -8301,7 +8301,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         ``set_current_session_key`` so the bypass takes effect on the very
         next dangerous command in this run.
         """
-        from hermes_cli.colors import Colors as _Colors
+        from jarvis_cli.colors import Colors as _Colors
         from tools.approval import (
             disable_session_yolo,
             enable_session_yolo,
@@ -8362,7 +8362,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             print("(._.) Compression is disabled in config.")
             return
 
-        from hermes_cli.partial_compress import (
+        from jarvis_cli.partial_compress import (
             parse_partial_compress_args,
             rejoin_compressed_head_and_tail,
             split_history_for_partial_compress,
@@ -8381,8 +8381,8 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         original_count = len(self.conversation_history)
         with self._busy_command("Compressing context..."):
             try:
-                from agent.model_metadata import estimate_request_tokens_rough
-                from agent.manual_compression_feedback import summarize_manual_compression
+                from brain.model_metadata import estimate_request_tokens_rough
+                from brain.manual_compression_feedback import summarize_manual_compression
                 original_history = list(self.conversation_history)
 
                 # Boundary-aware split: only the head is summarized; the
@@ -8445,7 +8445,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     compressed = rejoin_compressed_head_and_tail(compressed, tail)
                 self.conversation_history = compressed
                 # _compress_context ends the old session and creates a new child
-                # session on the agent (run_agent.py::_compress_context). Sync the
+                # session on the agent (run_brain.py::_compress_context). Sync the
                 # CLI's session_id so /status, /resume, exit summary, and title
                 # generation all point at the live continuation session, not the
                 # ended parent. Without this, subsequent end_session() calls target
@@ -8506,7 +8506,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # ── Rate limits (shown first when available) ────────────────
         rl_state = agent.get_rate_limit_state()
         if rl_state and rl_state.has_data:
-            from agent.rate_limit_tracker import format_rate_limit_display
+            from brain.rate_limit_tracker import format_rate_limit_display
             print()
             print(format_rate_limit_display(rl_state))
             print()
@@ -8577,7 +8577,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         base_url = getattr(agent, "base_url", None) or getattr(self, "base_url", None)
         api_key = getattr(agent, "api_key", None) or getattr(self, "api_key", None)
         # Lazy import — pulls the OpenAI SDK chain, only needed here.
-        from agent.account_usage import fetch_account_usage, render_account_usage_lines
+        from brain.account_usage import fetch_account_usage, render_account_usage_lines
         account_snapshot = None
         if provider:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _pool:
@@ -8605,11 +8605,11 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         else:
             logging.getLogger().setLevel(logging.INFO)
             # NOTE: We deliberately do NOT raise per-logger levels for
-            # tools/run_agent/etc. in quiet mode. Setting logger.setLevel
+            # tools/run_brain/etc. in quiet mode. Setting logger.setLevel
             # above the file handler level filters records before they
-            # reach handlers, so agent.log / errors.log lose visibility
+            # reach handlers, so brain.log / errors.log lose visibility
             # into stream-retry events, credential rotations, etc.
-            # Console quietness is enforced by hermes_logging not
+            # Console quietness is enforced by jarvis_logging not
             # installing a console StreamHandler in non-verbose mode.
 
     def _print_nous_credits_block(self) -> bool:
@@ -8621,10 +8621,10 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         It's agent-independent (a portal fetch gated on "a Nous account is logged in",
         NOT the inference-provider string), so /usage shows the block even in the TUI
         slash-worker subprocess that resumes WITHOUT a live agent. Fail-open and
-        wall-clock-bounded inside the helper; also honors HERMES_DEV_CREDITS_FIXTURE
+        wall-clock-bounded inside the helper; also honors JARVIS_DEV_CREDITS_FIXTURE
         for offline testing — same behavior as every other surface.
         """
-        from agent.account_usage import nous_credits_lines
+        from brain.account_usage import nous_credits_lines
 
         lines = nous_credits_lines()
         if not lines:
@@ -8646,14 +8646,14 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         2a). Fail-open: a portal hiccup or logged-out account degrades to a clear
         message, never a crash.
         """
-        from agent.account_usage import build_credits_view
+        from brain.account_usage import build_credits_view
 
         view = build_credits_view()
 
         if not view.logged_in:
             print()
             _cprint(f"  💳 {_d('Not logged into Nous Portal.')}")
-            print("  Run `hermes portal` to log in, then /credits.")
+            print("  Run `jarvis portal` to log in, then /credits.")
             return
 
         print()
@@ -8732,7 +8732,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         prompting (the URL is the affordance), same discipline as ``_show_credits``.
         All money is Decimal end-to-end; the terminal never collects card details.
         """
-        from agent.billing_view import build_billing_state
+        from brain.billing_view import build_billing_state
 
         state = build_billing_state()
         if not state.logged_in:
@@ -8742,7 +8742,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 _cprint(f"  💳 {_d(_msg)}")
             else:
                 _cprint(f"  💳 {_d('Not logged into Nous Portal.')}")
-                print("  Run `hermes portal` to log in, then /billing.")
+                print("  Run `jarvis portal` to log in, then /billing.")
             return
 
         # Any sub-arg is intentionally ignored — always open the menu.
@@ -8759,7 +8759,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
     def _billing_overview(self, state):
         """Screen 1 — overview: balance, spend bar, role-gated action menu."""
-        from agent.billing_view import format_money
+        from brain.billing_view import format_money
 
         print()
         _cprint(f"  💳 {_b('Usage credits')}")
@@ -8899,7 +8899,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
     def _billing_buy_flow(self, state):
         """Screen 2 (preset select) → Screen 3 (confirm + charge + poll)."""
-        from agent.billing_view import format_money, validate_charge_amount
+        from brain.billing_view import format_money, validate_charge_amount
 
         if not self._billing_require_admin(state):
             return
@@ -8956,7 +8956,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
     def _billing_confirm_and_charge(self, state, amount):
         """Screen 3 — confirm total + consent, charge, then poll to settlement."""
-        from agent.billing_view import format_money, new_idempotency_key
+        from brain.billing_view import format_money, new_idempotency_key
 
         card = state.card
         print()
@@ -8989,7 +8989,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             return
 
         # Submit the charge with a fresh idempotency key (reused on retry).
-        from hermes_cli.nous_billing import (
+        from jarvis_cli.nous_billing import (
             BillingError,
             BillingScopeRequired,
             post_charge,
@@ -9016,8 +9016,8 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         """Poll loop: 2s interval, 5-min cap, cancellable. settled = ledger truth."""
         import time as _time
 
-        from agent.billing_view import format_money
-        from hermes_cli.nous_billing import (
+        from brain.billing_view import format_money
+        from jarvis_cli.nous_billing import (
             BillingError,
             BillingRateLimited,
             get_charge_status,
@@ -9040,7 +9040,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             state_str = status.get("status")
             if state_str == "settled":
                 amt = status.get("amountUsd")
-                from agent.billing_view import parse_money
+                from brain.billing_view import parse_money
 
                 shown = format_money(parse_money(amt)) if amt else format_money(amount)
                 print(f"  ✅ {shown} in credits added.")
@@ -9072,7 +9072,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
     def _billing_render_charge_error(self, state, exc):
         """Render a typed BillingError at submit time (pre-poll)."""
-        from hermes_cli.nous_billing import BillingRateLimited
+        from jarvis_cli.nous_billing import BillingRateLimited
 
         code = getattr(exc, "error", None)
         portal_url = getattr(exc, "portal_url", None) or getattr(state, "portal_url", None)
@@ -9106,7 +9106,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         )
         _cprint(f"  {_d(_scope_msg)}")
         if not getattr(self, "_app", None):
-            print("  Run `hermes portal` and approve terminal billing, then retry.")
+            print("  Run `jarvis portal` and approve terminal billing, then retry.")
             return
         confirm_choices = [
             ("yes", "Re-authorize now", "open the portal to grant billing access"),
@@ -9122,7 +9122,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             print("  🟡 Cancelled.")
             return
         try:
-            from hermes_cli.auth import step_up_nous_billing_scope
+            from jarvis_cli.auth import step_up_nous_billing_scope
 
             granted = step_up_nous_billing_scope(open_browser=True)
         except Exception as exc:
@@ -9134,7 +9134,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             # kill-switch (cli_billing_enabled) is a separate gate. Re-fetch
             # /state so we don't over-promise when a charge would still hit
             # cli_billing_disabled.
-            from agent.billing_view import build_billing_state
+            from brain.billing_view import build_billing_state
 
             fresh = build_billing_state()
             if fresh.logged_in and fresh.cli_billing_enabled:
@@ -9153,7 +9153,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         amounts (2dp, within bounds, ``reload_to > threshold``). When auto-reload
         is already on, offers a "Turn off" path (PATCH ``enabled:false``).
         """
-        from agent.billing_view import format_money, validate_charge_amount
+        from brain.billing_view import format_money, validate_charge_amount
 
         if not self._billing_require_admin(state):
             return
@@ -9270,7 +9270,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             print("  🟡 Cancelled.")
             return
 
-        from hermes_cli.nous_billing import (
+        from jarvis_cli.nous_billing import (
             BillingError,
             BillingScopeRequired,
             patch_auto_top_up,
@@ -9295,7 +9295,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         The endpoint requires ``threshold``/``topUpAmount`` in the body even when
         disabling, so we echo back the current values (falling back to 0).
         """
-        from hermes_cli.nous_billing import (
+        from jarvis_cli.nous_billing import (
             BillingError,
             BillingScopeRequired,
             patch_auto_top_up,
@@ -9316,7 +9316,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
     def _billing_limit_screen(self, state):
         """Screen 5 — monthly spend limit (read-only; cap is portal-only)."""
-        from agent.billing_view import format_money
+        from brain.billing_view import format_money
 
         print()
         _cprint(f"  💳 {_b('Monthly spend limit')}")
@@ -9361,8 +9361,8 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 i += 1
 
         try:
-            from hermes_state import SessionDB
-            from agent.insights import InsightsEngine
+            from jarvis_state import SessionDB
+            from brain.insights import InsightsEngine
 
             db = SessionDB()
             engine = InsightsEngine(db)
@@ -9389,7 +9389,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             return
         self._last_config_check = now
 
-        from hermes_cli.config import get_config_path as _get_config_path
+        from jarvis_cli.config import get_config_path as _get_config_path
         cfg_path = _get_config_path()
         if not cfg_path.exists():
             return
@@ -9725,7 +9725,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             print(f"  ❌ MCP reload failed: {e}")
 
     def _reload_skills(self) -> None:
-        """Reload skills: rescan ~/.hermes/skills/ and queue a note for the
+        """Reload skills: rescan ~/.jarvis/skills/ and queue a note for the
         next user turn.
 
         Skills don't need to live in the system prompt for the model to use
@@ -9738,7 +9738,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         prompt caching intact.
         """
         try:
-            from agent.skill_commands import reload_skills, get_skill_commands
+            from brain.skill_commands import reload_skills, get_skill_commands
 
             if not self._command_running:
                 print("🔄 Reloading skills...")
@@ -9818,7 +9818,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             self._stream_box_opened = False
         self._close_reasoning_box()
 
-        from agent.display import get_tool_emoji
+        from brain.display import get_tool_emoji
         emoji = get_tool_emoji(tool_name, default="⚡")
         _cprint(f"  ┊ {emoji} preparing {tool_name}…")
 
@@ -9858,7 +9858,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     return
                 self._last_scrollback_tool = function_name
                 try:
-                    from agent.display import get_cute_tool_message
+                    from brain.display import get_cute_tool_message
                     line = get_cute_tool_message(function_name, stored_args, duration, result=kwargs.get("result"))
                     _cprint(f"  {line}")
                 except Exception:
@@ -9875,7 +9875,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                         and self.tool_progress_mode == "all"
                         and duration >= 30.0
                     ):
-                        from agent.onboarding import (
+                        from brain.onboarding import (
                             TOOL_PROGRESS_FLAG,
                             is_seen,
                             mark_seen,
@@ -9884,7 +9884,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                         if not is_seen(CLI_CONFIG, TOOL_PROGRESS_FLAG):
                             self._long_tool_hint_fired = True
                             _cprint(f"  {_DIM}{tool_progress_hint_cli()}{_RST}")
-                            mark_seen(_hermes_home / "config.yaml", TOOL_PROGRESS_FLAG)
+                            mark_seen(_jarvis_home / "config.yaml", TOOL_PROGRESS_FLAG)
                             CLI_CONFIG.setdefault("onboarding", {}).setdefault("seen", {})[TOOL_PROGRESS_FLAG] = True
                 except Exception:
                     pass
@@ -9893,10 +9893,10 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         if event_type != "tool.started":
             return
         if function_name and not function_name.startswith("_"):
-            from agent.display import get_tool_emoji
+            from brain.display import get_tool_emoji
             emoji = get_tool_emoji(function_name)
             label = preview or function_name
-            from agent.display import get_tool_preview_max_len
+            from brain.display import get_tool_preview_max_len
             _pl = get_tool_preview_max_len()
             if _pl > 0 and len(label) > _pl:
                 label = label[:_pl - 3] + "..."
@@ -9911,7 +9911,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
     def _on_tool_start(self, tool_call_id: str, function_name: str, function_args: dict):
         """Capture local before-state for write-capable tools."""
         try:
-            from agent.display import capture_local_edit_snapshot
+            from brain.display import capture_local_edit_snapshot
 
             snapshot = capture_local_edit_snapshot(function_name, function_args)
             if snapshot is not None:
@@ -9923,7 +9923,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         """Render file edits with inline diff after write-capable tools complete."""
         snapshot = self._pending_edit_snapshots.pop(tool_call_id, None)
         try:
-            from agent.display import render_edit_diff_with_delta
+            from brain.display import render_edit_diff_with_delta
 
             render_edit_diff_with_delta(
                 function_name,
@@ -9986,7 +9986,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # instead of crashing on ``.get()``.
         voice_cfg: dict = {}
         try:
-            from hermes_cli.config import load_config
+            from jarvis_cli.config import load_config
             _cfg = load_config().get("voice")
             voice_cfg = _cfg if isinstance(_cfg, dict) else {}
         except Exception:
@@ -10097,7 +10097,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             # Get STT model from config
             stt_model = None
             try:
-                from hermes_cli.config import load_config
+                from jarvis_cli.config import load_config
                 stt_config = load_config().get("stt", {})
                 stt_model = stt_config.get("model")
             except Exception:
@@ -10202,9 +10202,9 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
             # Use MP3 output for CLI playback (afplay doesn't handle OGG well).
             # The TTS tool may auto-convert MP3->OGG, but the original MP3 remains.
-            os.makedirs(os.path.join(tempfile.gettempdir(), "hermes_voice"), exist_ok=True)
+            os.makedirs(os.path.join(tempfile.gettempdir(), "jarvis_voice"), exist_ok=True)
             mp3_path = os.path.join(
-                tempfile.gettempdir(), "hermes_voice",
+                tempfile.gettempdir(), "jarvis_voice",
                 f"tts_{time.strftime('%Y%m%d_%H%M%S')}.mp3",
             )
 
@@ -10231,7 +10231,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
     def _voice_beeps_enabled(self) -> bool:
         """Return whether CLI voice mode should play record start/stop beeps."""
         try:
-            from hermes_cli.config import load_config
+            from jarvis_cli.config import load_config
             voice_cfg = load_config().get("voice", {})
             if isinstance(voice_cfg, dict):
                 return bool(voice_cfg.get("beep_enabled", True))
@@ -10275,7 +10275,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # Check config for auto_tts (shape-safe — malformed ``voice:`` YAML
         # leaves ``voice_config`` as a non-dict, so guard before .get()).
         try:
-            from hermes_cli.config import load_config
+            from jarvis_cli.config import load_config
             _raw_voice = load_config().get("voice")
             voice_config = _raw_voice if isinstance(_raw_voice, dict) else {}
             if voice_config.get("auto_tts", False):
@@ -10893,14 +10893,14 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         #            translate for Anthropic/Gemini/Bedrock).
         # "text"   → pre-analyze each image with vision_analyze and prepend the
         #            description as text — works with non-vision models.
-        # See agent/image_routing.py for the decision table.
+        # See brain/image_routing.py for the decision table.
         if images:
             try:
-                from agent.image_routing import (
+                from brain.image_routing import (
                     build_native_content_parts,
                     decide_image_input_mode,
                 )
-                from hermes_cli.config import load_config
+                from jarvis_cli.config import load_config
 
                 _img_mode = decide_image_input_mode(
                     (self.provider or "").strip(),
@@ -10948,8 +10948,8 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # Expand @ context references (e.g. @file:main.py, @diff, @folder:src/)
         if isinstance(message, str) and "@" in message:
             try:
-                from agent.context_references import preprocess_context_references
-                from agent.model_metadata import get_model_context_length
+                from brain.context_references import preprocess_context_references
+                from brain.model_metadata import get_model_context_length
                 _ctx_len = get_model_context_length(
                     self.model, base_url=self.base_url or "", api_key=self.api_key or "",
                     config_context_length=getattr(self.agent, "_config_context_length", None) if self.agent else None)
@@ -10972,7 +10972,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # rich-text editors (Google Docs, Word, etc.).  Lone surrogates are invalid
         # UTF-8 and crash JSON serialization in the OpenAI SDK.
         if isinstance(message, str):
-            from run_agent import _sanitize_surrogates
+            from run_brain import _sanitize_surrogates
             message = _sanitize_surrogates(message)
 
         # Add user message to history
@@ -11033,10 +11033,10 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     if not _streaming_box_opened:
                         _streaming_box_opened = True
                         w = self._scrollback_box_width(getattr(self.console, "width", 80))
-                        label = " ⚕ Hermes "
+                        label = " ⚕ Jarvis "
                         if self.show_timestamps:
                             label = f"{label}{datetime.now().strftime('%H:%M')} "
-                        fill = w - 2 - HermesCLI._status_bar_display_width(label)
+                        fill = w - 2 - JarvisCLI._status_bar_display_width(label)
                         _cprint(f"\n{_ACCENT}╭─{label}{'─' * max(fill - 1, 0)}╮{_RST}")
                     _cprint(f"{_STREAM_PAD}{sentence.rstrip()}")
 
@@ -11062,7 +11062,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     "2-3 sentences max. No code blocks or markdown.] "
                 )
 
-            def run_agent():
+            def run_brain():
                 nonlocal result
                 # Set callbacks inside the agent thread so thread-local storage
                 # in terminal_tool is populated for this thread.  The main thread
@@ -11159,7 +11159,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             # finishes; reset on the next turn.
             self._prompt_start_time = time.time()
             self._prompt_duration = 0.0
-            agent_thread = threading.Thread(target=run_agent, daemon=True)
+            agent_thread = threading.Thread(target=run_brain, daemon=True)
             agent_thread.start()
 
             # Monitor the dedicated interrupt queue while the agent runs.
@@ -11186,7 +11186,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                             self.agent.interrupt(interrupt_msg)
                             # Debug: log to file (stdout may be devnull from redirect_stdout)
                             try:
-                                _dbg = _hermes_home / "interrupt_debug.log"
+                                _dbg = _jarvis_home / "interrupt_debug.log"
                                 with open(_dbg, "a", encoding="utf-8") as _f:
                                     _f.write(f"{time.strftime('%H:%M:%S')} interrupt fired: msg={str(interrupt_msg)[:60]!r}, "
                                              f"children={len(self.agent._active_children)}, "
@@ -11249,7 +11249,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             # to a per-thread event loop; if that loop is now closed, those
             # clients' __del__ would crash prompt_toolkit's loop on GC.
             try:
-                from agent.auxiliary_client import cleanup_stale_async_clients
+                from brain.auxiliary_client import cleanup_stale_async_clients
                 cleanup_stale_async_clients()
             except Exception:
                 pass
@@ -11294,7 +11294,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             # Auto-generate session title after first exchange (non-blocking)
             if response and result and not result.get("failed") and not result.get("partial"):
                 try:
-                    from agent.title_generator import maybe_auto_title
+                    from brain.title_generator import maybe_auto_title
                     # Route title-generation failures through the agent's
                     # user-visible warning channel so a depleted auxiliary
                     # provider doesn't silently leave sessions untitled
@@ -11373,13 +11373,13 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             if response and not response_previewed:
                 # Use skin engine for label/color with fallback
                 try:
-                    from hermes_cli.skin_engine import get_active_skin
+                    from jarvis_cli.skin_engine import get_active_skin
                     _skin = get_active_skin()
-                    label = _skin.get_branding("response_label", "⚕ Hermes")
+                    label = _skin.get_branding("response_label", "⚕ Jarvis")
                     _resp_color = _maybe_remap_for_light_mode(_skin.get_color("response_border", "#CD7F32"))
                     _resp_text = _maybe_remap_for_light_mode(_skin.get_color("banner_text", "#FFF8DC"))
                 except Exception:
-                    label = "⚕ Hermes"
+                    label = "⚕ Jarvis"
                     _resp_color = _maybe_remap_for_light_mode("#CD7F32")
                     _resp_text = _maybe_remap_for_light_mode("#FFF8DC")
 
@@ -11556,18 +11556,18 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             # include `-p <profile>` for non-default profiles. Without this,
             # copying the hint from a non-default profile fails to find the
             # session on the next invocation. The "default" and "custom"
-            # profile names use the standard HERMES_HOME, so no -p needed.
+            # profile names use the standard JARVIS_HOME, so no -p needed.
             try:
-                from hermes_cli.profiles import get_active_profile_name
+                from jarvis_cli.profiles import get_active_profile_name
                 _active_profile = get_active_profile_name()
             except Exception:
                 _active_profile = "default"
             profile_flag = (
                 "" if _active_profile in ("default", "custom") else f" -p {_active_profile}"
             )
-            print(f"  hermes --resume {self.session_id}{profile_flag}")
+            print(f"  jarvis --resume {self.session_id}{profile_flag}")
             if session_title:
-                print(f"  hermes -c \"{session_title}\"{profile_flag}")
+                print(f"  jarvis -c \"{session_title}\"{profile_flag}")
             print()
             print(f"Session:        {self.session_id}")
             if session_title:
@@ -11576,7 +11576,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             print(f"Messages:       {msg_count} ({user_msgs} user, {tool_calls} tool calls)")
         else:
             try:
-                from hermes_cli.skin_engine import get_active_goodbye
+                from jarvis_cli.skin_engine import get_active_goodbye
                 goodbye = get_active_goodbye("Goodbye! ⚕")
             except Exception:
                 goodbye = "Goodbye! ⚕"
@@ -11593,7 +11593,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         prepended to the prompt symbol: ``coder ❯`` instead of ``❯``.
         """
         try:
-            from hermes_cli.skin_engine import get_active_prompt_symbol
+            from jarvis_cli.skin_engine import get_active_prompt_symbol
             symbol = get_active_prompt_symbol("❯ ")
         except Exception:
             symbol = "❯ "
@@ -11602,7 +11602,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 
         # Prepend profile name when not default
         try:
-            from hermes_cli.profiles import get_active_profile_name
+            from jarvis_cli.profiles import get_active_profile_name
             profile = get_active_profile_name()
             if profile not in {"default", "custom"}:
                 symbol = f"{profile} {symbol}"
@@ -11687,7 +11687,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         """
         style_dict = dict(getattr(self, "_tui_style_base", {}) or {})
         try:
-            from hermes_cli.skin_engine import get_prompt_toolkit_style_overrides
+            from jarvis_cli.skin_engine import get_prompt_toolkit_style_overrides
             style_dict.update(get_prompt_toolkit_style_overrides())
         except Exception:
             pass
@@ -11837,12 +11837,12 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 self._display_resumed_history()
 
         try:
-            from hermes_cli.skin_engine import get_active_skin
+            from jarvis_cli.skin_engine import get_active_skin
             _welcome_skin = get_active_skin()
-            _welcome_text = _welcome_skin.get_branding("welcome", "Welcome to Hermes Agent! Type your message or /help for commands.")
+            _welcome_text = _welcome_skin.get_branding("welcome", "Welcome to Jarvis! Type your message or /help for commands.")
             _welcome_color = _welcome_skin.get_color("banner_text", "#FFF8DC")
         except Exception:
-            _welcome_text = "Welcome to Hermes Agent! Type your message or /help for commands."
+            _welcome_text = "Welcome to Jarvis! Type your message or /help for commands."
             _welcome_color = "#FFF8DC"
         self._console_print(f"[{_welcome_color}]{_welcome_text}[/]")
 
@@ -11851,7 +11851,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # otherwise blocks ~1-2s on serial /v1/models fetches the first time
         # it's opened in a session. Fire-and-forget, guarded once-per-process.
         try:
-            from hermes_cli.model_switch import prewarm_picker_cache_async
+            from jarvis_cli.model_switch import prewarm_picker_cache_async
             prewarm_picker_cache_async()
         except Exception:
             pass
@@ -11861,11 +11861,11 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # won't affect the running process — we just want the operator to
         # see that they're running without the safety net.
         try:
-            _redact_raw = os.getenv("HERMES_REDACT_SECRETS", "true")
+            _redact_raw = os.getenv("JARVIS_REDACT_SECRETS", "true")
             if _redact_raw.lower() not in {"1", "true", "yes", "on"}:
                 self._console_print(
                     "[bold red]⚠  Secret redaction is DISABLED[/] "
-                    f"(HERMES_REDACT_SECRETS={_redact_raw}). "
+                    f"(JARVIS_REDACT_SECRETS={_redact_raw}). "
                     "API keys and tokens may appear verbatim in chat output, "
                     "session JSONs, and logs. Set "
                     "[cyan]security.redact_secrets: true[/] in config.yaml "
@@ -11874,10 +11874,10 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         except Exception:
             pass
         # First-time OpenClaw-residue banner — fires once if ~/.openclaw/ exists
-        # after an OpenClaw→Hermes migration (especially migrations done by
+        # after an OpenClaw→Jarvis migration (especially migrations done by
         # OpenClaw's own tool, which doesn't archive the source directory).
         try:
-            from agent.onboarding import (
+            from brain.onboarding import (
                 OPENCLAW_RESIDUE_FLAG,
                 detect_openclaw_residue,
                 is_seen,
@@ -11891,7 +11891,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     _resid_color = "#B8860B"
                 self._console_print(f"[{_resid_color}]{openclaw_residue_hint_cli()}[/]")
                 try:
-                    from hermes_cli.config import get_config_path as _get_cfg_path_resid
+                    from jarvis_cli.config import get_config_path as _get_cfg_path_resid
                     mark_seen(_get_cfg_path_resid(), OPENCLAW_RESIDUE_FLAG)
                 except Exception:
                     pass  # best-effort — banner will fire again next session
@@ -11899,7 +11899,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             pass  # banner is non-critical — never break startup
         # Show a random tip to help users discover features
         try:
-            from hermes_cli.tips import get_random_tip
+            from jarvis_cli.tips import get_random_tip
             _tip = get_random_tip()
             try:
                 _tip_color = _welcome_skin.get_color("banner_dim", "#B8860B")
@@ -11914,7 +11914,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # never blocks the interactive loop.  Best-effort; any failure is
         # swallowed to avoid breaking session startup.
         try:
-            from agent.curator import maybe_run_curator
+            from brain.curator import maybe_run_curator
             maybe_run_curator(
                 idle_for_seconds=float("inf"),  # CLI startup = fully idle
                 on_summary=lambda msg: self._console_print(
@@ -11942,11 +11942,11 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         self._last_ctrl_c_time = 0  # Track double Ctrl+C for force exit
 
         # Give plugin manager a CLI reference so plugins can inject messages
-        from hermes_cli.plugins import get_plugin_manager
+        from jarvis_cli.plugins import get_plugin_manager
         get_plugin_manager()._cli_ref = self
 
         # Config file watcher — detect mcp_servers changes and auto-reload
-        from hermes_cli.config import get_config_path as _get_config_path
+        from jarvis_cli.config import get_config_path as _get_config_path
         _cfg_path = _get_config_path()
         self._config_mtime: float = _cfg_path.stat().st_mtime if _cfg_path.exists() else 0.0
         self._config_mcp_servers: dict = self.config.get("mcp_servers") or {}
@@ -11999,10 +11999,10 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         self._voice_tts_done = threading.Event()  # Signals TTS playback finished
         self._voice_tts_done.set()  # Initially "done" (no TTS pending)
 
-        if os.environ.get("HERMES_DEFER_AGENT_STARTUP") != "1":
+        if os.environ.get("JARVIS_DEFER_AGENT_STARTUP") != "1":
             self._install_tool_callbacks()
 
-        if os.environ.get("HERMES_DEFER_AGENT_STARTUP") != "1":
+        if os.environ.get("JARVIS_DEFER_AGENT_STARTUP") != "1":
             self._ensure_tirith_security()
         
         # Key bindings for the input area
@@ -12014,7 +12014,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         def handle_ignored_terminal_sequence(event):
             """Consume parser-level ignored terminal sequences before self-insert.
 
-            install_ignored_terminal_sequences() in hermes_cli.pt_input_extras
+            install_ignored_terminal_sequences() in jarvis_cli.pt_input_extras
             registers focus reports (CSI I / CSI O) as Keys.Ignore at the
             VT100 parser level. Without this no-op binding the default
             self-insert path would still fire and the bytes would land in
@@ -12076,7 +12076,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 try:
                     # Picker selections persist by default (same default as
                     # /model <name>); honour model.persist_switch_by_default.
-                    from hermes_cli.model_switch import resolve_persist_behavior
+                    from jarvis_cli.model_switch import resolve_persist_behavior
 
                     self._handle_model_picker_selection(
                         persist_global=resolve_persist_behavior(False, False)
@@ -12191,7 +12191,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                         self._interrupt_queue.put(payload)
                         # Debug: log to file when message enters interrupt queue
                         try:
-                            _dbg = _hermes_home / "interrupt_debug.log"
+                            _dbg = _jarvis_home / "interrupt_debug.log"
                             with open(_dbg, "a", encoding="utf-8") as _f:
                                 _f.write(f"{time.strftime('%H:%M:%S')} ENTER: queued interrupt msg={str(payload)[:60]!r}, "
                                          f"agent_running={self._agent_running}\n")
@@ -12203,7 +12203,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     # again.  Guarded for exceptions so onboarding can't break
                     # the input loop.
                     try:
-                        from agent.onboarding import (
+                        from brain.onboarding import (
                             BUSY_INPUT_FLAG,
                             busy_input_hint_cli,
                             is_seen,
@@ -12211,7 +12211,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                         )
                         if not is_seen(CLI_CONFIG, BUSY_INPUT_FLAG):
                             _cprint(f"  {_DIM}{busy_input_hint_cli(self.busy_input_mode)}{_RST}")
-                            mark_seen(_hermes_home / "config.yaml", BUSY_INPUT_FLAG)
+                            mark_seen(_jarvis_home / "config.yaml", BUSY_INPUT_FLAG)
                             CLI_CONFIG.setdefault("onboarding", {}).setdefault("seen", {})[BUSY_INPUT_FLAG] = True
                     except Exception:
                         pass
@@ -12244,7 +12244,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 without requiring terminal settings changes. Ctrl+J (the raw
                 LF keystroke) also triggers this by virtue of being the same
                 key code — a harmless side effect since Ctrl+J has no
-                conflicting Hermes binding. See issue #22379.
+                conflicting Jarvis binding. See issue #22379.
                 """
                 event.current_buffer.insert_text('\n')
 
@@ -12685,8 +12685,8 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 return
             import signal as _sig
             from prompt_toolkit.application import run_in_terminal
-            from hermes_cli.skin_engine import get_active_skin
-            agent_name = get_active_skin().get_branding("agent_name", "Hermes Agent")
+            from jarvis_cli.skin_engine import get_active_skin
+            agent_name = get_active_skin().get_branding("agent_name", "Jarvis")
             msg = f"\n{agent_name} has been suspended. Run `fg` to bring {agent_name} back."
             def _suspend():
                 os.write(1, msg.encode())
@@ -12704,8 +12704,8 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # TUI/CLI split instead of a silent mismatch (round-11).
         _raw_key: object = "ctrl+b"
         try:
-            from hermes_cli.config import load_config
-            from hermes_cli.voice import (
+            from jarvis_cli.config import load_config
+            from jarvis_cli.voice import (
                 normalize_voice_record_key_for_prompt_toolkit,
                 voice_record_key_from_config,
             )
@@ -12824,7 +12824,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 event.app.invalidate()
             if pasted_text:
                 # Sanitize surrogate characters (e.g. from Word/Google Docs paste) before writing
-                from run_agent import _sanitize_surrogates
+                from run_brain import _sanitize_surrogates
                 pasted_text = _sanitize_surrogates(pasted_text)
                 line_count = pasted_text.count('\n')
                 buf = event.current_buffer
@@ -12834,7 +12834,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 chars_hit = char_threshold > 0 and len(pasted_text) >= char_threshold
                 if (lines_hit or chars_hit) and not buf.text.strip().startswith('/'):
                     _paste_counter[0] += 1
-                    paste_dir = _hermes_home / "pastes"
+                    paste_dir = _jarvis_home / "pastes"
                     paste_dir.mkdir(parents=True, exist_ok=True)
                     paste_file = paste_dir / f"paste_{_paste_counter[0]}_{datetime.now().strftime('%H%M%S')}.txt"
                     paste_file.write_text(pasted_text, encoding="utf-8")
@@ -12889,7 +12889,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 # No image found — show a hint
                 pass  # silent when no image (avoid noise on accidental press)
 
-        # Dynamic prompt: shows Hermes symbol when agent is working,
+        # Dynamic prompt: shows Jarvis symbol when agent is working,
         # or answer prompt when clarify freetext mode is active.
         cli_ref = self
 
@@ -13005,7 +13005,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             chars_hit = char_threshold > 0 and len(text) >= char_threshold
             if (lines_hit or chars_hit) and is_paste and not text.startswith('/'):
                 _paste_counter[0] += 1
-                paste_dir = _hermes_home / "pastes"
+                paste_dir = _jarvis_home / "pastes"
                 paste_dir.mkdir(parents=True, exist_ok=True)
                 paste_file = paste_dir / f"paste_{_paste_counter[0]}_{datetime.now().strftime('%H%M%S')}.txt"
                 paste_file.write_text(text, encoding="utf-8")
@@ -13223,7 +13223,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 else f"  {other_num_prefix}. Other (type your answer)"
             )
             preview_lines.extend(_wrap_panel_text(other_label, 60, subsequent_indent="    "))
-            box_width = _panel_box_width("Hermes needs your input", preview_lines)
+            box_width = _panel_box_width("Jarvis needs your input", preview_lines)
             inner_text_width = max(8, box_width - 2)
 
             # Pre-wrap choices + Other option — these are mandatory.
@@ -13318,8 +13318,8 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             lines = []
             # Box top border
             lines.append(('class:clarify-border', '╭─ '))
-            lines.append(('class:clarify-title', 'Hermes needs your input'))
-            lines.append(('class:clarify-border', ' ' + ('─' * max(0, box_width - len("Hermes needs your input") - 3)) + '╮\n'))
+            lines.append(('class:clarify-title', 'Jarvis needs your input'))
+            lines.append(('class:clarify-border', ' ' + ('─' * max(0, box_width - len("Jarvis needs your input") - 3)) + '╮\n'))
             if not use_compact_chrome:
                 _append_blank_panel_line(lines, 'class:clarify-border', box_width)
 
@@ -13502,7 +13502,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 term_rows = get_app().output.get_size().rows
             except Exception:
                 term_rows = shutil.get_terminal_size((100, 24)).lines
-            scroll_offset, visible = HermesCLI._compute_model_picker_viewport(
+            scroll_offset, visible = JarvisCLI._compute_model_picker_viewport(
                 selected, state.get("_scroll_offset", 0), len(choices), term_rows,
             )
             state["_scroll_offset"] = scroll_offset
@@ -13736,7 +13736,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             import prompt_toolkit.renderer as _pt_renderer
             from prompt_toolkit.renderer import _output_screen_diff as _orig_osd
 
-            if not getattr(_pt_renderer, "_hermes_osd_patched", False):
+            if not getattr(_pt_renderer, "_jarvis_osd_patched", False):
                 def _patched_output_screen_diff(
                     app, output, screen, current_pos, color_depth,
                     previous_screen, last_style, is_done, full_screen,
@@ -13774,7 +13774,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     )
 
                 _pt_renderer._output_screen_diff = _patched_output_screen_diff
-                _pt_renderer._hermes_osd_patched = True
+                _pt_renderer._jarvis_osd_patched = True
         except Exception:
             pass
 
@@ -13989,7 +13989,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             spawned with ``os.setsid`` and therefore survives as an orphan
             with PPID=1.
 
-            Grace window (``HERMES_SIGTERM_GRACE``, default 1.5 s) gives
+            Grace window (``JARVIS_SIGTERM_GRACE``, default 1.5 s) gives
             the daemon time to: detect the interrupt (next 200 ms poll) →
             call _kill_process (SIGTERM + 1 s wait + SIGKILL if needed) →
             return from _wait_for_process.  ``time.sleep`` releases the
@@ -14014,7 +14014,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 if getattr(self, "agent", None) and getattr(self, "_agent_running", False):
                     self.agent.interrupt(f"received signal {signum}")
                     try:
-                        _grace = float(os.getenv("HERMES_SIGTERM_GRACE", "1.5"))
+                        _grace = float(os.getenv("JARVIS_SIGTERM_GRACE", "1.5"))
                     except (TypeError, ValueError):
                         _grace = 1.5
                     if _grace > 0:
@@ -14056,7 +14056,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             # Windows: install a SIGINT handler that absorbs the signal
             # instead of letting Python's default handler raise
             # KeyboardInterrupt in MainThread. Windows Terminal / Win32
-            # delivers spurious CTRL_C_EVENT to the hermes process when
+            # delivers spurious CTRL_C_EVENT to the jarvis process when
             # child processes are spawned from background threads (agent
             # subprocess Popen path). The default Python SIGINT handler
             # would then unwind prompt_toolkit's app.run(), trigger
@@ -14112,7 +14112,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             print(
                 "Error: stdin (fd 0) is not available.\n"
                 "This can happen with certain Python installations (e.g. uv-managed cPython on macOS).\n"
-                "Try reinstalling Python via pyenv or Homebrew, then re-run: hermes setup"
+                "Try reinstalling Python via pyenv or Homebrew, then re-run: jarvis setup"
             )
             _run_cleanup()
             self._print_exit_summary()
@@ -14179,7 +14179,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                     f"\nError: stdin is not usable ({_stdin_err}).\n"
                     "This can happen with certain Python installations (e.g. uv-managed cPython on macOS)\n"
                     "where kqueue cannot register fd 0.\n"
-                    "Try reinstalling Python via pyenv or Homebrew, then re-run: hermes setup"
+                    "Try reinstalling Python via pyenv or Homebrew, then re-run: jarvis setup"
                 )
             else:
                 raise
@@ -14218,7 +14218,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 except (Exception, KeyboardInterrupt) as e:
                     logger.debug("Could not close session in DB: %s", e)
                 # Started-and-immediately-quit sessions never gained content;
-                # drop the empty row so /resume and `hermes sessions list`
+                # drop the empty row so /resume and `jarvis sessions list`
                 # stay clean (gemini-cli#27770 port). No-op for resumed or
                 # titled sessions and anything with messages or children.
                 if not getattr(self, '_delete_session_on_exit', False):
@@ -14230,7 +14230,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
                 # and SQLite history. Ported from google-gemini/gemini-cli#19332.
                 if getattr(self, '_delete_session_on_exit', False):
                     try:
-                        from hermes_constants import get_hermes_home as _ghh
+                        from jarvis_constants import get_jarvis_home as _ghh
                         _sessions_dir = _ghh() / "sessions"
                         _sid = self.agent.session_id
                         if self._session_db.delete_session(_sid, sessions_dir=_sessions_dir):
@@ -14245,7 +14245,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             # the exit occurred, meaning run_conversation's hook didn't fire.
             if self.agent and getattr(self, '_agent_running', False):
                 try:
-                    from hermes_cli.plugins import invoke_hook as _invoke_hook
+                    from jarvis_cli.plugins import invoke_hook as _invoke_hook
                     _invoke_hook(
                         "on_session_end",
                         session_id=self.agent.session_id,
@@ -14267,7 +14267,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
         # thread (which would skip terminal cleanup on POSIX and only exit
         # the worker thread on Windows).
         if getattr(self, '_pending_relaunch', None):
-            from hermes_cli.relaunch import relaunch
+            from jarvis_cli.relaunch import relaunch
             relaunch(self._pending_relaunch, preserve_inherited=False)
 
 
@@ -14275,11 +14275,11 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
 # Main Entry Point
 # ============================================================================
 
-def _run_kanban_goal_loop_q(cli: "HermesCLI", first_response: str) -> None:
+def _run_kanban_goal_loop_q(cli: "JarvisCLI", first_response: str) -> None:
     """Drive a kanban goal_mode worker through the Ralph-style goal loop.
 
     Called from the quiet single-query path AFTER the worker's first turn,
-    only when ``HERMES_KANBAN_GOAL_MODE`` is set (dispatcher-spawned
+    only when ``JARVIS_KANBAN_GOAL_MODE`` is set (dispatcher-spawned
     goal_mode card). Wires the worker's ``run_conversation`` and the kanban
     DB into ``goals.run_kanban_goal_loop``. All errors are swallowed by the
     caller — a broken goal loop must never wedge a worker, the dispatcher's
@@ -14287,12 +14287,12 @@ def _run_kanban_goal_loop_q(cli: "HermesCLI", first_response: str) -> None:
     """
     import os as _os
 
-    task_id = (_os.environ.get("HERMES_KANBAN_TASK") or "").strip()
+    task_id = (_os.environ.get("JARVIS_KANBAN_TASK") or "").strip()
     if not task_id:
         return
 
-    from hermes_cli import kanban_db as _kb
-    from hermes_cli.goals import run_kanban_goal_loop as _run_loop, DEFAULT_MAX_TURNS as _DEF_TURNS
+    from jarvis_cli import kanban_db as _kb
+    from jarvis_cli.goals import run_kanban_goal_loop as _run_loop, DEFAULT_MAX_TURNS as _DEF_TURNS
 
     # Resolve goal text from the card (title + body = the acceptance
     # criteria the judge evaluates against).
@@ -14391,7 +14391,7 @@ def main(
     ignore_rules: bool = False,
 ):
     """
-    Hermes Agent CLI - Interactive AI Assistant
+    Jarvis CLI - Interactive AI Assistant
     
     Args:
         query: Single query to execute (then exit). Alias: -q
@@ -14415,7 +14415,7 @@ def main(
     Examples:
         python cli.py                            # Start interactive mode
         python cli.py --toolsets web,terminal    # Use specific toolsets
-        python cli.py --skills hermes-agent-dev,github-auth
+        python cli.py --skills jarvis-agent-dev,github-auth
         python cli.py -q "What is Python?"       # Single query mode
         python cli.py -q "Describe this" --image ~/storage/shared/Pictures/cat.png
         python cli.py --list-tools               # List tools and exit
@@ -14429,20 +14429,20 @@ def main(
     # Rich console prints Unicode box-drawing characters that would
     # UnicodeEncodeError on cp1252.  No-op on Linux/macOS.
     try:
-        from hermes_cli.stdio import configure_windows_stdio
+        from jarvis_cli.stdio import configure_windows_stdio
         configure_windows_stdio()
     except Exception:
         pass
 
     # Signal to terminal_tool that we're in interactive mode
     # This enables interactive sudo password prompts with timeout
-    os.environ["HERMES_INTERACTIVE"] = "1"
+    os.environ["JARVIS_INTERACTIVE"] = "1"
     
     # Handle gateway mode (messaging + cron)
     if gateway:
         import asyncio
         from gateway.run import start_gateway
-        print("Starting Hermes Gateway (messaging platforms)...")
+        print("Starting Jarvis Gateway (messaging platforms)...")
         asyncio.run(start_gateway())
         return
 
@@ -14474,7 +14474,7 @@ def main(
     query = query or q
     
     # Parse toolsets - handle both string and tuple/list inputs
-    # Default to hermes-cli toolset which includes cronjob management tools
+    # Default to jarvis-cli toolset which includes cronjob management tools
     toolsets_list = None
     if toolsets:
         if isinstance(toolsets, str):
@@ -14488,12 +14488,12 @@ def main(
                 else:
                     toolsets_list.append(str(t))
     else:
-        # Coding posture (base Hermes): with no explicit --toolsets, collapse
+        # Coding posture (base Jarvis): with no explicit --toolsets, collapse
         # to the coding toolset (+ enabled MCP servers) when sitting in a code
-        # workspace. See agent/coding_context.py.
+        # workspace. See brain/coding_context.py.
         _coding = None
         try:
-            from agent.coding_context import coding_selection
+            from brain.coding_context import coding_selection
             _coding = coding_selection(platform="cli", config=CLI_CONFIG)
         except Exception:
             _coding = None
@@ -14501,13 +14501,13 @@ def main(
             toolsets_list = _coding
         else:
             # Use the shared resolver so MCP servers are included at runtime
-            from hermes_cli.tools_config import _get_platform_tools
+            from jarvis_cli.tools_config import _get_platform_tools
             toolsets_list = sorted(_get_platform_tools(CLI_CONFIG, "cli"))
     
     parsed_skills = _parse_skills_argument(skills)
 
     # Create CLI instance
-    cli = HermesCLI(
+    cli = JarvisCLI(
         model=model,
         toolsets=toolsets_list,
         provider=provider,
@@ -14562,8 +14562,8 @@ def main(
     atexit.register(_run_cleanup)
 
     # Also install signal handlers in single-query / `-q` mode.  Interactive
-    # mode registers its own inside HermesCLI.run(), but `-q` runs
-    # cli.agent.run_conversation() below and AIAgent spawns worker threads
+    # mode registers its own inside JarvisCLI.run(), but `-q` runs
+    # cli.agent.run_conversation() below and AIBrain spawns worker threads
     # for tools — so when SIGTERM arrives on the main thread, raising
     # KeyboardInterrupt only unwinds the main thread, not the worker
     # running _wait_for_process.  Python then exits, the child subprocess
@@ -14574,7 +14574,7 @@ def main(
     # per-thread interrupt flag the worker's poll loop checks every 200 ms.
     # Give the worker a grace window to call _kill_process (SIGTERM to the
     # process group, then SIGKILL after 1 s), then raise KeyboardInterrupt
-    # so main unwinds normally.  HERMES_SIGTERM_GRACE overrides the 1.5 s
+    # so main unwinds normally.  JARVIS_SIGTERM_GRACE overrides the 1.5 s
     # default for debugging.
     def _signal_handler_q(signum, frame):
         logger.debug("Received signal %s in single-query mode", signum)
@@ -14583,7 +14583,7 @@ def main(
             if _agent is not None:
                 _agent.interrupt(f"received signal {signum}")
                 try:
-                    _grace = float(os.getenv("HERMES_SIGTERM_GRACE", "1.5"))
+                    _grace = float(os.getenv("JARVIS_SIGTERM_GRACE", "1.5"))
                 except (TypeError, ValueError):
                     _grace = 1.5
                 if _grace > 0:
@@ -14602,7 +14602,7 @@ def main(
         # first so the final debug trace isn't lost; SIGALRM deadman guards
         # the flush against any rare blocking-I/O case (the reporter measured
         # flush in <1ms; the alarm is a failsafe, not the common path).
-        if os.environ.get("HERMES_KANBAN_TASK"):
+        if os.environ.get("JARVIS_KANBAN_TASK"):
             try:
                 import signal as _sig_mod
                 if hasattr(_sig_mod, "SIGALRM"):
@@ -14639,7 +14639,7 @@ def main(
             sys.exit(1)
         try:
             query, single_query_images = _collect_query_images(query, image)
-            # Kanban workers spawn with ``hermes chat -q "work kanban task <id>"``;
+            # Kanban workers spawn with ``jarvis chat -q "work kanban task <id>"``;
             # the actual task description lives in the task body. Mirror the
             # gateway/CLI behaviour for inbound images by scanning the body for
             # local image paths and http(s) image URLs and attaching them to the
@@ -14647,11 +14647,11 @@ def main(
             # path or URL into a kanban task body never get it routed to the
             # model's vision input.
             single_query_image_urls: list[str] = []
-            _kanban_task_id = os.environ.get("HERMES_KANBAN_TASK", "").strip()
+            _kanban_task_id = os.environ.get("JARVIS_KANBAN_TASK", "").strip()
             if _kanban_task_id:
                 try:
-                    from hermes_cli import kanban_db as _kb
-                    from agent.image_routing import extract_image_refs as _extract_refs
+                    from jarvis_cli import kanban_db as _kb
+                    from brain.image_routing import extract_image_refs as _extract_refs
 
                     _conn = _kb.connect()
                     try:
@@ -14692,11 +14692,11 @@ def main(
                         _img_mode = "text"
                         _build_parts = None
                         try:
-                            from agent.image_routing import (
+                            from brain.image_routing import (
                                 build_native_content_parts as _build_parts,  # noqa: F811
                             )
-                            from agent.image_routing import decide_image_input_mode
-                            from hermes_cli.config import load_config
+                            from brain.image_routing import decide_image_input_mode
+                            from jarvis_cli.config import load_config
 
                             _img_mode = decide_image_input_mode(
                                 (cli.provider or "").strip(),
@@ -14747,7 +14747,7 @@ def main(
                         cli.agent.quiet_mode = True
                         cli.agent.suppress_status_output = True
                         # Suppress streaming display callbacks so stdout stays
-                        # machine-readable (no styled "Hermes" box, no tool-gen
+                        # machine-readable (no styled "Jarvis" box, no tool-gen
                         # status lines).  The response is printed once below.
                         cli.agent.stream_delta_callback = None
                         cli.agent.tool_gen_callback = None
@@ -14791,7 +14791,7 @@ def main(
                         # out (→ sticky block). Gated on the env vars the
                         # dispatcher sets in `_default_spawn`; a no-op for every
                         # normal worker and every non-kanban `-q` run.
-                        if os.environ.get("HERMES_KANBAN_GOAL_MODE") == "1":
+                        if os.environ.get("JARVIS_KANBAN_GOAL_MODE") == "1":
                             try:
                                 _run_kanban_goal_loop_q(cli, response)
                             except Exception as _goal_exc:
@@ -14815,11 +14815,11 @@ def main(
                         _exit_code = 0
                         if isinstance(result, dict) and result.get("failed"):
                             _exit_code = 1
-                            if os.environ.get("HERMES_KANBAN_TASK") and result.get(
+                            if os.environ.get("JARVIS_KANBAN_TASK") and result.get(
                                 "failure_reason"
                             ) in ("rate_limit", "billing"):
                                 try:
-                                    from hermes_cli.kanban_db import (
+                                    from jarvis_cli.kanban_db import (
                                         KANBAN_RATE_LIMIT_EXIT_CODE as _RL_CODE,
                                     )
                                     _exit_code = _RL_CODE
@@ -14830,7 +14830,7 @@ def main(
                 # Exit with error code if credentials or agent init fails
                 sys.exit(1)
             else:
-                # Single-query mode (`hermes chat -q "…"`): skip the welcome
+                # Single-query mode (`jarvis chat -q "…"`): skip the welcome
                 # banner. Building the banner takes ~420 ms on cold start —
                 # ~200 ms of that is the version-update check, the rest is
                 # toolset / skill enumeration and Rich panel rendering. None

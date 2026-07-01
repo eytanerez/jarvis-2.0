@@ -59,7 +59,11 @@ function micError(error: unknown, copy: MicRecorderErrorCopy): Error {
   return new Error(copy.microphoneStartFailed)
 }
 
-export function useMicRecorder(copy: MicRecorderErrorCopy): { handle: MicRecorderHandle; level: number; recording: boolean } {
+export function useMicRecorder(copy: MicRecorderErrorCopy): {
+  handle: MicRecorderHandle
+  level: number
+  recording: boolean
+} {
   const [level, setLevel] = useState(0)
   const [recording, setRecording] = useState(false)
 
@@ -171,7 +175,7 @@ export function useMicRecorder(copy: MicRecorderErrorCopy): { handle: MicRecorde
       throw new Error(copy.microphoneUnsupported)
     }
 
-    const permitted = await window.hermesDesktop?.requestMicrophoneAccess?.()
+    const permitted = await window.jarvisDesktop?.requestMicrophoneAccess?.()
 
     if (permitted === false) {
       throw new Error(copy.microphoneAccessDenied)

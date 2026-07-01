@@ -1,7 +1,7 @@
 import { ThreadPrimitive, useAuiEvent, useAuiState } from '@assistant-ui/react'
 import {
-  type CSSProperties,
   type ComponentProps,
+  type CSSProperties,
   type FC,
   memo,
   type ReactNode,
@@ -145,6 +145,7 @@ const ThreadMessageListInner: FC<ThreadMessageListProps> = ({
   // sticky user bubble falls back to its ~4px default and slides under the OS
   // traffic lights.
   const secondaryTitlebarGap = 'calc(var(--titlebar-height) + 0.75rem)'
+
   const threadContentTopPad = secondaryWindow
     ? 'pt-[calc(var(--titlebar-height)+0.75rem)]'
     : 'pt-[calc(var(--titlebar-height)-0.5rem)]'
@@ -290,7 +291,7 @@ const ThreadMessageListInner: FC<ThreadMessageListProps> = ({
           >
             {hiddenCount > 0 && (
               <button
-                className="mx-auto mb-(--conversation-turn-gap) rounded-full border border-border/65 bg-(--composer-fill) px-3 py-1 text-xs text-muted-foreground hover:text-foreground"
+                className="jarvis-button mx-auto mb-(--conversation-turn-gap) rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_68%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel)_82%,transparent)] px-3 py-1 text-xs text-(--jarvis-muted) transition-colors hover:border-[color-mix(in_srgb,var(--jarvis-blue)_38%,transparent)] hover:text-white"
                 onClick={showEarlier}
                 type="button"
               >

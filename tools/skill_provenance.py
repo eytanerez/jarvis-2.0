@@ -4,13 +4,13 @@ The curator only consolidates/prunes skills it autonomously created via the
 background self-improvement review fork. Skills a user asks a foreground
 agent to write belong to the user and must never be auto-curated.
 
-This module exposes a ContextVar that run_agent.py sets before each tool
+This module exposes a ContextVar that run_brain.py sets before each tool
 loop so tool handlers (e.g. skill_manage create) can check whether they
 are executing inside the background-review fork.
 
-The signal piggybacks on AIAgent._memory_write_origin, which is already
+The signal piggybacks on AIBrain._memory_write_origin, which is already
 set to "background_review" for review-fork instances (see
-_spawn_background_review in run_agent.py) and defaults to "assistant_tool"
+_spawn_background_review in run_brain.py) and defaults to "assistant_tool"
 for normal (foreground) agents.
 
 Usage:
@@ -40,7 +40,7 @@ _write_origin: contextvars.ContextVar[str] = contextvars.ContextVar(
 )
 
 # The sentinel value the background review fork uses; mirrors
-# run_agent.py's AIAgent._memory_write_origin override in
+# run_brain.py's AIBrain._memory_write_origin override in
 # _spawn_background_review().
 BACKGROUND_REVIEW = "background_review"
 

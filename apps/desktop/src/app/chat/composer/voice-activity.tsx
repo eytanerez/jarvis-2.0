@@ -125,25 +125,25 @@ export function VoiceActivity({ state }: { state: VoiceActivityState }) {
     <div
       aria-live="polite"
       className={cn(
-        'flex h-8 items-center gap-2 rounded-xl border border-border/55 bg-muted/55 px-2.5 text-xs text-muted-foreground',
-        'shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-sm'
+        'flex h-8 items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_68%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_76%,transparent)] px-2.5 text-xs text-(--jarvis-muted)',
+        'shadow-[inset_0_1px_0_color-mix(in_srgb,var(--jarvis-blue)_8%,transparent)] backdrop-blur-sm'
       )}
       role="status"
     >
       <div
         className={cn(
-          'flex size-5 shrink-0 items-center justify-center rounded-full',
-          recording ? 'bg-primary/15 text-primary' : 'bg-primary/10 text-primary'
+          'flex size-5 shrink-0 items-center justify-center rounded-[3px] border border-[color-mix(in_srgb,var(--jarvis-blue)_24%,transparent)]',
+          recording
+            ? 'bg-[color-mix(in_srgb,var(--jarvis-blue)_16%,transparent)] text-(--jarvis-blue)'
+            : 'bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] text-(--jarvis-blue)'
         )}
       >
         {recording ? <Mic size={12} /> : <Loader2 className="animate-spin" size={12} />}
       </div>
 
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="truncate font-medium text-foreground/85">{title}</span>
-        <span className="font-mono text-[0.6875rem] text-muted-foreground/85">
-          {formatElapsed(state.elapsedSeconds)}
-        </span>
+        <span className="truncate font-medium text-(--jarvis-text)">{title}</span>
+        <span className="font-mono text-[0.6875rem] text-(--jarvis-muted)">{formatElapsed(state.elapsedSeconds)}</span>
       </div>
 
       <VoiceLevelBars active={recording} level={state.level} />
@@ -171,12 +171,12 @@ export function VoicePlaybackActivity() {
     <div
       aria-live="polite"
       className={cn(
-        'flex h-8 items-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-2.5 text-xs text-primary',
-        'shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-sm'
+        'flex h-8 items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--jarvis-blue)_30%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,var(--jarvis-panel))] px-2.5 text-xs text-(--jarvis-blue)',
+        'shadow-[0_0_20px_color-mix(in_srgb,var(--jarvis-blue)_10%,transparent),inset_0_1px_0_color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] backdrop-blur-sm'
       )}
       role="status"
     >
-      <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+      <div className="flex size-5 shrink-0 items-center justify-center rounded-[3px] border border-[color-mix(in_srgb,var(--jarvis-blue)_24%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_14%,transparent)] text-(--jarvis-blue)">
         {preparing ? <Loader2 className="animate-spin" size={12} /> : <Volume2 size={12} />}
       </div>
 
@@ -186,7 +186,7 @@ export function VoicePlaybackActivity() {
       </div>
 
       <Button
-        className="h-6 shrink-0 gap-1 rounded-full px-2 text-[0.6875rem]"
+        className="h-6 shrink-0 gap-1 rounded-md px-2 text-[0.6875rem]"
         onClick={stopVoicePlayback}
         size="sm"
         type="button"

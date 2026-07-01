@@ -1,14 +1,14 @@
 """Tests for Ollama num_ctx context length detection and injection.
 
 Covers:
-  agent/model_metadata.py — query_ollama_num_ctx()
-  run_agent.py — _ollama_num_ctx detection + extra_body injection
+  brain/model_metadata.py — query_ollama_num_ctx()
+  run_brain.py — _ollama_num_ctx detection + extra_body injection
 """
 
 from unittest.mock import patch, MagicMock
 
 
-from agent.model_metadata import query_ollama_num_ctx
+from brain.model_metadata import query_ollama_num_ctx
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -39,7 +39,7 @@ class TestQueryOllamaNumCtx:
         }
         mock_ctx, _ = _mock_httpx_client(show_data)
 
-        with patch("agent.model_metadata.detect_local_server_type", return_value="ollama"):
+        with patch("brain.model_metadata.detect_local_server_type", return_value="ollama"):
             # httpx is imported inside the function — patch the module import
             import httpx
             with patch.object(httpx, "Client", return_value=mock_ctx):
@@ -55,7 +55,7 @@ class TestQueryOllamaNumCtx:
         }
         mock_ctx, _ = _mock_httpx_client(show_data)
 
-        with patch("agent.model_metadata.detect_local_server_type", return_value="ollama"):
+        with patch("brain.model_metadata.detect_local_server_type", return_value="ollama"):
             import httpx
             with patch.object(httpx, "Client", return_value=mock_ctx):
                 result = query_ollama_num_ctx("custom-model", "http://localhost:11434")
@@ -64,13 +64,13 @@ class TestQueryOllamaNumCtx:
 
     def test_returns_none_for_non_ollama_server(self):
         """Should return None if the server is not Ollama."""
-        with patch("agent.model_metadata.detect_local_server_type", return_value="lm-studio"):
+        with patch("brain.model_metadata.detect_local_server_type", return_value="lm-studio"):
             result = query_ollama_num_ctx("model", "http://localhost:1234")
         assert result is None
 
     def test_returns_none_on_connection_error(self):
         """Should return None if the server is unreachable."""
-        with patch("agent.model_metadata.detect_local_server_type", side_effect=Exception("timeout")):
+        with patch("brain.model_metadata.detect_local_server_type", side_effect=Exception("timeout")):
             result = query_ollama_num_ctx("model", "http://localhost:11434")
         assert result is None
 
@@ -78,7 +78,7 @@ class TestQueryOllamaNumCtx:
         """Should return None if the model is not found."""
         mock_ctx, _ = _mock_httpx_client({}, status_code=404)
 
-        with patch("agent.model_metadata.detect_local_server_type", return_value="ollama"):
+        with patch("brain.model_metadata.detect_local_server_type", return_value="ollama"):
             import httpx
             with patch.object(httpx, "Client", return_value=mock_ctx):
                 result = query_ollama_num_ctx("nonexistent", "http://localhost:11434")
@@ -93,7 +93,7 @@ class TestQueryOllamaNumCtx:
         }
         mock_ctx, mock_client = _mock_httpx_client(show_data)
 
-        with patch("agent.model_metadata.detect_local_server_type", return_value="ollama"):
+        with patch("brain.model_metadata.detect_local_server_type", return_value="ollama"):
             import httpx
             with patch.object(httpx, "Client", return_value=mock_ctx):
                 result = query_ollama_num_ctx("local:qwen2.5:7b", "http://localhost:11434/v1")
@@ -111,7 +111,7 @@ class TestQueryOllamaNumCtx:
         }
         mock_ctx, _ = _mock_httpx_client(show_data)
 
-        with patch("agent.model_metadata.detect_local_server_type", return_value="ollama"):
+        with patch("brain.model_metadata.detect_local_server_type", return_value="ollama"):
             import httpx
             with patch.object(httpx, "Client", return_value=mock_ctx):
                 result = query_ollama_num_ctx("qwen2.5:32b", "http://localhost:11434")
@@ -126,7 +126,7 @@ class TestQueryOllamaNumCtx:
         }
         mock_ctx, _ = _mock_httpx_client(show_data)
 
-        with patch("agent.model_metadata.detect_local_server_type", return_value="ollama"):
+        with patch("brain.model_metadata.detect_local_server_type", return_value="ollama"):
             import httpx
             with patch.object(httpx, "Client", return_value=mock_ctx):
                 result = query_ollama_num_ctx("model", "http://localhost:11434")

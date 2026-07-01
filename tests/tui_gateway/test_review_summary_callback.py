@@ -21,12 +21,12 @@ def server():
     with patch.dict(
         "sys.modules",
         {
-            "hermes_constants": MagicMock(
-                get_hermes_home=MagicMock(return_value="/tmp/hermes_test_review_summary")
+            "jarvis_constants": MagicMock(
+                get_jarvis_home=MagicMock(return_value="/tmp/jarvis_test_review_summary")
             ),
-            "hermes_cli.env_loader": MagicMock(),
-            "hermes_cli.banner": MagicMock(),
-            "hermes_state": MagicMock(),
+            "jarvis_cli.env_loader": MagicMock(),
+            "jarvis_cli.banner": MagicMock(),
+            "jarvis_state": MagicMock(),
         },
     ):
         import importlib
@@ -70,7 +70,7 @@ def test_init_session_attaches_background_review_callback(server, monkeypatch):
     class FakeAgent:
         model = "fake/model"
         # Presence of the attribute is all the Python side needs; the real
-        # AIAgent has it defaulted to None in __init__.
+        # AIBrain has it defaulted to None in __init__.
         background_review_callback = None
 
     agent = FakeAgent()
@@ -85,8 +85,8 @@ def test_init_session_attaches_background_review_callback(server, monkeypatch):
     # Clear the session.info emit captured during _init_session.
     captured_emits.clear()
 
-    # Invoke the callback the way AIAgent._spawn_background_review would.
-    cb("💾 Self-improvement review: Skill 'hermes-release' patched")
+    # Invoke the callback the way AIBrain._spawn_background_review would.
+    cb("💾 Self-improvement review: Skill 'jarvis-release' patched")
 
     # Exactly one review.summary event should have been emitted, bound to
     # the session id we passed in, carrying the full message text.
@@ -95,7 +95,7 @@ def test_init_session_attaches_background_review_callback(server, monkeypatch):
     event, sid, payload = matched[0]
     assert sid == "sid-abc"
     assert payload == {
-        "text": "💾 Self-improvement review: Skill 'hermes-release' patched"
+        "text": "💾 Self-improvement review: Skill 'jarvis-release' patched"
     }
 
 

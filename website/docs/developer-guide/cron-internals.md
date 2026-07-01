@@ -1,7 +1,7 @@
 ---
 sidebar_position: 11
 title: "Cron Internals"
-description: "How Hermes stores, schedules, edits, pauses, skill-loads, and delivers cron jobs"
+description: "How Jarvis stores, schedules, edits, pauses, skill-loads, and delivers cron jobs"
 ---
 
 # Cron Internals
@@ -16,7 +16,7 @@ The cron subsystem provides scheduled task execution — from simple one-shot de
 | `cron/scheduler.py` | Scheduler loop — due-job detection, execution, repeat tracking |
 | `tools/cronjob_tools.py` | Model-facing `cronjob` tool registration and handler |
 | `gateway/run.py` | Gateway integration — cron ticking in the long-running loop |
-| `hermes_cli/cron.py` | CLI `hermes cron` subcommands |
+| `jarvis_cli/cron.py` | CLI `jarvis cron` subcommands |
 
 ## Scheduling Model
 
@@ -33,7 +33,7 @@ The model-facing surface is a single `cronjob` tool with action-style operations
 
 ## Job Storage
 
-Jobs are stored in `~/.hermes/cron/jobs.json` with atomic write semantics (write to temp file, then rename). Each job record contains:
+Jobs are stored in `~/.jarvis/cron/jobs.json` with atomic write semantics (write to temp file, then rename). Each job record contains:
 
 ```json
 {
@@ -89,7 +89,7 @@ tick()
   3. Filter to due jobs (next_run <= now AND state == "scheduled")
   4. For each due job:
      a. Set state to "running"
-     b. Create fresh AIAgent session (no conversation history)
+     b. Create fresh AIBrain session (no conversation history)
      c. Load attached skills in order (injected as user messages)
      d. Run the job prompt through the agent
      e. Deliver the response to the configured target
@@ -115,7 +115,7 @@ The active provider is chosen by the `cron.provider` config key:
   is byte-identical to the pre-provider behavior.
 - **a named provider** (e.g. `chronos`, a managed-cron provider for
   scale-to-zero deployments) → discovered from `plugins/cron/<name>/` or
-  `$HERMES_HOME/plugins/<name>/`.
+  `$JARVIS_HOME/plugins/<name>/`.
 
 If a named provider is missing, fails to load, or reports `is_available() ==
 False`, the resolver falls back to the built-in with a warning — **cron is
@@ -127,7 +127,7 @@ What "firing" *means* (job execution + delivery) is unchanged and shared by all
 providers — it stays in `scheduler.run_job()` / `scheduler._deliver_result()`.
 A provider only controls the trigger, never execution.
 
-In CLI mode, cron jobs only fire when `hermes cron` commands are run or during active CLI sessions.
+In CLI mode, cron jobs only fire when `jarvis cron` commands are run or during active CLI sessions.
 
 ### Managed cron (Chronos) for scale-to-zero
 
@@ -200,7 +200,7 @@ Create a daily funding report → attach "ai-funding-daily-report" skill
 Jobs can also attach a Python script via the `script` field. The script runs *before* each agent turn, and its stdout is injected into the prompt as context. This enables data collection and change detection patterns:
 
 ```python
-# ~/.hermes/scripts/check_competitors.py
+# ~/.jarvis/scripts/check_competitors.py
 import requests, json
 # Fetch competitor release notes, diff against last run
 # Print summary to stdout — agent analyzes and reports
@@ -209,15 +209,15 @@ import requests, json
 The script timeout defaults to 120 seconds. `_get_script_timeout()` resolves the limit through a three-layer chain:
 
 1. **Module-level override** — `_SCRIPT_TIMEOUT` (for tests/monkeypatching). Only used when it differs from the default.
-2. **Environment variable** — `HERMES_CRON_SCRIPT_TIMEOUT`
+2. **Environment variable** — `JARVIS_CRON_SCRIPT_TIMEOUT`
 3. **Config** — `cron.script_timeout_seconds` in `config.yaml` (read via `load_config()`)
 4. **Default** — 120 seconds
 
 ### Provider Recovery
 
-`run_job()` passes the user's configured fallback providers and credential pool into the `AIAgent` instance:
+`run_job()` passes the user's configured fallback providers and credential pool into the `AIBrain` instance:
 
-- **Fallback providers** — reads `fallback_providers` (list) or `fallback_model` (legacy dict) from `config.yaml`, matching the gateway's `_load_fallback_model()` pattern. Passed as `fallback_model=` to `AIAgent.__init__`, which normalizes both formats into a fallback chain.
+- **Fallback providers** — reads `fallback_providers` (list) or `fallback_model` (legacy dict) from `config.yaml`, matching the gateway's `_load_fallback_model()` pattern. Passed as `fallback_model=` to `AIBrain.__init__`, which normalizes both formats into a fallback chain.
 - **Credential pool** — loads via `load_pool(provider)` from `agent.credential_pool` using the resolved runtime provider name. Only passed when the pool has credentials (`pool.has_credentials()`). Enables same-provider key rotation on 429/rate-limit errors.
 
 This mirrors the gateway's behavior — without it, cron agents would fail on rate limits without attempting recovery.
@@ -229,7 +229,7 @@ Cron job results can be delivered to any supported platform:
 | Target | Syntax | Example |
 |--------|--------|---------|
 | Origin chat | `origin` | Deliver to the chat where the job was created |
-| Local file | `local` | Save to `~/.hermes/cron/output/` |
+| Local file | `local` | Save to `~/.jarvis/cron/output/` |
 | Telegram | `telegram` or `telegram:<chat_id>` | `telegram:-1001234567890` |
 | Discord | `discord` or `discord:#channel` | `discord:#engineering` |
 | Slack | `slack` | Deliver to Slack home channel |
@@ -270,20 +270,20 @@ Cron-run sessions have the `cronjob` toolset disabled. This prevents:
 
 ## Locking
 
-The scheduler uses cross-process file-based locking (`fcntl.flock` on Unix, `msvcrt.locking` on Windows) to prevent overlapping ticks from executing the same due-job batch twice — even between the gateway's in-process ticker and a standalone `hermes cron` / manual `tick()` call. If the lock cannot be acquired, `tick()` returns 0 immediately.
+The scheduler uses cross-process file-based locking (`fcntl.flock` on Unix, `msvcrt.locking` on Windows) to prevent overlapping ticks from executing the same due-job batch twice — even between the gateway's in-process ticker and a standalone `jarvis cron` / manual `tick()` call. If the lock cannot be acquired, `tick()` returns 0 immediately.
 
 ## CLI Interface
 
-The `hermes cron` CLI provides direct job management:
+The `jarvis cron` CLI provides direct job management:
 
 ```bash
-hermes cron list                    # Show all jobs
-hermes cron create                  # Interactive job creation (alias: add)
-hermes cron edit <job_id>           # Edit job configuration
-hermes cron pause <job_id>          # Pause a running job
-hermes cron resume <job_id>         # Resume a paused job
-hermes cron run <job_id>            # Trigger immediate execution
-hermes cron remove <job_id>         # Delete a job
+jarvis cron list                    # Show all jobs
+jarvis cron create                  # Interactive job creation (alias: add)
+jarvis cron edit <job_id>           # Edit job configuration
+jarvis cron pause <job_id>          # Pause a running job
+jarvis cron resume <job_id>         # Resume a paused job
+jarvis cron run <job_id>            # Trigger immediate execution
+jarvis cron remove <job_id>         # Delete a job
 ```
 
 ## Related Docs

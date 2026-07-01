@@ -1,11 +1,11 @@
 """E2E tests: verify _build_kwargs_from_profile produces correct output.
 
 These tests call _build_kwargs_from_profile on the transport directly,
-without importing run_agent (which would cause xdist worker contamination).
+without importing run_brain (which would cause xdist worker contamination).
 """
 
 import pytest
-from agent.transports.chat_completions import ChatCompletionsTransport
+from brain.transports.chat_completions import ChatCompletionsTransport
 from providers import get_provider_profile
 
 

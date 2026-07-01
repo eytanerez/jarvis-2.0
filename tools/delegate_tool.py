@@ -2,7 +2,7 @@
 """
 Delegate Tool -- Subagent Architecture
 
-Spawns child AIAgent instances with isolated context, restricted toolsets,
+Spawns child AIBrain instances with isolated context, restricted toolsets,
 and their own terminal sessions. Supports single-task and batch (parallel)
 modes. The parent blocks until all children complete.
 
@@ -34,7 +34,7 @@ from toolsets import TOOLSETS
 
 # Sentinel value used by the runtime provider system for providers that are
 # not natively known (named custom providers, third-party aggregators, etc.).
-# Must match hermes_cli.runtime_provider.RUNTIME_PROVIDER_TYPE_CUSTOM.
+# Must match jarvis_cli.runtime_provider.RUNTIME_PROVIDER_TYPE_CUSTOM.
 _RUNTIME_PROVIDER_CUSTOM = "custom"
 from tools import file_state
 from tools.terminal_tool import set_approval_callback as _set_subagent_approval_cb
@@ -112,7 +112,7 @@ def _get_subagent_approval_callback():
 
 # Build a description fragment listing toolsets available for subagents.
 # Excludes toolsets where ALL tools are blocked, composite/platform toolsets
-# (hermes-* prefixed), and scenario toolsets.
+# (jarvis-* prefixed), and scenario toolsets.
 #
 # NOTE: "delegation" is in this exclusion set so the subagent-facing
 # capability hint string (_TOOLSET_LIST_STR) doesn't advertise it as a
@@ -124,7 +124,7 @@ _SUBAGENT_TOOLSETS = sorted(
     name
     for name, defn in TOOLSETS.items()
     if name not in _EXCLUDED_TOOLSET_NAMES
-    and not name.startswith("hermes-")
+    and not name.startswith("jarvis-")
     and not all(t in DELEGATE_BLOCKED_TOOLS for t in defn.get("tools", []))
 )
 _TOOLSET_LIST_STR = ", ".join(f"'{n}'" for n in _SUBAGENT_TOOLSETS)
@@ -192,7 +192,7 @@ def interrupt_subagent(subagent_id: str) -> bool:
 
     Does not hard-kill the worker thread (Python can't); sets the child's
     interrupt flag which propagates to in-flight tools and recurses into
-    grandchildren via AIAgent.interrupt().  Returns True if a matching
+    grandchildren via AIBrain.interrupt().  Returns True if a matching
     subagent was found.
     """
     with _active_subagents_lock:
@@ -551,10 +551,10 @@ def _is_mcp_toolset_name(name: str) -> bool:
 def _expand_parent_toolsets(parent_toolsets: set) -> set:
     """Expand composite toolsets so individual toolset names are recognized.
 
-    When a parent uses a composite toolset like ``hermes-cli`` (which bundles
+    When a parent uses a composite toolset like ``jarvis-cli`` (which bundles
     all core tools), the child may request individual toolsets such as ``web``
     or ``terminal``.  A simple name-based intersection would reject them
-    because ``"web" != "hermes-cli"``.
+    because ``"web" != "jarvis-cli"``.
 
     This helper collects the tool names from each parent toolset, then adds
     the names of any individual toolsets whose tools are a *subset* of the
@@ -939,7 +939,7 @@ def _build_child_progress_callback(
                 if preview and len(preview) > 35
                 else (preview or "")
             )
-            from agent.display import get_tool_emoji
+            from brain.display import get_tool_emoji
 
             emoji = get_tool_emoji(tool_name or "")
             line = f" {prefix}├─ {emoji} {tool_name}"
@@ -992,7 +992,7 @@ def _build_child_agent(
     role: str = "leaf",
 ):
     """
-    Build a child AIAgent on the main thread (thread-safe construction).
+    Build a child AIBrain on the main thread (thread-safe construction).
     Returns the constructed child agent without running it.
 
     When override_* params are set (from delegation config), the child uses
@@ -1000,7 +1000,7 @@ def _build_child_agent(
     routing subagents to a different provider:model pair (e.g. cheap/fast
     model on OpenRouter while the parent runs on Nous Portal).
     """
-    from run_agent import AIAgent
+    from run_brain import AIBrain
     import uuid as _uuid
 
     # ── Role resolution ─────────────────────────────────────────────────
@@ -1046,7 +1046,7 @@ def _build_child_agent(
 
     if toolsets:
         # Intersect with parent — subagent must not gain tools the parent lacks.
-        # Expand composite toolsets (e.g. hermes-cli) so that individual
+        # Expand composite toolsets (e.g. jarvis-cli) so that individual
         # toolset names (e.g. web, terminal) are recognised during intersection.
         expanded_parent = _expand_parent_toolsets(parent_toolsets)
         child_toolsets = [t for t in toolsets if t in expanded_parent]
@@ -1149,7 +1149,7 @@ def _build_child_agent(
 
     # When override_provider is set (e.g. delegation.provider: minimax-cn),
     # the subagent must use direct API calls — not the parent's ACP transport.
-    # Inheriting acp_command unconditionally causes run_agent.py to initialize
+    # Inheriting acp_command unconditionally causes run_brain.py to initialize
     # CopilotACPClient, bypassing override credentials entirely (issue #16816).
     if override_provider and not override_acp_command:
         effective_acp_command = None
@@ -1157,7 +1157,7 @@ def _build_child_agent(
 
     if override_acp_command:
         # If explicitly forcing an ACP transport override, the provider MUST be copilot-acp
-        # so run_agent.py initializes the CopilotACPClient.
+        # so run_brain.py initializes the CopilotACPClient.
         effective_provider = "copilot-acp"
         effective_api_mode = "chat_completions"
 
@@ -1167,7 +1167,7 @@ def _build_child_agent(
     try:
         delegation_effort = str(delegation_cfg.get("reasoning_effort") or "").strip()
         if delegation_effort:
-            from hermes_constants import parse_reasoning_effort
+            from jarvis_constants import parse_reasoning_effort
 
             parsed = parse_reasoning_effort(delegation_effort)
             if parsed is not None:
@@ -1182,7 +1182,7 @@ def _build_child_agent(
 
     # Inherit the parent's fallback provider chain so subagents can recover
     # from rate-limits and credential exhaustion exactly like the top-level
-    # agent does.  _fallback_chain is a list accepted by AIAgent's
+    # agent does.  _fallback_chain is a list accepted by AIBrain's
     # fallback_model parameter (which handles both list and dict forms).
     parent_fallback = getattr(parent_agent, "_fallback_chain", None) or None
 
@@ -1207,7 +1207,7 @@ def _build_child_agent(
         # openrouter/pareto-code), so we keep it inherited even when the
         # provider is overridden — it's a no-op on any other model.
 
-    child = AIAgent(
+    child = AIBrain(
         base_url=effective_base_url,
         api_key=effective_api_key,
         model=effective_model,
@@ -1289,7 +1289,7 @@ def _build_child_agent(
             logger.debug("spawn_requested relay failed: %s", exc)
 
     try:
-        from hermes_cli.plugins import invoke_hook as _invoke_hook
+        from jarvis_cli.plugins import invoke_hook as _invoke_hook
         _invoke_hook(
             "subagent_start",
             parent_session_id=getattr(parent_agent, "session_id", None),
@@ -1320,20 +1320,20 @@ def _dump_subagent_timeout_diagnostic(
 
     See issue #14726: users hit "subagent timed out after 300s with no response"
     with zero API calls and no way to inspect what happened. This helper
-    writes a dedicated log under ``~/.hermes/logs/subagent-<sid>-<ts>.log``
+    writes a dedicated log under ``~/.jarvis/logs/subagent-<sid>-<ts>.log``
     capturing the child's config, system-prompt / tool-schema sizes, activity
     tracker snapshot, and the worker thread's Python stack at timeout.
 
     Returns the absolute path to the diagnostic file, or None on failure.
     """
     try:
-        from hermes_constants import get_hermes_home
+        from jarvis_constants import get_jarvis_home
         import datetime as _dt
         import sys as _sys
         import traceback as _traceback
 
-        hermes_home = get_hermes_home()
-        logs_dir = hermes_home / "logs"
+        jarvis_home = get_jarvis_home()
+        logs_dir = jarvis_home / "logs"
         try:
             logs_dir.mkdir(parents=True, exist_ok=True)
         except Exception:
@@ -2204,7 +2204,7 @@ def delegate_task(
     task_labels = [t["goal"][:40] for t in task_list]
 
     # Save parent tool names BEFORE any child construction mutates the global.
-    # _build_child_agent() calls AIAgent() which calls get_tool_definitions(),
+    # _build_child_agent() calls AIBrain() which calls get_tool_definitions(),
     # which overwrites model_tools._last_resolved_tool_names with child's toolset.
     import model_tools as _model_tools
 
@@ -2491,12 +2491,12 @@ def delegate_task(
     # child was closed.
     _parent_session_id = getattr(parent_agent, "session_id", None)
     try:
-        from hermes_cli.plugins import invoke_hook as _invoke_hook
+        from jarvis_cli.plugins import invoke_hook as _invoke_hook
     except Exception:
         _invoke_hook = None
     # Aggregate child spend here so the parent's footer/UI reflect the true
     # cost of a subagent-heavy turn.  Port of Kilo-Org/kilocode#9448.  Each
-    # child's cost was captured in _run_single_child before its AIAgent was
+    # child's cost was captured in _run_single_child before its AIBrain was
     # closed; we fold them into the parent in one pass alongside the
     # subagent_stop hook loop so we don't walk `results` twice.
     _children_cost_total = 0.0
@@ -2597,7 +2597,7 @@ def _resolve_child_credential_pool(
     # resolve to the same custom:<name> pool key.
     if effective_provider == "custom":
         try:
-            from agent.credential_pool import get_custom_provider_pool_key, load_pool
+            from brain.credential_pool import get_custom_provider_pool_key, load_pool
 
             child_key = get_custom_provider_pool_key(effective_base_url)
             if child_key is None:
@@ -2634,7 +2634,7 @@ def _resolve_child_credential_pool(
         return parent_pool
 
     try:
-        from agent.credential_pool import load_pool
+        from brain.credential_pool import load_pool
 
         pool = load_pool(effective_provider)
         if pool is not None and pool.has_credentials():
@@ -2690,7 +2690,7 @@ def _resolve_delegation_credentials(cfg: dict, parent_agent) -> dict:
         # proxies — pick the right transport automatically. Without this,
         # subagents would default to chat_completions and hit 404s on endpoints
         # that only speak the Anthropic Messages protocol. Fixes #10213.
-        from hermes_cli.runtime_provider import _detect_api_mode_for_url
+        from jarvis_cli.runtime_provider import _detect_api_mode_for_url
 
         base_lower = configured_base_url.lower()
         provider = "custom"
@@ -2733,7 +2733,7 @@ def _resolve_delegation_credentials(cfg: dict, parent_agent) -> dict:
 
     # Provider is configured — resolve full credentials
     try:
-        from hermes_cli.runtime_provider import resolve_runtime_provider
+        from jarvis_cli.runtime_provider import resolve_runtime_provider
 
         runtime = resolve_runtime_provider(requested=configured_provider, target_model=configured_model)
     except Exception as exc:
@@ -2748,7 +2748,7 @@ def _resolve_delegation_credentials(cfg: dict, parent_agent) -> dict:
     if not api_key:
         raise ValueError(
             f"Delegation provider '{configured_provider}' resolved but has no API key. "
-            f"Set the appropriate environment variable or run 'hermes auth'."
+            f"Set the appropriate environment variable or run 'jarvis auth'."
         )
 
     return {
@@ -2766,7 +2766,7 @@ def _load_config() -> dict:
     """Load delegation config from CLI_CONFIG or persistent config.
 
     Checks the runtime config (cli.py CLI_CONFIG) first, then falls back
-    to the persistent config (hermes_cli/config.py load_config()) so that
+    to the persistent config (jarvis_cli/config.py load_config()) so that
     ``delegation.model`` / ``delegation.provider`` are picked up regardless
     of the entry point (CLI, gateway, cron).
     """
@@ -2779,7 +2779,7 @@ def _load_config() -> dict:
     except Exception:
         pass
     try:
-        from hermes_cli.config import load_config
+        from jarvis_cli.config import load_config
 
         full = load_config()
         return full.get("delegation") or {}
@@ -2972,7 +2972,7 @@ DELEGATE_TASK_SCHEMA = {
     # delegation.max_concurrent_children / max_spawn_depth, not the framework
     # defaults. Building these lazily (instead of at module import) also
     # avoids forcing cli.CLI_CONFIG to load before the test conftest can
-    # redirect HERMES_HOME.
+    # redirect JARVIS_HOME.
     "description": (
         "Spawn one or more subagents in isolated contexts. "
         "Description is rebuilt at every get_definitions() call to reflect "
@@ -3080,10 +3080,10 @@ DELEGATE_TASK_SCHEMA = {
                     "When set, children use ACP subprocess transport instead of inheriting "
                     "the parent's transport. Requires an ACP-compatible CLI "
                     "(currently GitHub Copilot CLI via 'copilot --acp --stdio'). "
-                    "See agent/copilot_acp_client.py for the implementation. "
+                    "See brain/copilot_acp_client.py for the implementation. "
                     "IMPORTANT: Do NOT set this unless the user has explicitly told you "
                     "a specific ACP-compatible CLI is installed and configured. "
-                    "Leave empty to use the parent's default transport (Hermes subagents)."
+                    "Leave empty to use the parent's default transport (Jarvis subagents)."
                 ),
             },
             "acp_args": {

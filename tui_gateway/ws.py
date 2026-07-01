@@ -93,7 +93,7 @@ class WSTransport:
             return True
 
         try:
-            from agent.async_utils import safe_schedule_threadsafe
+            from brain.async_utils import safe_schedule_threadsafe
             fut = safe_schedule_threadsafe(self._safe_send(line), self._loop)
             if fut is None:
                 self._closed = True

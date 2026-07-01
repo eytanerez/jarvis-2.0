@@ -190,13 +190,13 @@ class TestHandleVisionAnalyzeFastPath:
         img.write_bytes(_TINY_PNG)
 
         # Set runtime override so the handler thinks we're on opus@openrouter
-        from agent.auxiliary_client import set_runtime_main, clear_runtime_main
+        from brain.auxiliary_client import set_runtime_main, clear_runtime_main
         set_runtime_main("openrouter", "anthropic/claude-opus-4.6")
         try:
             # Mock decide_image_input_mode to always return "native" so the
             # fast path fires regardless of model-catalog state in CI.
             with patch(
-                "agent.image_routing.decide_image_input_mode",
+                "brain.image_routing.decide_image_input_mode",
                 return_value="native",
             ):
                 coro = _handle_vision_analyze({"image_url": str(img), "question": "?"})
@@ -216,7 +216,7 @@ class TestHandleVisionAnalyzeFastPath:
         async def _aux_sentinel(*args, **kwargs):
             return '{"sentinel": "aux-path"}'
 
-        from agent.auxiliary_client import set_runtime_main, clear_runtime_main
+        from brain.auxiliary_client import set_runtime_main, clear_runtime_main
         set_runtime_main("openrouter", "qwen/qwen3-coder")
         try:
             with patch("tools.vision_tools.vision_analyze_tool", side_effect=_aux_sentinel):
@@ -236,7 +236,7 @@ class TestHandleVisionAnalyzeFastPath:
         async def _aux_sentinel(*args, **kwargs):
             return '{"sentinel": "aux-path"}'
 
-        from agent.auxiliary_client import set_runtime_main, clear_runtime_main
+        from brain.auxiliary_client import set_runtime_main, clear_runtime_main
         set_runtime_main("brand-new-provider", "anthropic/claude-opus-4.6")
         try:
             with patch("tools.vision_tools.vision_analyze_tool", side_effect=_aux_sentinel):
@@ -256,11 +256,11 @@ class TestHandleVisionAnalyzeFastPath:
         async def _aux_sentinel(*args, **kwargs):
             return '{"sentinel": "aux-path"}'
 
-        from agent.auxiliary_client import set_runtime_main, clear_runtime_main
+        from brain.auxiliary_client import set_runtime_main, clear_runtime_main
         set_runtime_main("brand-new-provider", "llava-v1.6")
         try:
             with patch(
-                "hermes_cli.config.load_config",
+                "jarvis_cli.config.load_config",
                 return_value={"model": {"supports_vision": True}},
             ), patch(
                 "tools.vision_tools.vision_analyze_tool", side_effect=_aux_sentinel,
@@ -281,11 +281,11 @@ class TestHandleVisionAnalyzeFastPath:
         async def _aux_sentinel(*args, **kwargs):
             return '{"sentinel": "aux-path"}'
 
-        from agent.auxiliary_client import set_runtime_main, clear_runtime_main
+        from brain.auxiliary_client import set_runtime_main, clear_runtime_main
         set_runtime_main("brand-new-provider", "llava-v1.6")
         try:
             with patch(
-                "hermes_cli.config.load_config",
+                "jarvis_cli.config.load_config",
                 return_value={
                     "agent": {"image_input_mode": "text"},
                     "model": {"supports_vision": True},

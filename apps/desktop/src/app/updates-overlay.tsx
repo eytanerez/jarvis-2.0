@@ -95,7 +95,7 @@ export function UpdatesOverlay() {
         {phase === 'applying' && <ApplyingView apply={apply} isBackend={isBackend} />}
 
         {phase === 'manual' && (
-          <ManualView command={apply.command ?? 'hermes update'} onDone={() => handleClose(false)} />
+          <ManualView command={apply.command ?? 'jarvis update'} onDone={() => handleClose(false)} />
         )}
 
         {phase === 'error' && (
@@ -143,7 +143,10 @@ function IdleView({
 
   if (!status && checking) {
     return (
-      <CenteredStatus icon={<Loader className="size-12" label={u.checking} type="lemniscate-bloom" />} title={u.checking} />
+      <CenteredStatus
+        icon={<Loader className="size-12" label={u.checking} type="lemniscate-bloom" />}
+        title={u.checking}
+      />
     )
   }
 
@@ -212,9 +215,7 @@ function IdleView({
         <BrandMark className="size-16" />
 
         <DialogTitle className="text-center text-xl">{title}</DialogTitle>
-        <DialogDescription className="text-center text-sm">
-          {body}
-        </DialogDescription>
+        <DialogDescription className="text-center text-sm">{body}</DialogDescription>
       </div>
 
       <div className="grid gap-3 rounded-xl border border-border/70 bg-muted/20 px-4 py-3">
@@ -242,11 +243,7 @@ function IdleView({
         </Button>
       </div>
 
-      {remaining > 0 && (
-        <p className="text-center text-xs text-muted-foreground">
-          {u.moreChanges(remaining)}
-        </p>
-      )}
+      {remaining > 0 && <p className="text-center text-xs text-muted-foreground">{u.moreChanges(remaining)}</p>}
     </div>
   )
 }
@@ -269,9 +266,7 @@ function ManualView({ command, onDone }: { command: string; onDone: () => void }
         <Terminal className="size-8 text-primary" />
 
         <DialogTitle className="text-center text-xl">{u.manualTitle}</DialogTitle>
-        <DialogDescription className="text-center text-sm">
-          {u.manualBody}
-        </DialogDescription>
+        <DialogDescription className="text-center text-sm">{u.manualBody}</DialogDescription>
       </div>
 
       <button
@@ -298,9 +293,7 @@ function ManualView({ command, onDone }: { command: string; onDone: () => void }
         </span>
       </button>
 
-      <p className="text-center text-xs text-muted-foreground">
-        {u.manualPickedUp}
-      </p>
+      <p className="text-center text-xs text-muted-foreground">{u.manualPickedUp}</p>
 
       <Button className="font-semibold" onClick={onDone} size="lg" variant="secondary">
         {u.done}
@@ -326,9 +319,7 @@ function ApplyingView({ apply, isBackend }: { apply: UpdateApplyState; isBackend
         <Loader className="size-16" label={label} type="lemniscate-bloom" />
 
         <DialogTitle className="text-center text-xl">{label}</DialogTitle>
-        <DialogDescription className="text-center text-sm">
-          {body}
-        </DialogDescription>
+        <DialogDescription className="text-center text-sm">{body}</DialogDescription>
       </div>
 
       <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -358,9 +349,7 @@ function ErrorView({ message, onDismiss, onRetry }: { message: string; onDismiss
           {message || u.errorBody}
         </DialogDescription>
       }
-      title={
-        <DialogTitle className="text-center text-xl font-semibold tracking-tight">{u.errorTitle}</DialogTitle>
-      }
+      title={<DialogTitle className="text-center text-xl font-semibold tracking-tight">{u.errorTitle}</DialogTitle>}
     >
       <Button className="font-semibold" onClick={onRetry} size="lg">
         {u.tryAgain}

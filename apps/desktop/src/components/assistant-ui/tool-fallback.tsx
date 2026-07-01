@@ -71,7 +71,7 @@ const TOOL_SECTION_LABEL_CLASS = 'mb-1 text-[0.65rem] font-medium uppercase trac
 // Inset scroll surface for any detail body. The expanded tool row owns the
 // border; the payload itself is just clipped raw text.
 const TOOL_SECTION_SURFACE_CLASS =
-  'max-h-20 max-w-full overflow-auto bg-transparent px-2 py-1.5 text-(--ui-text-secondary)'
+  'max-h-20 max-w-full overflow-auto rounded-md bg-[color-mix(in_srgb,#000_20%,transparent)] px-2 py-1.5 text-(--ui-text-secondary)'
 
 const TOOL_SECTION_PRE_CLASS = cn(TOOL_SECTION_SURFACE_CLASS, 'font-mono text-[0.7rem] leading-relaxed')
 
@@ -321,12 +321,18 @@ function ToolEntry({ part }: ToolEntryProps) {
     <div
       className={cn(
         'min-w-0 max-w-full overflow-hidden text-[length:var(--conversation-tool-font-size)] text-(--ui-text-tertiary)',
-        open && 'rounded-[0.625rem] border border-(--ui-stroke-tertiary)'
+        open &&
+          'rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_62%,transparent)] bg-[color-mix(in_srgb,var(--dt-card)_52%,transparent)] shadow-[inset_0_0.0625rem_0_color-mix(in_srgb,#fff_4%,transparent)]'
       )}
       data-slot="tool-block"
       ref={enterRef}
     >
-      <div className={cn(open && 'border-b border-(--ui-stroke-tertiary) px-2 py-1.5')}>
+      <div
+        className={cn(
+          open &&
+            'border-b border-[color-mix(in_srgb,var(--jarvis-hairline)_52%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_4%,transparent)] px-2 py-1.5'
+        )}
+      >
         <DisclosureRow
           action={dismissAction}
           onToggle={hasExpandableContent ? () => setToolDisclosureOpen(disclosureId, !open) : undefined}
@@ -358,7 +364,7 @@ function ToolEntry({ part }: ToolEntryProps) {
           {copyAction.text && (
             <CopyButton
               appearance="inline"
-              className="absolute right-1.5 top-1.5 z-10 h-5 gap-0 rounded-md border border-(--ui-stroke-tertiary) bg-background/80 px-1 opacity-60 backdrop-blur-sm transition-opacity hover:opacity-100 focus-visible:opacity-100"
+              className="absolute right-1.5 top-1.5 z-10 h-5 gap-0 rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_62%,transparent)] bg-[color-mix(in_srgb,var(--dt-card)_90%,#02040a)] px-1 opacity-70 backdrop-blur-sm transition-opacity hover:opacity-100 focus-visible:opacity-100"
               iconClassName="size-3"
               label={copyAction.label}
               showLabel={false}

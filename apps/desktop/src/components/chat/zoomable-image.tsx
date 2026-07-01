@@ -89,7 +89,12 @@ export function ImageLightbox({
             onClick={() => onOpenChange(false)}
             src={src}
           />
-          <ImageActionButton className="group-hover/lightbox:opacity-100" copy={copy} onClick={onClick} saving={saving} />
+          <ImageActionButton
+            className="group-hover/lightbox:opacity-100"
+            copy={copy}
+            onClick={onClick}
+            saving={saving}
+          />
         </div>
       </DialogContent>
     </Dialog>
@@ -111,7 +116,7 @@ export function ImageActionButton({
     <button
       aria-label={saving ? copy.savingImage : copy.downloadImage}
       className={cn(
-        'absolute right-2 top-2 grid size-8 place-items-center rounded-full border border-border/70 bg-background/80 text-muted-foreground opacity-0 shadow-sm backdrop-blur transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 disabled:opacity-50',
+        'absolute right-2 top-2 grid size-8 place-items-center rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_70%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel)_84%,transparent)] text-(--jarvis-muted) opacity-0 shadow-sm backdrop-blur transition-[border-color,background-color,color,opacity] hover:border-[color-mix(in_srgb,var(--jarvis-blue)_42%,transparent)] hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] hover:text-white focus-visible:opacity-100 disabled:opacity-50',
         className
       )}
       disabled={saving}

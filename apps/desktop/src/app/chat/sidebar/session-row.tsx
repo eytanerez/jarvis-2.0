@@ -6,8 +6,8 @@ import { PlatformAvatar } from '@/app/messaging/platform-icon'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { Tip } from '@/components/ui/tooltip'
-import type { SessionInfo } from '@/hermes'
 import { type Translations, useI18n } from '@/i18n'
+import type { SessionInfo } from '@/jarvis'
 import { sessionTitle } from '@/lib/chat-runtime'
 import { triggerHaptic } from '@/lib/haptics'
 import { handoffOriginSource, sessionSourceLabel } from '@/lib/session-source'
@@ -75,7 +75,7 @@ export function SidebarSessionRow({
   // messaging platform — surface that origin as a small badge so e.g. a
   // Telegram thread continued here still reads as Telegram.
   const handoffSource = handoffOriginSource(session.handoff_state, session.handoff_platform)
-  const handoffLabel = handoffSource ? sessionSourceLabel(handoffSource) ?? handoffSource : null
+  const handoffLabel = handoffSource ? (sessionSourceLabel(handoffSource) ?? handoffSource) : null
   // Subscribe per-row (the leaf) instead of drilling a set through the list —
   // the atom is tiny and rarely non-empty. True when a clarify prompt in this
   // session is waiting on the user.
@@ -93,12 +93,13 @@ export function SidebarSessionRow({
     >
       <div
         className={cn(
-          'group relative grid min-h-[1.625rem] cursor-pointer grid-cols-[minmax(0,1fr)_1.375rem] items-center rounded-md transition-colors duration-100 ease-out hover:bg-(--ui-row-hover-background) hover:transition-none',
-          isSelected && 'bg-(--ui-row-active-background)',
-          isWorking && 'text-foreground',
+          'group relative grid min-h-[1.625rem] cursor-pointer grid-cols-[minmax(0,1fr)_1.375rem] items-center rounded-md border border-transparent transition-[background-color,border-color,color,transform] duration-150 ease-out hover:border-[color-mix(in_srgb,var(--jarvis-hairline)_36%,transparent)] hover:bg-(--ui-row-hover-background) hover:text-white active:scale-[0.995]',
+          isSelected &&
+            'border-[color-mix(in_srgb,var(--jarvis-blue)_42%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,var(--ui-row-active-background))] shadow-[inset_0_0.0625rem_0_color-mix(in_srgb,#fff_5%,transparent)]',
+          isWorking && 'text-white',
           // Opaque surface while lifted so the dragged row erases what's under
           // it (translucency let the rows below bleed through).
-          dragging && 'z-10 cursor-grabbing bg-(--ui-sidebar-surface-background)',
+          dragging && 'z-10 cursor-grabbing bg-[color-mix(in_srgb,var(--ui-sidebar-surface-background)_96%,#02040a)]',
           className
         )}
         data-working={isWorking ? 'true' : undefined}
@@ -203,7 +204,7 @@ export function SidebarSessionRow({
               />
             </Tip>
           ) : null}
-          <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-normal text-(--ui-text-secondary) group-hover:text-foreground group-data-[working=true]:text-foreground/90">
+          <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-normal text-(--ui-text-secondary) group-hover:text-white group-data-[working=true]:text-white/92">
             {title}
           </span>
         </button>
@@ -224,7 +225,7 @@ export function SidebarSessionRow({
           >
             <Button
               aria-label={r.actionsFor(title)}
-              className="size-5 rounded-[4px] bg-transparent text-transparent transition-colors duration-100 hover:bg-(--ui-control-active-background) hover:text-foreground focus-visible:bg-(--ui-control-active-background) focus-visible:text-foreground focus-visible:ring-0 data-[state=open]:bg-(--ui-control-active-background) data-[state=open]:text-foreground group-hover:text-(--ui-text-tertiary) [&_svg]:size-3.5!"
+              className="size-5 rounded-[4px] bg-transparent text-transparent transition-colors duration-150 hover:bg-(--ui-control-active-background) hover:text-white focus-visible:bg-(--ui-control-active-background) focus-visible:text-white focus-visible:ring-0 data-[state=open]:bg-(--ui-control-active-background) data-[state=open]:text-white group-hover:text-(--ui-text-tertiary) [&_svg]:size-3.5!"
               size="icon"
               title={r.sessionActions}
               variant="ghost"

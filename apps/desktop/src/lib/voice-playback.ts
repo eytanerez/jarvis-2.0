@@ -1,4 +1,4 @@
-import { speakText } from '@/hermes'
+import { speakText } from '@/jarvis'
 import {
   $voicePlayback,
   setVoicePlaybackState,
@@ -74,10 +74,13 @@ export async function playSpeechText(text: string, options: VoicePlaybackOptions
     }
 
     const audio = new Audio(response.data_url)
+    audio.preload = 'auto'
     currentAudio = audio
     setVoicePlaybackState(currentState('speaking', options, audio))
 
     await new Promise<void>((resolve, reject) => {
+      let settled = false
+
       const cleanup = () => {
         audio.removeEventListener('ended', onEnded)
         audio.removeEventListener('error', onError)
@@ -85,23 +88,46 @@ export async function playSpeechText(text: string, options: VoicePlaybackOptions
       }
 
       const onEnded = () => {
+        if (settled) {
+          return
+        }
+
+        settled = true
         cleanup()
         resolve()
       }
 
       const onError = () => {
+        if (settled) {
+          return
+        }
+
+        settled = true
         cleanup()
         reject(new Error('Playback failed'))
       }
 
       currentStop = () => {
+        if (settled) {
+          return
+        }
+
+        settled = true
         cleanup()
         resolve()
       }
 
       audio.addEventListener('ended', onEnded, { once: true })
       audio.addEventListener('error', onError, { once: true })
-      void audio.play().catch(reject)
+      void audio.play().catch(error => {
+        if (settled) {
+          return
+        }
+
+        settled = true
+        cleanup()
+        reject(error instanceof Error ? error : new Error('Playback failed'))
+      })
     })
 
     if (!isCurrent()) {

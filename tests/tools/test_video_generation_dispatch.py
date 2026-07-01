@@ -7,8 +7,8 @@ from typing import Any, Dict, List, Optional
 
 import pytest
 
-from agent import video_gen_registry
-from agent.video_gen_provider import VideoGenProvider
+from brain import video_gen_registry
+from brain.video_gen_provider import VideoGenProvider
 
 
 @pytest.fixture(autouse=True)
@@ -62,7 +62,7 @@ class _RaisingProvider(VideoGenProvider):
 class TestUnifiedDispatch:
     def _run(self, args: Dict[str, Any], *, configured: Optional[str] = None) -> Dict[str, Any]:
         from tools import video_generation_tool
-        import hermes_cli.plugins as plugins_module
+        import jarvis_cli.plugins as plugins_module
 
         saved = video_generation_tool._read_configured_video_provider
         video_generation_tool._read_configured_video_provider = lambda: configured  # type: ignore

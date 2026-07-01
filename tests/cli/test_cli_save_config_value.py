@@ -12,14 +12,14 @@ class TestSaveConfigValueAtomic:
     @pytest.fixture
     def config_env(self, tmp_path, monkeypatch):
         """Isolated config environment with a writable config.yaml."""
-        hermes_home = tmp_path / ".hermes"
-        hermes_home.mkdir()
-        config_path = hermes_home / "config.yaml"
+        jarvis_home = tmp_path / ".jarvis"
+        jarvis_home.mkdir()
+        config_path = jarvis_home / "config.yaml"
         config_path.write_text(yaml.dump({
             "model": {"default": "test-model", "provider": "openrouter"},
             "display": {"skin": "default"},
         }))
-        monkeypatch.setattr("cli._hermes_home", hermes_home)
+        monkeypatch.setattr("cli._jarvis_home", jarvis_home)
         return config_path
 
     def test_calls_roundtrip_yaml_update(self, config_env, monkeypatch):
@@ -35,7 +35,7 @@ class TestSaveConfigValueAtomic:
     def test_preserves_existing_keys(self, config_env):
         """Writing a new key must not clobber existing config entries."""
         from cli import save_config_value
-        save_config_value("agent.max_turns", 50)
+        save_config_value("brain.max_turns", 50)
 
         result = yaml.safe_load(config_env.read_text())
         assert result["model"]["default"] == "test-model"

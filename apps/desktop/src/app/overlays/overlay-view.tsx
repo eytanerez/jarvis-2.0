@@ -49,7 +49,7 @@ export function OverlayView({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/22 p-3 backdrop-blur-[0.125rem] sm:p-6"
+      className="fixed inset-0 z-50 bg-[color-mix(in_srgb,#000_62%,transparent)] p-3 backdrop-blur-[0.25rem] sm:p-6"
       onClick={event => {
         if (event.target === event.currentTarget) {
           closeOverlay()
@@ -59,7 +59,7 @@ export function OverlayView({
     >
       <div
         className={cn(
-          'relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-chat-surface-background) shadow-md',
+          'relative flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--jarvis-hairline)_82%,transparent)] bg-[color-mix(in_srgb,var(--ui-chat-surface-background)_94%,#02040a)] shadow-[inset_0_0.0625rem_0_color-mix(in_srgb,#fff_6%,transparent),0_1.75rem_5rem_-2.5rem_color-mix(in_srgb,#000_92%,transparent),0_0_2.5rem_color-mix(in_srgb,var(--jarvis-blue)_8%,transparent)]',
           rootClassName
         )}
       >

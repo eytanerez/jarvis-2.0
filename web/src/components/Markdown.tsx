@@ -327,7 +327,7 @@ function InlineContent({
           case "link": {
             // Security: only render http(s)/mailto links. Other schemes
             // (javascript:, data:, vbscript:) are dropped to plain text so a
-            // crafted link in agent/message content can't execute on click.
+            // crafted link in brain/message content can't execute on click.
             const href = node.href.trim();
             if (!/^(https?:|mailto:)/i.test(href)) {
               return (

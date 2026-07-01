@@ -9,7 +9,7 @@ function Input({ className, type, size, ...props }: Omit<React.ComponentProps<'i
     <input
       className={cn(
         controlVariants({ size }),
-        'selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-xs file:font-medium file:text-foreground',
+        'selection:bg-[color-mix(in_srgb,var(--jarvis-blue)_28%,transparent)] selection:text-white file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-xs file:font-medium file:text-(--jarvis-text)',
         className
       )}
       data-slot="input"

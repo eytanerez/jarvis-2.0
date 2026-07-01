@@ -6,7 +6,7 @@ description: "How the messaging gateway boots, authorizes users, routes sessions
 
 # Gateway Internals
 
-The messaging gateway is the long-running process that connects Hermes to 20+ external messaging platforms through a unified architecture.
+The messaging gateway is the long-running process that connects Jarvis to 20+ external messaging platforms through a unified architecture.
 
 ## Key Files
 
@@ -40,7 +40,7 @@ The messaging gateway is the long-running process that connects Hermes to 20+ ex
 │                     │                           │
 │         ┌───────────┼───────────┐               │
 │         ▼           ▼           ▼               │
-│  Slash command   AIAgent    Queue/BG            │
+│  Slash command   AIBrain    Queue/BG            │
 │    dispatch      creation   sessions            │
 │                     │                           │
 │                     ▼                           │
@@ -62,7 +62,7 @@ When a message arrives from any platform:
    - Check authorization (see Authorization below)
    - Check if it's a slash command → dispatch to command handler
    - Check if agent is already running → intercept commands like `/stop`, `/status`
-   - Otherwise → create `AIAgent` instance and run conversation
+   - Otherwise → create `AIBrain` instance and run conversation
 4. **Response** is sent back through the platform adapter
 
 ### Session Key Format
@@ -112,7 +112,7 @@ Pairing state is persisted in `gateway/pairing.py` and survives restarts.
 
 All slash commands in the gateway flow through the same resolution pipeline:
 
-1. `resolve_command()` from `hermes_cli/commands.py` maps input to canonical name (handles aliases, prefix matching)
+1. `resolve_command()` from `jarvis_cli/commands.py` maps input to canonical name (handles aliases, prefix matching)
 2. The canonical name is checked against `GATEWAY_KNOWN_COMMANDS`
 3. Handler in `_handle_message()` dispatches based on canonical name
 4. Some commands are gated on config (`gateway_config_gate` on `CommandDef`)
@@ -135,8 +135,8 @@ The gateway reads configuration from multiple sources:
 
 | Source | What it provides |
 |--------|-----------------|
-| `~/.hermes/.env` | API keys, bot tokens, platform credentials |
-| `~/.hermes/config.yaml` | Model settings, tool configuration, display options |
+| `~/.jarvis/.env` | API keys, bot tokens, platform credentials |
+| `~/.jarvis/config.yaml` | Model settings, tool configuration, display options |
 | Environment variables | Override any of the above |
 
 Unlike the CLI (which uses `load_cli_config()` with hardcoded defaults), the gateway reads `config.yaml` directly via YAML loader. This means config keys that exist in the CLI's defaults dict but not in the user's config file may behave differently between CLI and gateway.
@@ -186,7 +186,7 @@ Outgoing deliveries (`gateway/delivery.py`) handle:
 
 - **Direct reply** — send response back to the originating chat
 - **Home channel delivery** — route cron job outputs and background results to a configured home channel
-- **Explicit target delivery** — `send_message` tool specifying `telegram:-1001234567890`, or the [`hermes send` CLI](/guides/pipe-script-output) wrapping the same tool for shell scripts
+- **Explicit target delivery** — `send_message` tool specifying `telegram:-1001234567890`, or the [`jarvis send` CLI](/guides/pipe-script-output) wrapping the same tool for shell scripts
 - **Cross-platform delivery** — deliver to a different platform than the originating message
 
 Cron job deliveries are NOT mirrored into gateway session history — they live in their own cron session only. This is a deliberate design choice to avoid message alternation violations.
@@ -208,18 +208,18 @@ Gateway hooks are Python modules that respond to lifecycle events:
 | `agent:end` | Agent finishes and returns response |
 | `command:*` | Any slash command is executed |
 
-Hooks are discovered from `gateway/builtin_hooks/` (an extension point — currently empty in the shipped distribution; `_register_builtin_hooks()` is a no-op stub) and `~/.hermes/hooks/` (user-installed). Each hook is a directory with a `HOOK.yaml` manifest and `handler.py`.
+Hooks are discovered from `gateway/builtin_hooks/` (an extension point — currently empty in the shipped distribution; `_register_builtin_hooks()` is a no-op stub) and `~/.jarvis/hooks/` (user-installed). Each hook is a directory with a `HOOK.yaml` manifest and `handler.py`.
 
 ## Memory Provider Integration
 
 When a memory provider plugin (e.g., Honcho) is enabled:
 
-1. Gateway creates an `AIAgent` per message with the session ID
+1. Gateway creates an `AIBrain` per message with the session ID
 2. The `MemoryManager` initializes the provider with the session context
 3. Provider tools (e.g., `honcho_profile`, `viking_search`) are routed through:
 
 ```text
-AIAgent._invoke_tool()
+AIBrain._invoke_tool()
   → self._memory_manager.handle_tool_call(name, args)
     → provider.handle_tool_call(name, args)
 ```
@@ -231,7 +231,7 @@ AIAgent._invoke_tool()
 When a session is reset, resumed, or expires:
 1. Built-in memories are flushed to disk
 2. Memory provider's `on_session_end()` hook fires
-3. A temporary `AIAgent` runs a memory-only conversation turn
+3. A temporary `AIBrain` runs a memory-only conversation turn
 4. Context is then discarded or archived
 
 ## Background Maintenance
@@ -247,11 +247,11 @@ The gateway runs periodic maintenance alongside message handling:
 
 The gateway runs as a long-lived process, managed via:
 
-- `hermes gateway start` / `hermes gateway stop` — manual control
+- `jarvis gateway start` / `jarvis gateway stop` — manual control
 - `systemctl` (Linux) or `launchctl` (macOS) — service management
-- PID file at `~/.hermes/gateway.pid` — profile-scoped process tracking
+- PID file at `~/.jarvis/gateway.pid` — profile-scoped process tracking
 
-**Profile-scoped vs global**: `start_gateway()` uses profile-scoped PID files. `hermes gateway stop` stops only the current profile's gateway. `hermes gateway stop --all` uses global `ps aux` scanning to kill all gateway processes (used during updates).
+**Profile-scoped vs global**: `start_gateway()` uses profile-scoped PID files. `jarvis gateway stop` stops only the current profile's gateway. `jarvis gateway stop --all` uses global `ps aux` scanning to kill all gateway processes (used during updates).
 
 ## Related Docs
 

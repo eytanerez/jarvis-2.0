@@ -27,7 +27,7 @@ function SheetOverlay({ className, ...props }: React.ComponentProps<typeof Sheet
   return (
     <SheetPrimitive.Overlay
       className={cn(
-        'fixed inset-0 z-50 bg-black/22 backdrop-blur-[0.125rem] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
+        'fixed inset-0 z-50 bg-black/55 backdrop-blur-[0.125rem] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
         className
       )}
       data-slot="sheet-overlay"
@@ -53,7 +53,7 @@ function SheetContent({
       <SheetOverlay />
       <SheetPrimitive.Content
         className={cn(
-          'fixed z-50 flex flex-col gap-3 border-(--ui-stroke-secondary) bg-(--ui-sidebar-surface-background) text-[length:var(--conversation-text-font-size)] shadow-md transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500',
+          'fixed z-50 flex flex-col gap-3 border-[color-mix(in_srgb,var(--jarvis-blue)_22%,var(--jarvis-hairline))] bg-[color-mix(in_srgb,var(--jarvis-panel)_96%,transparent)] text-[length:var(--conversation-text-font-size)] shadow-[0_18px_56px_rgba(0,0,0,0.46),0_0_28px_color-mix(in_srgb,var(--jarvis-blue)_8%,transparent)] transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500',
           side === 'right' &&
             'inset-y-0 right-0 h-full w-3/4 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm',
           side === 'left' &&
@@ -71,7 +71,7 @@ function SheetContent({
         {showCloseButton && (
           <SheetPrimitive.Close
             aria-label={t.common.close}
-            className="absolute top-3 right-3 rounded-md p-1 text-(--ui-text-tertiary) opacity-70 ring-offset-background transition-opacity hover:bg-(--chrome-action-hover) hover:text-foreground hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary"
+            className="absolute right-3 top-3 rounded-md p-1 text-(--jarvis-muted) opacity-70 transition-opacity hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] hover:text-white hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-[color-mix(in_srgb,var(--jarvis-blue)_22%,transparent)] disabled:pointer-events-none data-[state=open]:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)]"
           >
             <Codicon name="close" size="1rem" />
             <span className="sr-only">{t.common.close}</span>
@@ -93,7 +93,7 @@ function SheetFooter({ className, ...props }: React.ComponentProps<'div'>) {
 function SheetTitle({ className, ...props }: React.ComponentProps<typeof SheetPrimitive.Title>) {
   return (
     <SheetPrimitive.Title
-      className={cn('text-[0.9375rem] font-semibold text-foreground', className)}
+      className={cn('text-[0.9375rem] font-semibold text-(--jarvis-text)', className)}
       data-slot="sheet-title"
       {...props}
     />
@@ -104,7 +104,7 @@ function SheetDescription({ className, ...props }: React.ComponentProps<typeof S
   return (
     <SheetPrimitive.Description
       className={cn(
-        'text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)',
+        'text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--jarvis-muted)',
         className
       )}
       data-slot="sheet-description"

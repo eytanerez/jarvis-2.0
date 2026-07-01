@@ -1,5 +1,5 @@
 import pytest
-from agent.model_metadata import parse_available_output_tokens_from_error
+from brain.model_metadata import parse_available_output_tokens_from_error
 
 
 class TestParseOpenRouterOutputCap:

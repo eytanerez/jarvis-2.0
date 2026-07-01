@@ -9,7 +9,7 @@ import json
 import pytest
 from unittest.mock import MagicMock, patch
 
-from run_agent import (
+from run_brain import (
     _sanitize_surrogates,
     _sanitize_messages_surrogates,
     _sanitize_structure_surrogates,
@@ -293,12 +293,12 @@ class TestApiMessagesSurrogateRecovery:
 class TestRunConversationSurrogateSanitization:
     """Integration: verify run_conversation sanitizes user_message."""
 
-    @patch("run_agent.AIAgent._build_system_prompt")
-    @patch("run_agent.AIAgent._interruptible_streaming_api_call")
-    @patch("run_agent.AIAgent._interruptible_api_call")
+    @patch("run_brain.AIBrain._build_system_prompt")
+    @patch("run_brain.AIBrain._interruptible_streaming_api_call")
+    @patch("run_brain.AIBrain._interruptible_api_call")
     def test_user_message_surrogates_sanitized(self, mock_api, mock_stream, mock_sys):
         """Surrogates in user_message are stripped before API call."""
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
         mock_sys.return_value = "system prompt"
 
@@ -319,7 +319,7 @@ class TestRunConversationSurrogateSanitization:
         mock_stream.return_value = mock_response
         mock_api.return_value = mock_response
 
-        agent = AIAgent(model="test/model", api_key="test-key", base_url="http://localhost:1234/v1", quiet_mode=True, skip_memory=True, skip_context_files=True)
+        agent = AIBrain(model="test/model", api_key="test-key", base_url="http://localhost:1234/v1", quiet_mode=True, skip_memory=True, skip_context_files=True)
         agent.client = MagicMock()
 
         # Pass a message with surrogates

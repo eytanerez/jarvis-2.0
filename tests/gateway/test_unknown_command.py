@@ -87,8 +87,8 @@ async def test_unknown_slash_command_returns_guidance(monkeypatch):
 
     runner = _make_runner()
     # If the LLM were called, this would fail: the guard must short-circuit
-    # before _run_agent is invoked.
-    runner._run_agent = AsyncMock(
+    # before _run_brain is invoked.
+    runner._run_brain = AsyncMock(
         side_effect=AssertionError(
             "unknown slash command leaked through to the agent"
         )
@@ -104,7 +104,7 @@ async def test_unknown_slash_command_returns_guidance(monkeypatch):
     assert "Unknown command" in result
     assert "/definitely-not-a-command" in result
     assert "/commands" in result
-    runner._run_agent.assert_not_called()
+    runner._run_brain.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -114,7 +114,7 @@ async def test_unknown_slash_command_underscored_form_also_guarded(monkeypatch):
     import gateway.run as gateway_run
 
     runner = _make_runner()
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         side_effect=AssertionError(
             "unknown slash command leaked through to the agent"
         )
@@ -129,7 +129,7 @@ async def test_unknown_slash_command_underscored_form_also_guarded(monkeypatch):
     assert result is not None
     assert "Unknown command" in result
     assert "/made_up_thing" in result
-    runner._run_agent.assert_not_called()
+    runner._run_brain.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -180,7 +180,7 @@ async def test_command_hook_can_deny_before_dispatch(monkeypatch):
     import gateway.run as gateway_run
 
     runner = _make_runner()
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         side_effect=AssertionError("denied slash command leaked to the agent")
     )
     runner._handle_status_command = AsyncMock(
@@ -197,7 +197,7 @@ async def test_command_hook_can_deny_before_dispatch(monkeypatch):
     result = await runner._handle_message(_make_event("/status"))
 
     assert result == "Blocked by ACL"
-    runner._run_agent.assert_not_called()
+    runner._run_brain.assert_not_called()
     # The emit_collect call should use the canonical command name.
     call_args = runner.hooks.emit_collect.await_args
     assert call_args.args[0] == "command:status"
@@ -293,7 +293,7 @@ async def test_command_hook_fires_for_plugin_registered_command(monkeypatch):
     import gateway.run as gateway_run
 
     runner = _make_runner()
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         side_effect=AssertionError("plugin command leaked to the agent")
     )
     runner.hooks.emit_collect = AsyncMock(
@@ -304,7 +304,7 @@ async def test_command_hook_fires_for_plugin_registered_command(monkeypatch):
         gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"}
     )
     # Stub plugin command lookup so is_gateway_known_command() recognizes /metricas.
-    from hermes_cli import plugins as _plugins_mod
+    from jarvis_cli import plugins as _plugins_mod
 
     monkeypatch.setattr(
         _plugins_mod,
@@ -329,7 +329,7 @@ async def test_command_hook_rewrite_routes_to_plugin(monkeypatch):
     import gateway.run as gateway_run
 
     runner = _make_runner()
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         side_effect=AssertionError("rewritten command leaked to the agent")
     )
 
@@ -352,7 +352,7 @@ async def test_command_hook_rewrite_routes_to_plugin(monkeypatch):
     monkeypatch.setattr(
         gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"}
     )
-    from hermes_cli import plugins as _plugins_mod
+    from jarvis_cli import plugins as _plugins_mod
 
     monkeypatch.setattr(
         _plugins_mod,

@@ -18,7 +18,7 @@ _UNSET = object()
 
 
 def _make_cli(tool_progress="all", verbose=_UNSET):
-    """Create a HermesCLI instance with minimal mocking."""
+    """Create a JarvisCLI instance with minimal mocking."""
     global _cli_mod
     _clean_config = {
         "model": {
@@ -30,7 +30,7 @@ def _make_cli(tool_progress="all", verbose=_UNSET):
         "agent": {},
         "terminal": {"env_type": "local"},
     }
-    clean_env = {"LLM_MODEL": "", "HERMES_MAX_ITERATIONS": ""}
+    clean_env = {"LLM_MODEL": "", "JARVIS_MAX_ITERATIONS": ""}
     prompt_toolkit_stubs = {
         "prompt_toolkit": MagicMock(),
         "prompt_toolkit.history": MagicMock(),
@@ -56,8 +56,8 @@ def _make_cli(tool_progress="all", verbose=_UNSET):
         with patch.object(mod, "get_tool_definitions", return_value=[]), \
              patch.dict(mod.__dict__, {"CLI_CONFIG": _clean_config}):
             if verbose is _UNSET:
-                return mod.HermesCLI()
-            return mod.HermesCLI(verbose=verbose)
+                return mod.JarvisCLI()
+            return mod.JarvisCLI(verbose=verbose)
 
 
 class TestToolProgressScrollback:
@@ -85,7 +85,7 @@ class TestToolProgressScrollback:
             cli._on_tool_progress("tool.started", "read_file", "cli.py", {"path": "cli.py"})
             cli._on_tool_progress("tool.completed", "read_file", None, None, duration=0.1, is_error=False)
             # Second call (same tool)
-            cli._on_tool_progress("tool.started", "read_file", "run_agent.py", {"path": "run_agent.py"})
+            cli._on_tool_progress("tool.started", "read_file", "run_brain.py", {"path": "run_brain.py"})
             cli._on_tool_progress("tool.completed", "read_file", None, None, duration=0.2, is_error=False)
 
         assert mock_print.call_count == 2
@@ -96,7 +96,7 @@ class TestToolProgressScrollback:
         with patch.object(_cli_mod, "_cprint") as mock_print:
             cli._on_tool_progress("tool.started", "read_file", "cli.py", {"path": "cli.py"})
             cli._on_tool_progress("tool.completed", "read_file", None, None, duration=0.1, is_error=False)
-            cli._on_tool_progress("tool.started", "read_file", "run_agent.py", {"path": "run_agent.py"})
+            cli._on_tool_progress("tool.started", "read_file", "run_brain.py", {"path": "run_brain.py"})
             cli._on_tool_progress("tool.completed", "read_file", None, None, duration=0.2, is_error=False)
 
         assert mock_print.call_count == 1  # Only the first read_file
@@ -109,7 +109,7 @@ class TestToolProgressScrollback:
             cli._on_tool_progress("tool.completed", "read_file", None, None, duration=0.1, is_error=False)
             cli._on_tool_progress("tool.started", "search_files", "pattern", {"pattern": "test"})
             cli._on_tool_progress("tool.completed", "search_files", None, None, duration=0.3, is_error=False)
-            cli._on_tool_progress("tool.started", "read_file", "run_agent.py", {"path": "run_agent.py"})
+            cli._on_tool_progress("tool.started", "read_file", "run_brain.py", {"path": "run_brain.py"})
             cli._on_tool_progress("tool.completed", "read_file", None, None, duration=0.2, is_error=False)
 
         # read_file, search_files, read_file (3rd prints because search_files broke the streak)
@@ -170,7 +170,7 @@ class TestToolProgressScrollback:
         assert mock_print.call_count == 2
 
     def test_verbose_mode_no_duplicate_scrollback(self):
-        """In 'verbose' mode, scrollback lines are NOT printed (run_agent handles verbose output)."""
+        """In 'verbose' mode, scrollback lines are NOT printed (run_brain handles verbose output)."""
         cli = _make_cli(tool_progress="verbose")
         with patch.object(_cli_mod, "_cprint") as mock_print:
             cli._on_tool_progress("tool.started", "terminal", "ls", {"command": "ls"})

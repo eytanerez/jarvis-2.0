@@ -27,7 +27,7 @@ import logging
 import os
 from typing import Any, Dict, List
 
-from agent.web_search_provider import WebSearchProvider
+from brain.web_search_provider import WebSearchProvider
 
 logger = logging.getLogger(__name__)
 

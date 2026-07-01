@@ -53,7 +53,7 @@ function DialogContent({
           // Cap height at 85vh and let long content scroll inside the dialog
           // instead of overflowing off-screen (long cron titles, tool detail
           // dumps, etc.). Individual dialogs can still override via className.
-          'fixed left-1/2 top-1/2 z-[130] pointer-events-auto grid max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-3 overflow-y-auto rounded-xl border border-(--stroke-nous) bg-(--ui-chat-bubble-background) p-4 text-[length:var(--conversation-text-font-size)] text-foreground shadow-nous duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+          'fixed left-1/2 top-1/2 z-[130] pointer-events-auto grid max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-3 overflow-y-auto rounded-lg border border-[color-mix(in_srgb,var(--jarvis-blue)_24%,var(--jarvis-hairline))] bg-[color-mix(in_srgb,var(--jarvis-panel)_94%,#02040a)] p-4 text-[length:var(--conversation-text-font-size)] text-(--jarvis-text) shadow-[0_24px_80px_rgba(0,0,0,0.58),0_0_42px_color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
           className
         )}
         data-slot="dialog-content"
@@ -64,7 +64,7 @@ function DialogContent({
           <DialogPrimitive.Close asChild data-slot="dialog-close-button">
             <Button
               aria-label={t.common.close}
-              className="absolute right-2.5 top-2.5 text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground"
+              className="absolute right-2.5 top-2.5 text-(--jarvis-muted) hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] hover:text-white"
               size="icon-xs"
               variant="ghost"
             >
@@ -112,14 +112,14 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       className={cn(
-        'text-[0.9375rem] font-semibold tracking-tight text-foreground',
+        'text-[0.9375rem] font-semibold tracking-normal text-(--jarvis-text)',
         Icon && 'flex items-center gap-2',
         className
       )}
       data-slot="dialog-title"
       {...props}
     >
-      {Icon ? <Icon className="size-4 shrink-0 text-primary" /> : null}
+      {Icon ? <Icon className="size-4 shrink-0 text-(--jarvis-blue)" /> : null}
       {children}
     </DialogPrimitive.Title>
   )
@@ -129,7 +129,7 @@ function DialogDescription({ className, ...props }: React.ComponentProps<typeof 
   return (
     <DialogPrimitive.Description
       className={cn(
-        'text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)',
+        'text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--jarvis-muted)',
         className
       )}
       data-slot="dialog-description"

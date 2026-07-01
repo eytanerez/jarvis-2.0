@@ -19,8 +19,8 @@ export async function writeClipboardText(text: string) {
     return
   }
 
-  if (window.hermesDesktop?.writeClipboard) {
-    await window.hermesDesktop.writeClipboard(text)
+  if (window.jarvisDesktop?.writeClipboard) {
+    await window.jarvisDesktop.writeClipboard(text)
 
     return
   }
@@ -158,6 +158,7 @@ export function CopyButton({
 
   const feedbackLabel =
     status === 'copied' ? t.common.copied : status === 'error' ? resolvedErrorMessage : (title ?? resolvedLabel)
+
   const ariaLabel = status === 'idle' ? resolvedLabel : feedbackLabel
 
   if (appearance === 'menu-item' || appearance === 'context-menu-item') {
@@ -182,7 +183,7 @@ export function CopyButton({
       <button
         aria-label={ariaLabel}
         className={cn(
-          'inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[0.75rem] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40',
+          'inline-flex items-center gap-1 rounded-[3px] px-1.5 py-0.5 text-[0.75rem] text-(--jarvis-muted) transition-colors hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] hover:text-white disabled:opacity-40',
           className
         )}
         disabled={disabled}
@@ -200,7 +201,7 @@ export function CopyButton({
         <button
           aria-label={ariaLabel}
           className={cn(
-            'grid size-6 place-items-center rounded-md text-muted-foreground/70 opacity-0 transition-opacity hover:bg-accent/55 hover:text-foreground focus-visible:opacity-100 group-hover/tool-row:opacity-100 disabled:opacity-40',
+            'grid size-6 place-items-center rounded-md text-(--jarvis-muted) opacity-0 transition-opacity hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] hover:text-white focus-visible:opacity-100 group-hover/tool-row:opacity-100 disabled:opacity-40',
             className
           )}
           disabled={disabled}

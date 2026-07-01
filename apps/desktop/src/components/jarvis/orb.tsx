@@ -4,14 +4,7 @@ import { cn } from '@/lib/utils'
 
 // The seven cockpit states the orb can portray. Driven by real gateway/audio
 // state upstream (see store/jarvis-cockpit); this component only paints.
-export type OrbState =
-  | 'awaitingApproval'
-  | 'error'
-  | 'idle'
-  | 'listening'
-  | 'speaking'
-  | 'thinking'
-  | 'toolUse'
+export type OrbState = 'awaitingApproval' | 'error' | 'idle' | 'listening' | 'speaking' | 'thinking' | 'toolUse'
 
 export interface JarvisOrbProps {
   className?: string
@@ -56,9 +49,9 @@ const VERT = `#version 300 es
 in vec2 p;
 void main(){ gl_Position = vec4(p, 0.0, 1.0); }`
 
-// Ported verbatim from the locked preview shader. Screen-space volumetric orb:
-// a soft-edged sphere with fresnel rim, fbm plasma veins, orbiting particles,
-// and additive bloom, tone-mapped over a night backdrop.
+// Voice-first electric-blue orb scene. The pasted Trillion prompt maps onto our
+// existing WebGL2 path: u_level is the voice-bright input, and u_state keeps the
+// seven Jarvis cockpit states distinct without adding a dependency.
 const FRAG = `#version 300 es
 precision highp float;
 out vec4 fragColor;
@@ -68,76 +61,119 @@ uniform vec3 u_core; uniform vec3 u_glow; uniform vec3 u_ring; uniform vec3 u_pa
 uniform vec3 u_errCol; uniform vec3 u_appCol; uniform vec3 u_bg; uniform vec3 u_bgDeep;
 
 float hash(vec3 p){ p=fract(p*0.3183099+0.1); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+float hash21(vec2 p){ vec3 p3=fract(vec3(p.xyx)*0.1031); p3+=dot(p3,p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
 float noise(vec3 x){ vec3 i=floor(x); vec3 f=fract(x); f=f*f*(3.0-2.0*f);
   return mix(mix(mix(hash(i+vec3(0,0,0)),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
              mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z); }
 float fbm(vec3 p){ float a=0.5,s=0.0; for(int i=0;i<5;i++){ s+=a*noise(p); p*=2.02; a*=0.5; } return s; }
 mat2 rot(float a){ float c=cos(a),s=sin(a); return mat2(c,-s,s,c); }
+float stateIs(float st,float code){ return 1.0-step(0.25,abs(st-code)); }
+float starLayer(vec2 uv,float scale,float seed,float t){
+  vec2 grid=uv*scale+seed;
+  vec2 id=floor(grid);
+  vec2 cell=fract(grid)-0.5;
+  float rnd=hash21(id+seed);
+  float star=step(0.982,rnd);
+  float twinkle=0.55+0.45*sin(t*(0.6+hash21(id+17.0)*2.0)+rnd*6.28318);
+  return star*smoothstep(0.055,0.0,length(cell))*twinkle;
+}
 
 void main(){
   vec2 uv=(gl_FragCoord.xy*2.0-u_res)/min(u_res.x,u_res.y);
   float r=length(uv); float ang=atan(uv.y,uv.x);
-  float t = u_reduced>0.5 ? 6.0 : u_time;
-  float st=u_state; float lvl=clamp(u_level,0.0,1.0);
-  float breathe = 0.5+0.5*sin(t*0.7);
-  float baseR=0.50; float scale=1.0;
-  scale += (u_reduced>0.5?0.0:0.03*breathe);
-  scale += 0.12*lvl*step(0.5,st);
-  float R=baseR*scale;
-  float rr=r/R; float z=sqrt(max(0.0,1.0-rr*rr)); vec3 nrm=vec3(uv/R,z);
+  float t = u_reduced>0.5 ? 9.0 : u_time;
+  float st=u_state;
+  float lvl=clamp(u_level,0.0,1.0);
+  float sListen=stateIs(st,1.0);
+  float sThink=stateIs(st,2.0);
+  float sSpeak=stateIs(st,3.0);
+  float sTool=stateIs(st,4.0);
+  float sApproval=stateIs(st,5.0);
+  float sError=stateIs(st,6.0);
+  float err=max(sError,clamp(u_error,0.0,1.0));
+  float breathe=0.5+0.5*sin(t*1.55);
+  float activity=max(max(max(sListen,sThink),max(sSpeak,sTool)),max(sApproval,err));
+  float voiceBright=clamp(lvl*(sListen+sSpeak)+0.22*sThink+0.18*sTool+0.10*sApproval+0.16*err,0.0,1.0);
 
-  float turbAmp=0.4+0.6*lvl; vec3 spp=nrm*2.1; spp.xy*=rot(t*0.16);
-  float turb=fbm(spp+vec3(0.0,0.0,t*0.28)); turb=mix(0.6,turb,turbAmp);
+  vec3 accent=u_ring;
+  accent=mix(accent,mix(u_ring,u_particle,0.42),sThink);
+  accent=mix(accent,mix(u_ring,u_particle,0.62),sTool);
+  accent=mix(accent,u_appCol,sApproval);
+  accent=mix(accent,u_errCol,err);
 
-  float disk=smoothstep(1.02,0.90,rr);
-  float depth=smoothstep(1.05,0.0,rr);
-  float body=disk;
-  float coreHot=pow(depth,2.3);
-  float fres=pow(1.0-z,2.3)*smoothstep(1.16,0.84,rr);
-  float glow=pow(R/max(r,1e-3),1.7)*0.09;
-  float halo=exp(-max(0.0,(rr-1.0))*4.0);
-  float bloom=exp(-r*r*1.8);
+  vec2 driftA=uv*1.15+vec2(t*0.018,-t*0.012);
+  vec2 driftB=uv*1.85+vec2(-t*0.010,t*0.016);
+  float vignette=1.0-smoothstep(0.2,1.92,r);
+  float nebA=smoothstep(0.42,0.82,fbm(vec3(driftA, t*0.035)));
+  float nebB=smoothstep(0.50,0.88,fbm(vec3(driftB*rot(0.55), 4.0-t*0.025)));
+  float stars=starLayer(uv,92.0,4.0,t)+starLayer(uv,148.0,31.0,t)*0.72;
+  vec3 bg=mix(u_bgDeep,u_bg,0.34*vignette);
+  bg+=u_glow*nebA*vignette*0.095;
+  bg+=vec3(0.22,0.16,0.78)*nebB*vignette*0.082;
+  bg+=vec3(0.58,0.74,1.0)*stars*(0.38+0.22*activity);
 
-  float veins = smoothstep(0.42,0.95,turb);
-  vec3 col=vec3(0.0);
-  col += u_glow * disk    * (0.42+0.55*turb) * (0.6+0.85*depth) * 1.55;
-  col += u_ring * disk    * veins * depth * 0.9;
-  col += u_core * coreHot * (0.9+0.5*turb) * 1.5;
-  col += vec3(1.0) * pow(depth,6.5) * 0.4;
-  col += u_ring * fres   * 1.9;
-  col += u_glow * glow   * 1.0;
-  col += u_ring * halo   * 0.7;
-  col += u_glow * bloom  * 0.4;
+  float R=0.43*(1.0+0.026*breathe+0.070*voiceBright+0.018*sApproval-0.018*err);
+  float rr=r/R;
+  float z=sqrt(max(0.0,1.0-rr*rr));
+  vec3 nrm=vec3(uv/R,z);
+  nrm.xy*=rot(t*0.12+0.08*sin(t*0.21));
+  float plasma=fbm(nrm*2.7+vec3(t*0.08,-t*0.06,t*0.18));
+  float fine=fbm(nrm*6.0+vec3(-t*0.14,t*0.10,2.0));
+  float disk=1.0-smoothstep(0.94,1.045,rr);
+  float depth=clamp(1.0-rr*rr,0.0,1.0);
+  float fres=pow(1.0-z,2.35)*disk;
+  float clouds=smoothstep(0.38,0.90,plasma)*disk;
+  float veins=smoothstep(0.58,0.95,fine+0.25*plasma)*disk;
+  float atmospheric=exp(-r*r*1.72)*(0.34+0.52*voiceBright+0.16*activity);
+  float halo=exp(-max(0.0,rr-0.86)*3.25)*(1.0-smoothstep(2.18,2.92,rr));
+  float medium=exp(-pow(rr-1.0,2.0)*20.0);
+  float inner=pow(depth,2.5)*disk;
+  float core=exp(-rr*rr*4.45)*disk;
 
-  if(st>1.5&&st<2.5){ float sweep=pow(0.5+0.5*cos(ang-t*1.6),6.0); col+=u_ring*sweep*(fres+0.3*body)*2.2; }
+  vec3 orb=vec3(0.0);
+  orb+=u_glow*atmospheric*0.62;
+  orb+=accent*halo*(0.32+0.42*voiceBright);
+  orb+=accent*medium*(0.68+1.18*voiceBright);
+  orb+=u_glow*disk*(0.22+0.52*clouds)*(0.58+0.92*z);
+  orb+=accent*veins*(0.24+0.42*voiceBright);
+  orb+=u_core*inner*(0.96+1.10*voiceBright);
+  orb+=vec3(1.0)*core*(0.36+0.48*voiceBright);
+  orb+=accent*fres*(1.12+0.72*activity);
 
-  if((st>1.5&&st<2.5)||(st>3.5&&st<4.5)){
-    float pr=R*1.34; float s2=(st>3.5?1.5:0.95);
-    for(int i=0;i<10;i++){ float a=t*s2+float(i)*0.6283185; vec2 pp=rot(0.6)*(vec2(cos(a),sin(a)*0.5)*pr);
-      float d=length(uv-pp); col+=u_particle*exp(-d*d*260.0)*1.5; }
+  float listenRing=exp(-pow(abs(rr-(1.13+0.055*sin(t*2.4))),2.0)*220.0);
+  orb+=u_ring*listenRing*sListen*(0.62+1.70*lvl);
+
+  float speakWave=exp(-pow(abs(rr-(1.04+0.22*lvl)),2.0)*72.0);
+  float speakRipple=(0.55+0.45*sin(rr*22.0-t*5.2));
+  orb+=u_core*speakWave*speakRipple*sSpeak*(0.38+1.30*lvl);
+  orb+=u_glow*core*sSpeak*lvl*0.72;
+
+  float sweep=pow(max(0.0,0.5+0.5*cos(ang-t*1.7)),8.0);
+  orb+=accent*sweep*medium*sThink*1.42;
+
+  float scan=exp(-pow(abs(uv.y-sin(t*0.9+uv.x*2.0)*0.08),2.0)*38.0);
+  orb+=u_particle*scan*disk*sTool*0.28;
+
+  float orbitStrength=sThink*0.78+sTool*1.18;
+  for(int i=0;i<14;i++){
+    float fi=float(i);
+    float a=t*(0.76+0.42*sTool)+fi*0.448799;
+    vec2 pp=rot(0.46+0.12*sin(t*0.3))*vec2(cos(a)*R*1.42,sin(a)*R*(0.52+0.18*sin(fi)));
+    float d=length(uv-pp);
+    orb+=u_particle*exp(-d*d*(230.0+80.0*sTool))*orbitStrength*(0.72+0.28*sin(t+fi));
   }
 
-  if(st>4.5&&st<5.5){ float ringD=abs(rr-1.16); float thin=exp(-ringD*ringD*700.0);
-    float pulse=0.62+0.38*sin(t*2.4); col+=u_appCol*thin*(1.5*pulse); }
+  float approvalRing=exp(-pow(abs(rr-1.17),2.0)*720.0)*(0.66+0.34*sin(t*2.7));
+  orb+=u_appCol*approvalRing*sApproval*1.75;
 
-  if(st>2.5&&st<3.5){ col+=u_core*coreHot*lvl*0.7; col+=u_glow*body*lvl*0.4; }
+  float glitch=step(0.56,hash(vec3(floor(uv.y*34.0),floor(t*16.0),7.0)));
+  float errorRing=exp(-pow(abs(rr-(1.035+0.025*sin(t*15.0))),2.0)*380.0);
+  orb=mix(orb,u_errCol*(disk*0.88+fres*1.75+medium*0.28),err*0.72);
+  orb+=u_errCol*errorRing*glitch*err*1.22;
 
-  col=mix(col,u_errCol*(disk*1.1+fres*1.3+halo*0.35)*1.5,clamp(u_error,0.0,1.0));
-
-  float energy=0.82;
-  if(st>0.5&&st<1.5) energy=0.85+0.45*lvl;
-  if(st>1.5&&st<2.5) energy=0.96;
-  if(st>2.5&&st<3.5) energy=0.9+0.5*lvl;
-  if(st>3.5&&st<4.5) energy=0.96;
-  if(st>4.5&&st<5.5) energy=0.84;
-  col*=energy;
-
-  col*=smoothstep(1.9,0.15,r);
-  vec3 bg=mix(u_bgDeep,u_bg,smoothstep(1.6,0.0,r)); bg+=u_glow*0.04*smoothstep(1.3,0.0,r);
-  float star=step(0.9993,hash(floor(vec3(uv*160.0,1.0)))); bg+=vec3(0.5,0.6,0.85)*star*0.6;
-  col=bg+col;
-
-  col=1.0-exp(-col*1.15);
+  vec3 col=bg+orb;
+  col*=1.0-smoothstep(1.86,2.46,r)*0.44;
+  col=1.0-exp(-col*1.12);
   col*=clamp(u_intro,0.0,1.0);
   fragColor=vec4(col,1.0);
 }`
@@ -154,9 +190,7 @@ function readColor(host: HTMLElement, varName: string): RGB {
 
   // color-mix() resolves to `color(srgb r g b)` with 0-1 channels; hex/named
   // resolve to `rgb(r g b)` with 0-255. Normalize both to 0-1.
-  return resolved.startsWith('color(')
-    ? [nums[0], nums[1], nums[2]]
-    : [nums[0] / 255, nums[1] / 255, nums[2] / 255]
+  return resolved.startsWith('color(') ? [nums[0], nums[1], nums[2]] : [nums[0] / 255, nums[1] / 255, nums[2] / 255]
 }
 
 function compile(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader | null {
@@ -351,7 +385,7 @@ export function JarvisOrb({
   }, [])
 
   return (
-    <div className={cn('jarvis-stage relative isolate overflow-hidden', className)}>
+    <div className={cn('jarvis-stage relative isolate overflow-hidden', className)} data-orb-state={state}>
       <canvas aria-hidden="true" className="block size-full" ref={canvasRef} />
     </div>
   )

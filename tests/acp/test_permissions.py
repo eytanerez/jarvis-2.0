@@ -38,7 +38,7 @@ def _invoke_callback(
         scheduled["loop"] = passed_loop
         return future
 
-    with patch("agent.async_utils.asyncio.run_coroutine_threadsafe", side_effect=_schedule):
+    with patch("brain.async_utils.asyncio.run_coroutine_threadsafe", side_effect=_schedule):
         cb = make_approval_callback(request_permission, loop, session_id="s1", timeout=timeout)
         if use_prompt_path:
             result = prompt_dangerous_approval(
@@ -157,7 +157,7 @@ class TestApprovalBridge:
             scheduled["loop"] = passed_loop
             return future
 
-        with patch("agent.async_utils.asyncio.run_coroutine_threadsafe", side_effect=_schedule):
+        with patch("brain.async_utils.asyncio.run_coroutine_threadsafe", side_effect=_schedule):
             cb = make_approval_callback(request_permission, loop, session_id="s1", timeout=0.01)
             result = cb("rm -rf /", "dangerous command")
 
@@ -181,7 +181,7 @@ class TestApprovalBridge:
             scheduled["loop"] = passed_loop
             return future
 
-        with patch("agent.async_utils.asyncio.run_coroutine_threadsafe", side_effect=_schedule):
+        with patch("brain.async_utils.asyncio.run_coroutine_threadsafe", side_effect=_schedule):
             cb = make_approval_callback(request_permission, loop, session_id="s1", timeout=1.0)
             result = cb("echo hi", "demo")
 
@@ -214,7 +214,7 @@ class TestSchedulerFailure:
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             with patch(
-                "agent.async_utils.asyncio.run_coroutine_threadsafe",
+                "brain.async_utils.asyncio.run_coroutine_threadsafe",
                 side_effect=RuntimeError("scheduler down"),
             ):
                 cb = make_approval_callback(_request_permission, loop, session_id="s1", timeout=0.01)

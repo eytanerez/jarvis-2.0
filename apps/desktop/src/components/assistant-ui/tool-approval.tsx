@@ -58,7 +58,7 @@ const ApprovalBar: FC<{ request: ApprovalRequest }> = ({ request }) => {
   const copy = t.assistant.approval
   const gateway = useStore($gateway)
   const [submitting, setSubmitting] = useState<ApprovalChoice | null>(null)
-  // "Always allow" persists the pattern to ~/.hermes/config.yaml permanently, so
+  // "Always allow" persists the pattern to ~/.jarvis/config.yaml permanently, so
   // it goes through a confirm step rather than firing straight from the menu.
   const [confirmAlways, setConfirmAlways] = useState(false)
   // The pending tool row only shows a single truncated line of the command, and
@@ -99,7 +99,7 @@ const ApprovalBar: FC<{ request: ApprovalRequest }> = ({ request }) => {
         setSubmitting(null)
       }
     },
-    [busy, gateway, request.sessionId]
+    [busy, copy.gatewayDisconnected, copy.sendFailed, gateway, request.sessionId]
   )
 
   // ⌘/Ctrl+Enter → Run, Esc → Reject.
@@ -128,23 +128,25 @@ const ApprovalBar: FC<{ request: ApprovalRequest }> = ({ request }) => {
   return (
     <div className="mt-1 ps-5" data-slot="tool-approval-inline">
       <div className="flex items-center gap-2.5">
-        <div className="inline-flex h-6 items-stretch overflow-hidden rounded-md border border-primary/25 bg-primary/10 text-primary">
+        <div className="inline-flex h-6 items-stretch overflow-hidden rounded-md border border-[color-mix(in_srgb,var(--jarvis-blue)_48%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_12%,transparent)] text-(--jarvis-blue) shadow-[0_0_1rem_color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)]">
           <Button
-            className="h-full gap-1 rounded-none px-2 text-xs font-medium text-primary hover:bg-primary/15 hover:text-primary"
+            className="h-full gap-1 rounded-none border-0 px-2 text-xs font-medium text-(--jarvis-blue) hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_16%,transparent)] hover:text-white"
             disabled={busy}
             onClick={() => void respond('once')}
             size="xs"
             variant="ghost"
           >
             {submitting === 'once' ? <Loader2 className="size-3 animate-spin" /> : copy.run}
-            {submitting !== 'once' && <span className="text-[0.625rem] text-primary/60">{isMac ? '⌘⏎' : 'Ctrl⏎'}</span>}
+            {submitting !== 'once' && (
+              <span className="text-[0.625rem] text-(--jarvis-muted)">{isMac ? '⌘⏎' : 'Ctrl⏎'}</span>
+            )}
           </Button>
-          <span aria-hidden className="w-px self-stretch bg-primary/20" />
+          <span aria-hidden className="w-px self-stretch bg-[color-mix(in_srgb,var(--jarvis-blue)_28%,transparent)]" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 aria-label={copy.moreOptions}
-                className="h-full w-5 rounded-none px-0 text-primary hover:bg-primary/15 hover:text-primary"
+                className="h-full w-5 rounded-none border-0 px-0 text-(--jarvis-blue) hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_16%,transparent)] hover:text-white"
                 disabled={busy}
                 size="xs"
                 variant="ghost"
@@ -174,7 +176,7 @@ const ApprovalBar: FC<{ request: ApprovalRequest }> = ({ request }) => {
         </div>
 
         <Button
-          className="h-6 gap-1.5 rounded-md px-1.5 text-xs font-normal text-(--ui-text-tertiary) hover:text-foreground"
+          className="h-6 gap-1.5 rounded-md px-1.5 text-xs font-normal text-(--ui-text-tertiary) hover:text-white"
           disabled={busy}
           onClick={() => void respond('deny')}
           size="xs"
@@ -187,7 +189,7 @@ const ApprovalBar: FC<{ request: ApprovalRequest }> = ({ request }) => {
         {hasCommand && (
           <Button
             aria-expanded={showCommand}
-            className="h-6 gap-1 rounded-md px-1.5 text-xs font-normal text-(--ui-text-tertiary) hover:text-foreground"
+            className="h-6 gap-1 rounded-md px-1.5 text-xs font-normal text-(--ui-text-tertiary) hover:text-white"
             onClick={() => setShowCommand(value => !value)}
             size="xs"
             variant="ghost"
@@ -199,7 +201,7 @@ const ApprovalBar: FC<{ request: ApprovalRequest }> = ({ request }) => {
       </div>
 
       {showCommand && hasCommand && (
-        <pre className="mt-1.5 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md border border-(--ui-stroke-tertiary) bg-(--ui-chat-surface-background) px-2.5 py-1.5 font-mono text-xs leading-snug text-foreground">
+        <pre className="mt-1.5 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] bg-[color-mix(in_srgb,#000_24%,transparent)] px-2.5 py-1.5 font-mono text-xs leading-snug text-(--ui-text-secondary)">
           {request.command.trim()}
         </pre>
       )}
@@ -212,7 +214,7 @@ const ApprovalBar: FC<{ request: ApprovalRequest }> = ({ request }) => {
           </DialogHeader>
 
           {request.command.trim() && (
-            <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-md border border-(--ui-stroke-tertiary) bg-(--ui-chat-surface-background) px-2.5 py-1.5 font-mono text-xs leading-snug text-foreground">
+            <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] bg-[color-mix(in_srgb,#000_24%,transparent)] px-2.5 py-1.5 font-mono text-xs leading-snug text-(--ui-text-secondary)">
               {request.command.trim()}
             </pre>
           )}

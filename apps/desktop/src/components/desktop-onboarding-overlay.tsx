@@ -8,18 +8,9 @@ import { Codicon } from '@/components/ui/codicon'
 import { ErrorIcon } from '@/components/ui/error-state'
 import { Input } from '@/components/ui/input'
 import { Loader } from '@/components/ui/loader'
-import { getGlobalModelOptions } from '@/hermes'
 import { useI18n } from '@/i18n'
-import {
-  Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
-  KeyRound,
-  Loader2,
-  Terminal
-} from '@/lib/icons'
+import { getGlobalModelOptions } from '@/jarvis'
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, KeyRound, Loader2, Terminal } from '@/lib/icons'
 import { isProviderSetupErrorMessage } from '@/lib/provider-setup-errors'
 import { cn } from '@/lib/utils'
 import { $desktopBoot, type DesktopBootState } from '@/store/boot'
@@ -46,7 +37,7 @@ import {
   startProviderOAuth,
   submitOnboardingCode
 } from '@/store/onboarding'
-import type { ModelOptionProvider, OAuthProvider } from '@/types/hermes'
+import type { ModelOptionProvider, OAuthProvider } from '@/types/jarvis'
 
 interface DesktopOnboardingOverlayProps {
   enabled: boolean
@@ -93,13 +84,13 @@ const API_KEY_OPTIONS: ApiKeyOption[] = [
     id: 'local',
     name: 'Local / custom endpoint',
     envKey: 'OPENAI_BASE_URL',
-    docsUrl: 'https://github.com/NousResearch/hermes-agent#bring-your-own-endpoint',
+    docsUrl: 'https://github.com/NousResearch/jarvis-agent#bring-your-own-endpoint',
     placeholder: 'http://127.0.0.1:8000/v1'
   }
 ]
 
 // Build the FULL API-key provider catalog from the backend model options so the
-// onboarding / Providers key form lists every `api_key` provider `hermes model`
+// onboarding / Providers key form lists every `api_key` provider `jarvis model`
 // knows about — not just the hand-curated five. Curated entries keep their
 // richer copy + placeholders and float to the top (recommended defaults); every
 // other api_key provider is appended with a generic "paste {KEY}" affordance.
@@ -216,8 +207,7 @@ export function DesktopOnboardingOverlay({ enabled, onCompleted, requestGateway 
       return
     }
 
-    const reduce =
-      typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
     if (reduce) {
       confirmOnboardingModel(ctx)
@@ -319,7 +309,7 @@ export function DesktopOnboardingOverlay({ enabled, onCompleted, requestGateway 
           'relative w-full max-w-[45rem] transition-all duration-500 ease-out',
           bare
             ? ''
-            : 'overflow-hidden rounded-xl border border-(--stroke-nous) bg-(--ui-chat-bubble-background) shadow-nous',
+            : 'overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--jarvis-blue)_24%,var(--jarvis-hairline))] bg-[color-mix(in_srgb,var(--jarvis-panel)_94%,transparent)] shadow-[0_24px_80px_rgba(0,0,0,0.58),0_0_42px_color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)]',
           // Bare confirm screen orchestrates its own per-element exit; the
           // carded states use the simple lift/blur dissolve.
           leaving && !bare
@@ -331,7 +321,7 @@ export function DesktopOnboardingOverlay({ enabled, onCompleted, requestGateway 
         {onboarding.manual ? (
           <Button
             aria-label={t.common.close}
-            className="absolute right-3 top-3 z-10 text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground"
+            className="absolute right-3 top-3 z-10 text-(--jarvis-muted) hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] hover:text-white"
             onClick={() => closeManualOnboarding()}
             size="icon-sm"
             variant="ghost"
@@ -361,7 +351,7 @@ export function DesktopOnboardingOverlay({ enabled, onCompleted, requestGateway 
 // upstream), so it never shows the generic "no provider configured" noise.
 function ReasonNotice({ reason }: { reason: string }) {
   return (
-    <div className="rounded-2xl border border-(--ui-stroke-tertiary) bg-(--ui-bg-tertiary)/40 px-4 py-3 text-sm text-muted-foreground">
+    <div className="rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_68%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_72%,transparent)] px-4 py-3 text-sm text-(--jarvis-muted)">
       {reason}
     </div>
   )
@@ -408,7 +398,7 @@ function Header() {
 }
 
 export const FEATURED_ID = 'nous'
-const SHOW_ALL_KEY = 'hermes-onboarding-show-all-v1'
+const SHOW_ALL_KEY = 'jarvis-onboarding-show-all-v1'
 
 const readShowAll = () => {
   try {
@@ -522,13 +512,7 @@ function ChooseLaterLink() {
   const { t } = useI18n()
 
   return (
-    <Button
-      className="font-medium"
-      onClick={() => dismissFirstRunOnboarding()}
-      size="xs"
-      type="button"
-      variant="text"
-    >
+    <Button className="font-medium" onClick={() => dismissFirstRunOnboarding()} size="xs" type="button" variant="text">
       {t.onboarding.chooseLater}
     </Button>
   )
@@ -546,7 +530,7 @@ export function FeaturedProviderRow({
 
   return (
     <button
-      className="group relative flex w-full items-center justify-between gap-4 rounded-[8px] bg-primary/[0.06] px-3 py-2.5 text-left transition-colors hover:bg-primary/10"
+      className="group relative flex w-full items-center justify-between gap-4 rounded-md border border-[color-mix(in_srgb,var(--jarvis-blue)_20%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_8%,transparent)] px-3 py-2.5 text-left transition-colors hover:border-[color-mix(in_srgb,var(--jarvis-blue)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_12%,transparent)]"
       onClick={() => onSelect(provider)}
       type="button"
     >
@@ -560,7 +544,7 @@ export function FeaturedProviderRow({
           {loggedIn ? (
             <ConnectedTag />
           ) : (
-            <span className="inline-flex items-center gap-1.5 bg-primary px-2 py-0.5 text-[0.64rem] font-semibold uppercase tracking-[0.16em] text-primary-foreground">
+            <span className="inline-flex items-center gap-1.5 bg-(--jarvis-blue) px-2 py-0.5 text-[0.64rem] font-semibold uppercase text-[color-mix(in_srgb,var(--jarvis-bg)_92%,black)]">
               <span aria-hidden="true" className="dither inline-block size-2 shrink-0" />
               {t.onboarding.recommended}
             </span>
@@ -568,7 +552,7 @@ export function FeaturedProviderRow({
         </div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">{t.onboarding.featuredPitch}</p>
       </div>
-      <ChevronRight className="size-4 shrink-0 text-primary transition group-hover:translate-x-0.5" />
+      <ChevronRight className="size-4 shrink-0 text-(--jarvis-blue) transition group-hover:translate-x-0.5" />
     </button>
   )
 }
@@ -577,7 +561,7 @@ function ConnectedTag() {
   const { t } = useI18n()
 
   return (
-    <span className="inline-flex items-center gap-1 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+    <span className="inline-flex items-center gap-1 bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] px-2 py-0.5 text-xs font-medium text-(--jarvis-blue)">
       <Check className="size-3" />
       {t.onboarding.connected}
     </span>
@@ -650,20 +634,13 @@ export function ApiKeyForm({
   isSet?: (envKey: string) => boolean
   onBack: () => void
   onClear?: (envKey: string) => void
-  onSave: (
-    envKey: string,
-    value: string,
-    name: string,
-    apiKey?: string
-  ) => Promise<{ message?: string; ok: boolean }>
+  onSave: (envKey: string, value: string, name: string, apiKey?: string) => Promise<{ message?: string; ok: boolean }>
   options?: ApiKeyOption[]
   redactedValue?: (envKey: string) => null | string | undefined
 }) {
   const { t } = useI18n()
 
-  const [option, setOption] = useState<ApiKeyOption>(
-    () => options.find(o => o.envKey === initialEnvKey) ?? options[0]
-  )
+  const [option, setOption] = useState<ApiKeyOption>(() => options.find(o => o.envKey === initialEnvKey) ?? options[0])
 
   const [value, setValue] = useState('')
   // Optional endpoint API key, only used by the local / custom endpoint option
@@ -731,13 +708,7 @@ export function ApiKeyForm({
   return (
     <div className="grid gap-4">
       {canGoBack ? (
-        <Button
-          className="-mt-1 self-start font-medium"
-          onClick={onBack}
-          size="xs"
-          type="button"
-          variant="text"
-        >
+        <Button className="-mt-1 self-start font-medium" onClick={onBack} size="xs" type="button" variant="text">
           <ChevronLeft className="size-3" />
           {t.onboarding.backToSignIn}
         </Button>
@@ -747,8 +718,10 @@ export function ApiKeyForm({
         {options.map(o => (
           <button
             className={cn(
-              'rounded-2xl border bg-background/60 p-3 text-left transition hover:bg-accent/50',
-              option.envKey === o.envKey ? 'border-primary ring-2 ring-primary/20' : 'border-transparent'
+              'rounded-md border bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_64%,transparent)] p-3 text-left transition hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_9%,transparent)]',
+              option.envKey === o.envKey
+                ? 'border-[color-mix(in_srgb,var(--jarvis-blue)_54%,transparent)] ring-2 ring-[color-mix(in_srgb,var(--jarvis-blue)_18%,transparent)]'
+                : 'border-transparent'
             )}
             key={o.envKey}
             onClick={() => pick(o)}
@@ -837,9 +810,7 @@ function FlowPanel({
   }
 
   if (flow.status === 'success') {
-    return (
-      <DecodedLabel text={t.onboarding.connectedPicking(title)} />
-    )
+    return <DecodedLabel text={t.onboarding.connectedPicking(title)} />
   }
 
   if (flow.status === 'confirming_model') {

@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch, call
 
 import pytest
 
-from hermes_state import SessionDB
+from jarvis_state import SessionDB
 from acp_adapter.session import SessionManager
 
 
@@ -24,11 +24,11 @@ def _tmp_db(tmp_path):
 
 
 def _mock_agent():
-    return MagicMock(name="MockAIAgent")
+    return MagicMock(name="MockAIBrain")
 
 
 # ---------------------------------------------------------------------------
-# hermes_state.SessionDB.update_session_meta — unit tests
+# jarvis_state.SessionDB.update_session_meta — unit tests
 # ---------------------------------------------------------------------------
 
 class TestUpdateSessionMeta:

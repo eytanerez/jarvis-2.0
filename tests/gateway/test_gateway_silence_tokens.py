@@ -65,12 +65,12 @@ def _runner(monkeypatch, tmp_path):
     runner.session_store.append_to_transcript = MagicMock()
     runner.session_store.update_session = MagicMock()
 
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(
         gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "fake"}
     )
     monkeypatch.setattr(
-        "agent.model_metadata.get_model_context_length",
+        "brain.model_metadata.get_model_context_length",
         lambda *_args, **_kwargs: 100_000,
     )
     return runner
@@ -95,7 +95,7 @@ def test_failed_agent_result_never_counts_as_intentional_silence():
 @pytest.mark.asyncio
 async def test_silence_token_suppresses_delivery_but_preserves_transcript(monkeypatch, tmp_path):
     runner = _runner(monkeypatch, tmp_path)
-    runner._run_agent = AsyncMock(return_value={
+    runner._run_brain = AsyncMock(return_value={
         "final_response": "[SILENT]",
         "messages": [
             {"role": "user", "content": "side chatter"},
@@ -121,7 +121,7 @@ async def test_silence_token_suppresses_delivery_but_preserves_transcript(monkey
 @pytest.mark.asyncio
 async def test_empty_success_still_gets_empty_response_warning(monkeypatch, tmp_path):
     runner = _runner(monkeypatch, tmp_path)
-    runner._run_agent = AsyncMock(return_value={
+    runner._run_brain = AsyncMock(return_value={
         "final_response": "",
         "messages": [
             {"role": "user", "content": "question"},
@@ -145,7 +145,7 @@ async def test_empty_success_still_gets_empty_response_warning(monkeypatch, tmp_
 async def test_prose_mentioning_silence_token_is_delivered(monkeypatch, tmp_path):
     runner = _runner(monkeypatch, tmp_path)
     text = "Use [SILENT] when no answer is needed."
-    runner._run_agent = AsyncMock(return_value={
+    runner._run_brain = AsyncMock(return_value={
         "final_response": text,
         "messages": [
             {"role": "user", "content": "question"},

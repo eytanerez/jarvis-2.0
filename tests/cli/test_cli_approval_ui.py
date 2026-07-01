@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import cli as cli_module
-from cli import HermesCLI
+from cli import JarvisCLI
 
 
 class _FakeBuffer:
@@ -19,7 +19,7 @@ class _FakeBuffer:
 
 
 def _make_cli_stub():
-    cli = HermesCLI.__new__(HermesCLI)
+    cli = JarvisCLI.__new__(JarvisCLI)
     cli._approval_state = None
     cli._approval_deadline = 0
     cli._approval_lock = threading.Lock()
@@ -348,7 +348,7 @@ class TestCliApprovalUi:
                     "failed": False,
                 }
 
-        with patch.object(cli_module, "AIAgent", FakeAgent), \
+        with patch.object(cli_module, "AIBrain", FakeAgent), \
              patch.object(cli_module, "_cprint"), \
              patch.object(cli_module, "ChatConsole") as chat_console:
             chat_console.return_value.print = MagicMock()
@@ -359,9 +359,9 @@ class TestCliApprovalUi:
                 time.sleep(0.01)
 
         assert seen["approval"].__self__ is cli
-        assert seen["approval"].__func__ is HermesCLI._approval_callback
+        assert seen["approval"].__func__ is JarvisCLI._approval_callback
         assert seen["sudo"].__self__ is cli
-        assert seen["sudo"].__func__ is HermesCLI._sudo_password_callback
+        assert seen["sudo"].__func__ is JarvisCLI._sudo_password_callback
         assert not cli._background_tasks
 
 
@@ -372,7 +372,7 @@ def _make_real_paint_cli_stub():
     _last_invalidate inside the throttle window. A throttled _invalidate() would
     be dropped under these conditions — _paint_now must paint regardless.
     """
-    cli = HermesCLI.__new__(HermesCLI)
+    cli = JarvisCLI.__new__(JarvisCLI)
     cli._approval_state = None
     cli._approval_deadline = 0
     cli._approval_lock = threading.Lock()
@@ -383,8 +383,8 @@ def _make_real_paint_cli_stub():
     cli._clarify_deadline = 0
     cli._modal_input_snapshot = None
     # Real methods, not mocks.
-    cli._paint_now = HermesCLI._paint_now.__get__(cli, HermesCLI)
-    cli._invalidate = HermesCLI._invalidate.__get__(cli, HermesCLI)
+    cli._paint_now = JarvisCLI._paint_now.__get__(cli, JarvisCLI)
+    cli._invalidate = JarvisCLI._invalidate.__get__(cli, JarvisCLI)
     cli._resize_recovery_pending = True       # gate 1: resize in flight
     cli._last_invalidate = time.monotonic()   # gate 2: inside throttle window
     cli._app = SimpleNamespace(invalidate=MagicMock(), current_buffer=_FakeBuffer())
@@ -412,7 +412,7 @@ class TestModalPaintNow:
         assert cli._app.invalidate.called
 
     def test_paint_now_no_app_is_safe(self):
-        cli = HermesCLI.__new__(HermesCLI)
+        cli = JarvisCLI.__new__(JarvisCLI)
         cli._app = None
         cli._paint_now()  # must not raise
 
@@ -524,7 +524,7 @@ class TestApprovalCallbackThreadLocalWiring:
     def test_child_thread_registration_is_visible_and_cleared_in_finally(self):
         """The fix pattern: register INSIDE the worker thread, clear in finally.
 
-        This is exactly what cli.py's run_agent() closure does. If this test
+        This is exactly what cli.py's run_brain() closure does. If this test
         fails, the CLI approval prompt freeze (#13617) has regressed.
         """
         from tools.terminal_tool import (
@@ -543,7 +543,7 @@ class TestApprovalCallbackThreadLocalWiring:
         seen = {}
 
         def _worker():
-            # Mimic cli.py's run_agent() thread target.
+            # Mimic cli.py's run_brain() thread target.
             set_approval_callback(approval_cb)
             set_sudo_password_callback(sudo_cb)
             try:

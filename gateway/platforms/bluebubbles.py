@@ -46,11 +46,11 @@ MAX_TEXT_LENGTH = 4000
 
 # BlueBubbles/iMessage does not expose a stable bot mention identity like
 # Slack (<@U...>), Telegram (@botname), or Matrix (MXID). When users opt into
-# group mention gating without custom aliases, use conservative Hermes wake
+# group mention gating without custom aliases, use conservative Jarvis wake
 # words so `require_mention: true` is a one-line enablement path.
 DEFAULT_MENTION_PATTERNS = [
-    r"(?<![\w@])@?hermes\s+agent\b[,:\-]?",
-    r"(?<![\w@])@?hermes\b[,:\-]?",
+    r"(?<![\w@])@?jarvis\s+agent\b[,:\-]?",
+    r"(?<![\w@])@?jarvis\b[,:\-]?",
 ]
 
 # Tapback reaction codes (BlueBubbles associatedMessageType values)
@@ -164,7 +164,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
         """Compile group-mention wake words from config/env.
 
         ``raw`` is a list (from config or env JSON), a string (raw env var:
-        JSON list, or comma/newline-separated), or None (use Hermes defaults).
+        JSON list, or comma/newline-separated), or None (use Jarvis defaults).
         """
         if raw is None:
             patterns = list(DEFAULT_MENTION_PATTERNS)
@@ -268,7 +268,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
         app.router.add_post(self.webhook_path, self._handle_webhook)
         # The webhook auth value is carried in the query string because the
         # BlueBubbles webhook API cannot send custom headers. Do not let
-        # aiohttp access logs write that request target to agent.log.
+        # aiohttp access logs write that request target to brain.log.
         self._runner = web.AppRunner(app, access_log=None)
         await self._runner.setup()
         site = web.TCPSite(self._runner, self.webhook_host, self.webhook_port)

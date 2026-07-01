@@ -1,9 +1,9 @@
 import { atom } from 'nanostores'
 
 import { persistString, storedString } from '@/lib/storage'
-import type { ModelOptionProvider } from '@/types/hermes'
+import type { ModelOptionProvider } from '@/types/jarvis'
 
-const STORAGE_KEY = 'hermes.desktop.visible-models'
+const STORAGE_KEY = 'jarvis.desktop.visible-models'
 
 /** Models shown per provider in the status-bar dropdown before the user has
  *  customized the list. Backend `models` are already relevance-ordered. */
@@ -23,8 +23,7 @@ export const emptyProviderSentinelKey = (provider: string): string =>
   modelVisibilityKey(provider, EMPTY_PROVIDER_SENTINEL)
 
 /** Check whether a stored key is a provider-hidden sentinel. */
-export const isProviderSentinel = (key: string): boolean =>
-  key.endsWith('::')
+export const isProviderSentinel = (key: string): boolean => key.endsWith('::')
 
 /** A model and its optional `…-fast` sibling, collapsed into one logical row.
  *  `id` is the canonical (base) model; `fastId` is the fast variant if present. */
@@ -134,9 +133,7 @@ export function effectiveVisibleKeys(
 
   for (const provider of providers) {
     const providerPrefix = `${provider.slug}::`
-    const hasStoredProvider = [...stored].some(
-      key => key.startsWith(providerPrefix) && !isProviderSentinel(key)
-    )
+    const hasStoredProvider = [...stored].some(key => key.startsWith(providerPrefix) && !isProviderSentinel(key))
     const hasSentinel = stored.has(emptyProviderSentinelKey(provider.slug))
 
     if (hasStoredProvider || hasSentinel) {

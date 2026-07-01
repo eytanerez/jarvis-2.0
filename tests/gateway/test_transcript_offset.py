@@ -9,7 +9,7 @@ plus new messages from the current turn.
 The old code used ``len(history)`` (raw count, includes session_meta)
 to slice ``agent_messages``, which caused the slice to skip valid new
 messages.  The fix adds ``history_offset`` (the filtered history length)
-to ``_run_agent``'s return dict and uses it for the slice.
+to ``_run_brain``'s return dict and uses it for the slice.
 """
 
 
@@ -17,11 +17,11 @@ from gateway.run import _preserve_queued_followup_history_offset
 
 
 # ---------------------------------------------------------------------------
-# Helpers - replicate the filtering logic from _run_agent
+# Helpers - replicate the filtering logic from _run_brain
 # ---------------------------------------------------------------------------
 
 def _filter_history(history: list) -> list:
-    """Replicate the agent_history filtering from GatewayRunner._run_agent.
+    """Replicate the agent_history filtering from GatewayRunner._run_brain.
 
     Strips session_meta and system messages, exactly as the real code does.
     """
@@ -270,7 +270,7 @@ class TestTranscriptHistoryOffset:
     def test_recursive_queued_followup_keeps_outer_history_offset(self):
         """Queued drain persistence must include every turn in the chain.
 
-        ``_run_agent()`` recurses when a follow-up arrived while the current turn
+        ``_run_brain()`` recurses when a follow-up arrived while the current turn
         was running. The recursive call naturally returns a later
         ``history_offset`` because it received the previous turn as part of its
         input history. If the outer caller persists transcript rows using that

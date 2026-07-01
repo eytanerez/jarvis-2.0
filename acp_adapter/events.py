@@ -1,9 +1,9 @@
-"""Callback factories for bridging AIAgent events to ACP notifications.
+"""Callback factories for bridging AIBrain events to ACP notifications.
 
-Each factory returns a callable with the signature that AIAgent expects
+Each factory returns a callable with the signature that AIBrain expects
 for its callbacks. Internally, the callbacks push ACP session updates
 to the client via ``conn.session_update()`` using
-``asyncio.run_coroutine_threadsafe()`` (since AIAgent runs in a worker
+``asyncio.run_coroutine_threadsafe()`` (since AIBrain runs in a worker
 thread while the event loop lives on the main thread).
 """
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def _json_loads_maybe_prefix(value: str) -> Any:
-    """Parse a JSON object even when Hermes appended a human hint after it."""
+    """Parse a JSON object even when Jarvis appended a human hint after it."""
     text = value.strip()
     try:
         return json.loads(text)
@@ -37,10 +37,10 @@ def _json_loads_maybe_prefix(value: str) -> Any:
 
 
 def _build_plan_update_from_todo_result(result: Any) -> AgentPlanUpdate | None:
-    """Translate Hermes' todo tool result into ACP's native plan update.
+    """Translate Jarvis' todo tool result into ACP's native plan update.
 
     Zed renders ``sessionUpdate: plan`` as its first-class task/todo panel. The
-    Hermes agent already maintains task state through the ``todo`` tool, so the
+    Jarvis agent already maintains task state through the ``todo`` tool, so the
     ACP adapter should expose that state natively instead of only as a generic
     tool-call transcript block.
     """
@@ -91,7 +91,7 @@ def _send_update(
     update: Any,
 ) -> None:
     """Fire-and-forget an ACP session update from a worker thread."""
-    from agent.async_utils import safe_schedule_threadsafe
+    from brain.async_utils import safe_schedule_threadsafe
 
     future = safe_schedule_threadsafe(
         conn.session_update(session_id, update),
@@ -119,9 +119,9 @@ def make_tool_progress_cb(
     tool_call_meta: Dict[str, Dict[str, Any]],
     edit_approval_policy_getter: Callable[[], tuple[str, str | None]] | None = None,
 ) -> Callable:
-    """Create a ``tool_progress_callback`` for AIAgent.
+    """Create a ``tool_progress_callback`` for AIBrain.
 
-    Signature expected by AIAgent::
+    Signature expected by AIBrain::
 
         tool_progress_callback(event_type: str, name: str, preview: str, args: dict, **kwargs)
 
@@ -156,7 +156,7 @@ def make_tool_progress_cb(
         snapshot = None
         if name in {"write_file", "patch", "skill_manage"}:
             try:
-                from agent.display import capture_local_edit_snapshot
+                from brain.display import capture_local_edit_snapshot
 
                 snapshot = capture_local_edit_snapshot(name, args)
             except Exception:
@@ -191,7 +191,7 @@ def make_thinking_cb(
     session_id: str,
     loop: asyncio.AbstractEventLoop,
 ) -> Callable:
-    """Create a ``thinking_callback`` for AIAgent."""
+    """Create a ``thinking_callback`` for AIBrain."""
 
     def _thinking(text: str) -> None:
         if not text:
@@ -213,9 +213,9 @@ def make_step_cb(
     tool_call_ids: Dict[str, Deque[str]],
     tool_call_meta: Dict[str, Dict[str, Any]],
 ) -> Callable:
-    """Create a ``step_callback`` for AIAgent.
+    """Create a ``step_callback`` for AIBrain.
 
-    Signature expected by AIAgent::
+    Signature expected by AIBrain::
 
         step_callback(api_call_count: int, prev_tools: list)
     """

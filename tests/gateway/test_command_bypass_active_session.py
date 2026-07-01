@@ -9,7 +9,7 @@ runner — otherwise they are queued as user text and either:
   - deadlock (/approve, /deny — agent blocks on Event.wait)
 
 These tests verify that the bypass works at the adapter level and that
-the safety net in _run_agent discards leaked command text.
+the safety net in _run_brain discards leaked command text.
 """
 
 import asyncio
@@ -321,7 +321,7 @@ class TestAllResolvableCommandsBypassGuard:
 
     def test_should_bypass_returns_true_for_every_registered_command(self):
         """Spot-check: the commands previously-broken on Discord all bypass."""
-        from hermes_cli.commands import should_bypass_active_session
+        from jarvis_cli.commands import should_bypass_active_session
 
         for cmd in (
             "model", "reasoning", "personality", "voice", "insights", "title",
@@ -334,7 +334,7 @@ class TestAllResolvableCommandsBypassGuard:
 
     def test_should_bypass_returns_false_for_unknown(self):
         """Unknown words don't bypass — they get queued as user text."""
-        from hermes_cli.commands import should_bypass_active_session
+        from jarvis_cli.commands import should_bypass_active_session
 
         assert should_bypass_active_session("foobar") is False
         assert should_bypass_active_session(None) is False
@@ -418,42 +418,42 @@ class TestNoActiveSessionNormalDispatch:
 
 
 # ---------------------------------------------------------------------------
-# Tests: safety net in _run_agent discards command text from pending queue
+# Tests: safety net in _run_brain discards command text from pending queue
 # ---------------------------------------------------------------------------
 
 
 class TestPendingCommandSafetyNet:
-    """The safety net in gateway/run.py _run_agent must discard command text
+    """The safety net in gateway/run.py _run_brain must discard command text
     that leaks into the pending queue via interrupt_message fallback."""
 
     def test_stop_command_detected(self):
         """resolve_command must recognize /stop so the safety net can
         discard it."""
-        from hermes_cli.commands import resolve_command
+        from jarvis_cli.commands import resolve_command
 
         assert resolve_command("stop") is not None
         assert resolve_command("stop").name == "stop"
 
     def test_new_command_detected(self):
-        from hermes_cli.commands import resolve_command
+        from jarvis_cli.commands import resolve_command
 
         assert resolve_command("new") is not None
         assert resolve_command("new").name == "new"
 
     def test_reset_alias_detected(self):
-        from hermes_cli.commands import resolve_command
+        from jarvis_cli.commands import resolve_command
 
         assert resolve_command("reset") is not None
         assert resolve_command("reset").name == "new"  # alias
 
     def test_unknown_command_not_detected(self):
-        from hermes_cli.commands import resolve_command
+        from jarvis_cli.commands import resolve_command
 
         assert resolve_command("foobar") is None
 
     def test_file_path_not_detected_as_command(self):
         """'/path/to/file' should not resolve as a command."""
-        from hermes_cli.commands import resolve_command
+        from jarvis_cli.commands import resolve_command
 
         # The safety net splits on whitespace and takes the first word
         # after stripping '/'.  For '/path/to/file', that's 'path/to/file'.
@@ -470,26 +470,26 @@ class TestBypassWithBotnameSuffix:
 
     @pytest.mark.asyncio
     async def test_stop_with_botname(self):
-        """/stop@MyHermesBot must bypass the guard."""
+        """/stop@MyJarvisBot must bypass the guard."""
         adapter = _make_adapter()
         sk = _session_key()
         adapter._active_sessions[sk] = asyncio.Event()
 
-        await adapter.handle_message(_make_event("/stop@MyHermesBot"))
+        await adapter.handle_message(_make_event("/stop@MyJarvisBot"))
 
         assert sk not in adapter._pending_messages, (
-            "/stop@MyHermesBot was queued instead of bypassing"
+            "/stop@MyJarvisBot was queued instead of bypassing"
         )
         assert any("handled:stop" in r for r in adapter.sent_responses)
 
     @pytest.mark.asyncio
     async def test_new_with_botname(self):
-        """/new@MyHermesBot must bypass the guard."""
+        """/new@MyJarvisBot must bypass the guard."""
         adapter = _make_adapter()
         sk = _session_key()
         adapter._active_sessions[sk] = asyncio.Event()
 
-        await adapter.handle_message(_make_event("/new@MyHermesBot"))
+        await adapter.handle_message(_make_event("/new@MyJarvisBot"))
 
         assert sk not in adapter._pending_messages
         assert any("handled:new" in r for r in adapter.sent_responses)

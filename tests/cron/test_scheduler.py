@@ -876,12 +876,12 @@ class TestRunJobSessionPersistence:
         }
         fake_db = MagicMock()
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
              patch(
-                 "hermes_cli.runtime_provider.resolve_runtime_provider",
+                 "jarvis_cli.runtime_provider.resolve_runtime_provider",
                  return_value={
                      "api_key": "test-key",
                      "base_url": "https://example.invalid/v1",
@@ -889,7 +889,7 @@ class TestRunJobSessionPersistence:
                      "api_mode": "chat_completions",
                  },
              ), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -923,12 +923,12 @@ class TestRunJobSessionPersistence:
         }
         fake_db = MagicMock()
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
              patch(
-                 "hermes_cli.runtime_provider.resolve_runtime_provider",
+                 "jarvis_cli.runtime_provider.resolve_runtime_provider",
                  return_value={
                      "api_key": "test-key",
                      "base_url": "https://example.invalid/v1",
@@ -936,7 +936,7 @@ class TestRunJobSessionPersistence:
                      "api_mode": "chat_completions",
                  },
              ), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -960,12 +960,12 @@ class TestRunJobSessionPersistence:
         }
         fake_db = MagicMock()
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
              patch(
-                 "hermes_cli.runtime_provider.resolve_runtime_provider",
+                 "jarvis_cli.runtime_provider.resolve_runtime_provider",
                  return_value={
                      "api_key": "***",
                      "base_url": "https://example.invalid/v1",
@@ -973,7 +973,7 @@ class TestRunJobSessionPersistence:
                      "api_mode": "chat_completions",
                  },
              ), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.side_effect = RuntimeError("boom")
             mock_agent_cls.return_value = mock_agent
@@ -997,12 +997,12 @@ class TestRunJobSessionPersistence:
         }
         fake_db = MagicMock()
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
              patch(
-                 "hermes_cli.runtime_provider.resolve_runtime_provider",
+                 "jarvis_cli.runtime_provider.resolve_runtime_provider",
                  return_value={
                      "api_key": "***",
                      "base_url": "https://example.invalid/v1",
@@ -1010,8 +1010,8 @@ class TestRunJobSessionPersistence:
                      "api_mode": "chat_completions",
                  },
              ), \
-             patch("run_agent.AIAgent") as mock_agent_cls, \
-             patch("agent.auxiliary_client.cleanup_stale_async_clients") as cleanup_mock:
+             patch("run_brain.AIBrain") as mock_agent_cls, \
+             patch("brain.auxiliary_client.cleanup_stale_async_clients") as cleanup_mock:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -1025,12 +1025,12 @@ class TestRunJobSessionPersistence:
         """Common patches for run_job tests."""
         fake_db = MagicMock()
         return fake_db, [
-            patch("cron.scheduler._hermes_home", tmp_path),
+            patch("cron.scheduler._jarvis_home", tmp_path),
             patch("cron.scheduler._resolve_origin", return_value=None),
             patch("dotenv.load_dotenv"),
-            patch("hermes_state.SessionDB", return_value=fake_db),
+            patch("jarvis_state.SessionDB", return_value=fake_db),
             patch(
-                "hermes_cli.runtime_provider.resolve_runtime_provider",
+                "jarvis_cli.runtime_provider.resolve_runtime_provider",
                 return_value={
                     "api_key": "test-key",
                     "base_url": "https://example.invalid/v1",
@@ -1049,7 +1049,7 @@ class TestRunJobSessionPersistence:
         }
         fake_db, patches = self._make_run_job_patches(tmp_path)
         with patches[0], patches[1], patches[2], patches[3], patches[4], \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -1059,13 +1059,13 @@ class TestRunJobSessionPersistence:
         assert kwargs["enabled_toolsets"] == ["web", "terminal", "file"]
 
     def test_run_job_disabled_toolsets_layer_user_config_on_baseline(self, tmp_path):
-        """agent.disabled_toolsets must be honoured in cron — issue #25752.
+        """brain.disabled_toolsets must be honoured in cron — issue #25752.
 
         The bug: per-job enabled_toolsets was returned verbatim, letting an
         LLM-supplied cronjob() call re-enable tools the operator had globally
         disabled. The fix: ALWAYS include agent.disabled_toolsets in the
-        disabled_toolsets passed to AIAgent, on top of the cron baseline
-        (cronjob/messaging/clarify). AIAgent's disabled_toolsets takes
+        disabled_toolsets passed to AIBrain, on top of the cron baseline
+        (cronjob/messaging/clarify). AIBrain's disabled_toolsets takes
         precedence over enabled_toolsets, so this stops the bypass.
         """
         (tmp_path / "config.yaml").write_text(
@@ -1083,7 +1083,7 @@ class TestRunJobSessionPersistence:
         }
         fake_db, patches = self._make_run_job_patches(tmp_path)
         with patches[0], patches[1], patches[2], patches[3], patches[4], \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -1096,10 +1096,10 @@ class TestRunJobSessionPersistence:
 
     def test_run_job_enabled_toolsets_resolves_from_platform_config_when_not_set(self, tmp_path):
         """When a job has no explicit enabled_toolsets, the scheduler now
-        resolves them from ``hermes tools`` platform config for ``cron``
+        resolves them from ``jarvis tools`` platform config for ``cron``
         (PR #14xxx — blanket fix for Norbert's surprise ``moa`` run).
 
-        The legacy "pass None → AIAgent loads full default" path is still
+        The legacy "pass None → AIBrain loads full default" path is still
         reachable, but only when ``_get_platform_tools`` raises (safety net
         for any unexpected config shape).
         """
@@ -1110,7 +1110,7 @@ class TestRunJobSessionPersistence:
         }
         fake_db, patches = self._make_run_job_patches(tmp_path)
         with patches[0], patches[1], patches[2], patches[3], patches[4], \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -1119,7 +1119,7 @@ class TestRunJobSessionPersistence:
         kwargs = mock_agent_cls.call_args.kwargs
         # Resolution happened — not None, is a list.
         assert isinstance(kwargs["enabled_toolsets"], list)
-        # The cron default is _HERMES_CORE_TOOLS with _DEFAULT_OFF_TOOLSETS
+        # The cron default is _JARVIS_CORE_TOOLS with _DEFAULT_OFF_TOOLSETS
         # (``moa``, ``homeassistant``, ``rl``) removed. The most important
         # invariant: ``moa`` is NOT in the default cron toolset, so a cron
         # run cannot accidentally spin up frontier models.
@@ -1127,7 +1127,7 @@ class TestRunJobSessionPersistence:
 
     def test_run_job_per_job_toolsets_win_over_platform_config(self, tmp_path):
         """Per-job enabled_toolsets (via cronjob tool) always take precedence
-        over the platform-level ``hermes tools`` config."""
+        over the platform-level ``jarvis tools`` config."""
         job = {
             "id": "override-job",
             "name": "test",
@@ -1135,12 +1135,12 @@ class TestRunJobSessionPersistence:
             "enabled_toolsets": ["terminal"],
         }
         fake_db, patches = self._make_run_job_patches(tmp_path)
-        # Even if the user has ``hermes tools`` configured to enable web+file
+        # Even if the user has ``jarvis tools`` configured to enable web+file
         # for cron, the per-job override wins.
         with patches[0], patches[1], patches[2], patches[3], patches[4], \
-             patch("run_agent.AIAgent") as mock_agent_cls, \
+             patch("run_brain.AIBrain") as mock_agent_cls, \
              patch(
-                 "hermes_cli.tools_config._get_platform_tools",
+                 "jarvis_cli.tools_config._get_platform_tools",
                  return_value={"web", "file"},
              ):
             mock_agent = MagicMock()
@@ -1164,12 +1164,12 @@ class TestRunJobSessionPersistence:
         }
         fake_db = MagicMock()
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
              patch(
-                 "hermes_cli.runtime_provider.resolve_runtime_provider",
+                 "jarvis_cli.runtime_provider.resolve_runtime_provider",
                  return_value={
                      "api_key": "***",
                      "base_url": "https://example.invalid/v1",
@@ -1177,7 +1177,7 @@ class TestRunJobSessionPersistence:
                      "api_mode": "chat_completions",
                  },
              ), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             # Agent did work via tools but returned no text
             mock_agent.run_conversation.return_value = {"final_response": ""}
@@ -1240,12 +1240,12 @@ class TestRunJobSessionPersistence:
         }
         fake_db = MagicMock()
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
              patch(
-                 "hermes_cli.runtime_provider.resolve_runtime_provider",
+                 "jarvis_cli.runtime_provider.resolve_runtime_provider",
                  return_value={
                      "api_key": "***",
                      "base_url": "https://example.invalid/v1",
@@ -1253,7 +1253,7 @@ class TestRunJobSessionPersistence:
                      "api_mode": "chat_completions",
                  },
              ), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = agent_result
             mock_agent_cls.return_value = mock_agent
@@ -1279,12 +1279,12 @@ class TestRunJobSessionPersistence:
         }
         fake_db = MagicMock()
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
              patch(
-                 "hermes_cli.runtime_provider.resolve_runtime_provider",
+                 "jarvis_cli.runtime_provider.resolve_runtime_provider",
                  return_value={
                      "api_key": "***",
                      "base_url": "https://example.invalid/v1",
@@ -1292,7 +1292,7 @@ class TestRunJobSessionPersistence:
                      "api_mode": "chat_completions",
                  },
              ), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {
                 "final_response": "all good",
@@ -1326,7 +1326,7 @@ class TestRunJobSessionPersistence:
 
         fake_db = MagicMock()
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler.get_due_jobs", return_value=[job]), \
              patch("cron.scheduler.advance_next_run"), \
              patch("cron.scheduler.mark_job_run") as mock_mark, \
@@ -1354,9 +1354,9 @@ class TestRunJobSessionPersistence:
 
         (tmp_path / ".env").write_text("TELEGRAM_HOME_CHANNEL=-2002\n")
         monkeypatch.delenv("TELEGRAM_HOME_CHANNEL", raising=False)
-        monkeypatch.delenv("HERMES_CRON_AUTO_DELIVER_PLATFORM", raising=False)
-        monkeypatch.delenv("HERMES_CRON_AUTO_DELIVER_CHAT_ID", raising=False)
-        monkeypatch.delenv("HERMES_CRON_AUTO_DELIVER_THREAD_ID", raising=False)
+        monkeypatch.delenv("JARVIS_CRON_AUTO_DELIVER_PLATFORM", raising=False)
+        monkeypatch.delenv("JARVIS_CRON_AUTO_DELIVER_CHAT_ID", raising=False)
+        monkeypatch.delenv("JARVIS_CRON_AUTO_DELIVER_THREAD_ID", raising=False)
 
         class FakeAgent:
             def __init__(self, *args, **kwargs):
@@ -1364,15 +1364,15 @@ class TestRunJobSessionPersistence:
 
             def run_conversation(self, *args, **kwargs):
                 from gateway.session_context import get_session_env
-                seen["platform"] = get_session_env("HERMES_CRON_AUTO_DELIVER_PLATFORM") or None
-                seen["chat_id"] = get_session_env("HERMES_CRON_AUTO_DELIVER_CHAT_ID") or None
-                seen["thread_id"] = get_session_env("HERMES_CRON_AUTO_DELIVER_THREAD_ID") or None
+                seen["platform"] = get_session_env("JARVIS_CRON_AUTO_DELIVER_PLATFORM") or None
+                seen["chat_id"] = get_session_env("JARVIS_CRON_AUTO_DELIVER_CHAT_ID") or None
+                seen["thread_id"] = get_session_env("JARVIS_CRON_AUTO_DELIVER_THREAD_ID") or None
                 return {"final_response": "ok"}
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
              patch(
-                 "hermes_cli.runtime_provider.resolve_runtime_provider",
+                 "jarvis_cli.runtime_provider.resolve_runtime_provider",
                  return_value={
                      "api_key": "***",
                      "base_url": "https://example.invalid/v1",
@@ -1380,7 +1380,7 @@ class TestRunJobSessionPersistence:
                      "api_mode": "chat_completions",
                  },
              ), \
-             patch("run_agent.AIAgent", FakeAgent):
+             patch("run_brain.AIBrain", FakeAgent):
             success, output, final_response, error = run_job(job)
 
         assert success is True
@@ -1392,9 +1392,9 @@ class TestRunJobSessionPersistence:
             "chat_id": "-2002",
             "thread_id": None,
         }
-        assert os.getenv("HERMES_CRON_AUTO_DELIVER_PLATFORM") is None
-        assert os.getenv("HERMES_CRON_AUTO_DELIVER_CHAT_ID") is None
-        assert os.getenv("HERMES_CRON_AUTO_DELIVER_THREAD_ID") is None
+        assert os.getenv("JARVIS_CRON_AUTO_DELIVER_PLATFORM") is None
+        assert os.getenv("JARVIS_CRON_AUTO_DELIVER_CHAT_ID") is None
+        assert os.getenv("JARVIS_CRON_AUTO_DELIVER_THREAD_ID") is None
         fake_db.close.assert_called_once()
 
     def test_run_job_clears_stale_auto_delivery_thread_id_between_jobs(self, tmp_path, monkeypatch):
@@ -1415,9 +1415,9 @@ class TestRunJobSessionPersistence:
         fake_db = MagicMock()
         seen = []
 
-        monkeypatch.delenv("HERMES_CRON_AUTO_DELIVER_PLATFORM", raising=False)
-        monkeypatch.delenv("HERMES_CRON_AUTO_DELIVER_CHAT_ID", raising=False)
-        monkeypatch.delenv("HERMES_CRON_AUTO_DELIVER_THREAD_ID", raising=False)
+        monkeypatch.delenv("JARVIS_CRON_AUTO_DELIVER_PLATFORM", raising=False)
+        monkeypatch.delenv("JARVIS_CRON_AUTO_DELIVER_CHAT_ID", raising=False)
+        monkeypatch.delenv("JARVIS_CRON_AUTO_DELIVER_THREAD_ID", raising=False)
 
         class FakeAgent:
             def __init__(self, *args, **kwargs):
@@ -1428,17 +1428,17 @@ class TestRunJobSessionPersistence:
 
                 seen.append(
                     {
-                        "platform": get_session_env("HERMES_CRON_AUTO_DELIVER_PLATFORM") or None,
-                        "chat_id": get_session_env("HERMES_CRON_AUTO_DELIVER_CHAT_ID") or None,
-                        "thread_id": get_session_env("HERMES_CRON_AUTO_DELIVER_THREAD_ID") or None,
+                        "platform": get_session_env("JARVIS_CRON_AUTO_DELIVER_PLATFORM") or None,
+                        "chat_id": get_session_env("JARVIS_CRON_AUTO_DELIVER_CHAT_ID") or None,
+                        "thread_id": get_session_env("JARVIS_CRON_AUTO_DELIVER_THREAD_ID") or None,
                     }
                 )
                 return {"final_response": "ok"}
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
              patch(
-                 "hermes_cli.runtime_provider.resolve_runtime_provider",
+                 "jarvis_cli.runtime_provider.resolve_runtime_provider",
                  return_value={
                      "api_key": "***",
                      "base_url": "https://example.invalid/v1",
@@ -1446,7 +1446,7 @@ class TestRunJobSessionPersistence:
                      "api_mode": "chat_completions",
                  },
              ), \
-             patch("run_agent.AIAgent", FakeAgent):
+             patch("run_brain.AIBrain", FakeAgent):
             for job in jobs:
                 success, output, final_response, error = run_job(job)
                 assert success is True
@@ -1466,9 +1466,9 @@ class TestRunJobSessionPersistence:
                 "thread_id": None,
             },
         ]
-        assert os.getenv("HERMES_CRON_AUTO_DELIVER_PLATFORM") is None
-        assert os.getenv("HERMES_CRON_AUTO_DELIVER_CHAT_ID") is None
-        assert os.getenv("HERMES_CRON_AUTO_DELIVER_THREAD_ID") is None
+        assert os.getenv("JARVIS_CRON_AUTO_DELIVER_PLATFORM") is None
+        assert os.getenv("JARVIS_CRON_AUTO_DELIVER_CHAT_ID") is None
+        assert os.getenv("JARVIS_CRON_AUTO_DELIVER_THREAD_ID") is None
         assert fake_db.close.call_count == 2
 
 
@@ -1491,15 +1491,15 @@ class TestRunJobConfigLogging:
         # resolution and MCP discovery, both of which can spawn subprocesses
         # / hit the network and have caused this test to time out on CI
         # (>30s wall clock) under load. See PR #33661 follow-up.
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_cli.runtime_provider.resolve_runtime_provider",
+             patch("jarvis_cli.runtime_provider.resolve_runtime_provider",
                    return_value={"provider": "openrouter", "api_key": "x",
                                  "base_url": "https://example.invalid",
                                  "api_mode": "chat_completions"}), \
              patch("tools.mcp_tool.discover_mcp_tools", return_value=[]), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -1525,15 +1525,15 @@ class TestRunJobConfigLogging:
             "prompt": "hello",
         }
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_cli.runtime_provider.resolve_runtime_provider",
+             patch("jarvis_cli.runtime_provider.resolve_runtime_provider",
                    return_value={"provider": "openrouter", "api_key": "x",
                                  "base_url": "https://example.invalid",
                                  "api_mode": "chat_completions"}), \
              patch("tools.mcp_tool.discover_mcp_tools", return_value=[]), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -1557,19 +1557,19 @@ class TestRunJobConfigEnvVarExpansion:
 
     def test_model_env_ref_in_config_yaml_is_expanded(self, tmp_path, monkeypatch):
         """${VAR} in config.yaml model: is expanded using env after .env is loaded."""
-        (tmp_path / "config.yaml").write_text("model: ${_HERMES_TEST_CRON_MODEL}\n")
-        monkeypatch.setenv("_HERMES_TEST_CRON_MODEL", "gpt-4o-mini-cron-test")
+        (tmp_path / "config.yaml").write_text("model: ${_JARVIS_TEST_CRON_MODEL}\n")
+        monkeypatch.setenv("_JARVIS_TEST_CRON_MODEL", "gpt-4o-mini-cron-test")
 
         job = {"id": "env-job", "name": "env test", "prompt": "hi"}
         fake_db = MagicMock()
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
-             patch("hermes_cli.runtime_provider.resolve_runtime_provider",
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_cli.runtime_provider.resolve_runtime_provider",
                    return_value=self._RUNTIME), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -1596,14 +1596,14 @@ class TestRunJobConfigEnvVarExpansion:
         job = {"id": "prefill-job", "name": "prefill test", "prompt": "hi"}
         fake_db = MagicMock()
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
-             patch("hermes_cli.runtime_provider.resolve_runtime_provider",
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_cli.runtime_provider.resolve_runtime_provider",
                    return_value=self._RUNTIME), \
              patch("tools.mcp_tool.discover_mcp_tools", return_value=[]), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -1618,20 +1618,20 @@ class TestRunJobConfigEnvVarExpansion:
         (tmp_path / "config.yaml").write_text(
             "fallback_providers:\n"
             "  - provider: openrouter\n"
-            "    model: ${_HERMES_TEST_CRON_FALLBACK}\n"
+            "    model: ${_JARVIS_TEST_CRON_FALLBACK}\n"
         )
-        monkeypatch.setenv("_HERMES_TEST_CRON_FALLBACK", "gpt-4o-fallback-test")
+        monkeypatch.setenv("_JARVIS_TEST_CRON_FALLBACK", "gpt-4o-fallback-test")
 
         job = {"id": "fb-job", "name": "fallback test", "prompt": "hi"}
         fake_db = MagicMock()
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
-             patch("hermes_cli.runtime_provider.resolve_runtime_provider",
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_cli.runtime_provider.resolve_runtime_provider",
                    return_value=self._RUNTIME), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -1648,19 +1648,19 @@ class TestRunJobConfigEnvVarExpansion:
 
     def test_unexpanded_ref_passthrough_when_var_unset(self, tmp_path, monkeypatch):
         """When the env var is not set, the literal ${VAR} is kept verbatim (not crashed)."""
-        (tmp_path / "config.yaml").write_text("model: ${_HERMES_TEST_CRON_UNSET_VAR}\n")
-        monkeypatch.delenv("_HERMES_TEST_CRON_UNSET_VAR", raising=False)
+        (tmp_path / "config.yaml").write_text("model: ${_JARVIS_TEST_CRON_UNSET_VAR}\n")
+        monkeypatch.delenv("_JARVIS_TEST_CRON_UNSET_VAR", raising=False)
 
         job = {"id": "unset-job", "name": "unset var test", "prompt": "hi"}
         fake_db = MagicMock()
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
-             patch("hermes_cli.runtime_provider.resolve_runtime_provider",
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_cli.runtime_provider.resolve_runtime_provider",
                    return_value=self._RUNTIME), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -1669,7 +1669,7 @@ class TestRunJobConfigEnvVarExpansion:
         assert success is True
         kwargs = mock_agent_cls.call_args.kwargs
         # Unresolved refs are kept verbatim — _expand_env_vars contract
-        assert kwargs["model"] == "${_HERMES_TEST_CRON_UNSET_VAR}"
+        assert kwargs["model"] == "${_JARVIS_TEST_CRON_UNSET_VAR}"
 
 
 class TestRunJobSkillBacked:
@@ -1696,12 +1696,12 @@ class TestRunJobSkillBacked:
             assert "NOTION_API_KEY" in get_all_passthrough()
             return {"final_response": "ok"}
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
              patch(
-                 "hermes_cli.runtime_provider.resolve_runtime_provider",
+                 "jarvis_cli.runtime_provider.resolve_runtime_provider",
                  return_value={
                      "api_key": "***",
                      "base_url": "https://example.invalid/v1",
@@ -1710,7 +1710,7 @@ class TestRunJobSkillBacked:
                  },
              ), \
              patch("tools.skills_tool.skill_view", side_effect=_skill_view), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.side_effect = _run_conversation
             mock_agent_cls.return_value = mock_agent
@@ -1755,13 +1755,13 @@ class TestRunJobSkillBacked:
             assert any("google_token.json" in v for v in registered.values())
             return {"final_response": "ok"}
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
-             patch("tools.credential_files._resolve_hermes_home", return_value=tmp_path), \
+             patch("tools.credential_files._resolve_jarvis_home", return_value=tmp_path), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
              patch(
-                 "hermes_cli.runtime_provider.resolve_runtime_provider",
+                 "jarvis_cli.runtime_provider.resolve_runtime_provider",
                  return_value={
                      "api_key": "***",
                      "base_url": "https://example.invalid/v1",
@@ -1770,7 +1770,7 @@ class TestRunJobSkillBacked:
                  },
              ), \
              patch("tools.skills_tool.skill_view", side_effect=_skill_view), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.side_effect = _run_conversation
             mock_agent_cls.return_value = mock_agent
@@ -1794,12 +1794,12 @@ class TestRunJobSkillBacked:
 
         fake_db = MagicMock()
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
              patch(
-                 "hermes_cli.runtime_provider.resolve_runtime_provider",
+                 "jarvis_cli.runtime_provider.resolve_runtime_provider",
                  return_value={
                      "api_key": "***",
                      "base_url": "https://example.invalid/v1",
@@ -1808,7 +1808,7 @@ class TestRunJobSkillBacked:
                  },
              ), \
              patch("tools.skills_tool.skill_view", return_value=json.dumps({"success": True, "content": "# Blogwatcher\nFollow this skill."})), \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -1840,12 +1840,12 @@ class TestRunJobSkillBacked:
         def _skill_view(name):
             return json.dumps({"success": True, "content": f"# {name}\nInstructions for {name}."})
 
-        with patch("cron.scheduler._hermes_home", tmp_path), \
+        with patch("cron.scheduler._jarvis_home", tmp_path), \
              patch("cron.scheduler._resolve_origin", return_value=None), \
              patch("dotenv.load_dotenv"), \
-             patch("hermes_state.SessionDB", return_value=fake_db), \
+             patch("jarvis_state.SessionDB", return_value=fake_db), \
              patch(
-                 "hermes_cli.runtime_provider.resolve_runtime_provider",
+                 "jarvis_cli.runtime_provider.resolve_runtime_provider",
                  return_value={
                      "api_key": "***",
                      "base_url": "https://example.invalid/v1",
@@ -1854,7 +1854,7 @@ class TestRunJobSkillBacked:
                  },
              ), \
              patch("tools.skills_tool.skill_view", side_effect=_skill_view) as skill_view_mock, \
-             patch("run_agent.AIAgent") as mock_agent_cls:
+             patch("run_brain.AIBrain") as mock_agent_cls:
             mock_agent = MagicMock()
             mock_agent.run_conversation.return_value = {"final_response": "ok"}
             mock_agent_cls.return_value = mock_agent
@@ -2075,10 +2075,10 @@ class TestRunJobWakeGate:
         """Stub ``resolve_runtime_provider`` for wake-gate tests.
 
         ``run_job`` resolves the runtime provider BEFORE constructing
-        ``AIAgent``, so these tests must mock ``resolve_runtime_provider``
-        in addition to ``AIAgent`` — otherwise in a hermetic CI env (no
+        ``AIBrain``, so these tests must mock ``resolve_runtime_provider``
+        in addition to ``AIBrain`` — otherwise in a hermetic CI env (no
         API keys), the resolver raises and the test fails before the
-        patched AIAgent is ever reached.
+        patched AIBrain is ever reached.
         """
         fake_runtime = {
             "provider": "openrouter",
@@ -2089,7 +2089,7 @@ class TestRunJobWakeGate:
             "requested_provider": None,
         }
         with patch(
-            "hermes_cli.runtime_provider.resolve_runtime_provider",
+            "jarvis_cli.runtime_provider.resolve_runtime_provider",
             return_value=fake_runtime,
         ):
             yield
@@ -2113,7 +2113,7 @@ class TestRunJobWakeGate:
 
         with patch.object(scheduler, "_run_job_script",
                           return_value=(True, '{"wakeAgent": false}')), \
-             patch("run_agent.AIAgent") as agent_cls:
+             patch("run_brain.AIBrain") as agent_cls:
             success, doc, final, err = scheduler.run_job(self._make_job())
 
         assert success is True
@@ -2134,7 +2134,7 @@ class TestRunJobWakeGate:
         })
         with patch.object(scheduler, "_run_job_script",
                           return_value=(True, script_output)), \
-             patch("run_agent.AIAgent", return_value=agent) as agent_cls:
+             patch("run_brain.AIBrain", return_value=agent) as agent_cls:
             success, doc, final, err = scheduler.run_job(self._make_job())
 
         agent_cls.assert_called_once()
@@ -2163,7 +2163,7 @@ class TestRunJobWakeGate:
             "final_response": "ok", "messages": []
         })
         with patch.object(scheduler, "_run_job_script", side_effect=_script_stub), \
-             patch("run_agent.AIAgent", return_value=agent):
+             patch("run_brain.AIBrain", return_value=agent):
             scheduler.run_job(self._make_job())
 
         assert call_count == 1, f"script ran {call_count}x, expected exactly 1"
@@ -2181,7 +2181,7 @@ class TestRunJobWakeGate:
         })
         with patch.object(scheduler, "_run_job_script",
                           return_value=(False, '{"wakeAgent": false}')), \
-             patch("run_agent.AIAgent", return_value=agent) as agent_cls:
+             patch("run_brain.AIBrain", return_value=agent) as agent_cls:
             success, doc, final, err = scheduler.run_job(self._make_job())
 
         agent_cls.assert_called_once()  # Agent DID wake despite the gate-like text
@@ -2197,7 +2197,7 @@ class TestRunJobWakeGate:
         job = self._make_job(script=None)
         job.pop("script", None)
         with patch.object(scheduler, "_run_job_script") as script_fn, \
-             patch("run_agent.AIAgent", return_value=agent) as agent_cls:
+             patch("run_brain.AIBrain", return_value=agent) as agent_cls:
             scheduler.run_job(job)
 
         script_fn.assert_not_called()
@@ -2414,8 +2414,8 @@ class TestParallelTick:
             )
             import time
             time.sleep(0.05)  # give other thread time to set its vars
-            platform = get_session_env("HERMES_SESSION_PLATFORM")
-            chat_id = get_session_env("HERMES_SESSION_CHAT_ID")
+            platform = get_session_env("JARVIS_SESSION_PLATFORM")
+            chat_id = get_session_env("JARVIS_SESSION_CHAT_ID")
             seen[job["id"]] = {"platform": platform, "chat_id": chat_id}
             clear_session_vars(tokens)
             return (True, "output", "response", None)
@@ -2440,8 +2440,8 @@ class TestParallelTick:
         assert seen["dc-job"] == {"platform": "discord", "chat_id": "222"}
 
     def test_max_parallel_env_var(self, monkeypatch):
-        """HERMES_CRON_MAX_PARALLEL=1 should restore serial behaviour."""
-        monkeypatch.setenv("HERMES_CRON_MAX_PARALLEL", "1")
+        """JARVIS_CRON_MAX_PARALLEL=1 should restore serial behaviour."""
+        monkeypatch.setenv("JARVIS_CRON_MAX_PARALLEL", "1")
         call_times = []
 
         def mock_run_job(job):
@@ -2741,7 +2741,7 @@ class TestCronDeliveryTargets:
 class TestHomeTargetEnvVarRegistry:
     """Regression: ``_HOME_TARGET_ENV_VARS`` must include every gateway
     platform that supports cron-driven outbound delivery. Missing an
-    entry means ``hermes cron create --deliver=<platform>`` silently
+    entry means ``jarvis cron create --deliver=<platform>`` silently
     fails to route through the platform's home channel."""
 
     def test_whatsapp_cloud_registered(self):

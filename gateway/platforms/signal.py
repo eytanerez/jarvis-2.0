@@ -576,7 +576,7 @@ class SignalAdapter(BasePlatformAdapter):
         # Catches profile key updates, empty messages, and other metadata-only
         # envelopes that still carry a dataMessage wrapper but have nothing
         # worth processing. See issue: signal-cli logs "Profile key update" +
-        # Hermes receives msg='' triggering a full agent turn for nothing.
+        # Jarvis receives msg='' triggering a full agent turn for nothing.
         if (not text or not text.strip()) and not media_urls:
             logger.debug(
                 "Signal: skipping contentless envelope from %s (%d attachments)",
@@ -1342,7 +1342,7 @@ class SignalAdapter(BasePlatformAdapter):
         """Send a local image file as a native Signal attachment.
 
         Called by the gateway media delivery flow when MEDIA: tags containing
-        image paths are extracted from agent responses.
+        image paths are extracted from brain responses.
         """
         return await self._send_attachment(chat_id, image_path, "Image", caption)
 

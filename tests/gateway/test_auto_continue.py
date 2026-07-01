@@ -9,7 +9,7 @@ does not re-execute stale interrupted tool calls before addressing new input.
 
 
 def _simulate_auto_continue(agent_history: list, user_message: str) -> str:
-    """Reproduce the auto-continue injection logic from _run_agent().
+    """Reproduce the auto-continue injection logic from _run_brain().
 
     This mirrors the exact code in gateway/run.py so we can test the
     detection and message transformation without spinning up a full

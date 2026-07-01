@@ -10,7 +10,7 @@ import asyncio
 
 
 class TestStepCallbackNormalization:
-    """The gateway's _step_callback_sync normalizes prev_tools from run_agent."""
+    """The gateway's _step_callback_sync normalizes prev_tools from run_brain."""
 
     def _extract_step_callback(self):
         """Build a minimal _step_callback_sync using the same logic as gateway/run.py.
@@ -49,7 +49,7 @@ class TestStepCallbackNormalization:
         """When prev_tools is list[dict], tool_names should be list[str]."""
         cb, events, loop = self._extract_step_callback()
 
-        # Simulate the enriched format from run_agent.py
+        # Simulate the enriched format from run_brain.py
         prev_tools = [
             {"name": "terminal", "result": '{"output": "hello"}'},
             {"name": "read_file", "result": '{"content": "..."}'},

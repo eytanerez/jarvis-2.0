@@ -15,10 +15,15 @@ import {
   DropdownMenuSubTrigger
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { HermesGateway } from '@/hermes'
-import { getGlobalModelOptions } from '@/hermes'
+import type { JarvisGateway } from '@/jarvis'
+import { getGlobalModelOptions } from '@/jarvis'
 import { useI18n } from '@/i18n'
-import { currentPickerSelection, displayModelName, modelDisplayParts, reasoningEffortLabel } from '@/lib/model-status-label'
+import {
+  currentPickerSelection,
+  displayModelName,
+  modelDisplayParts,
+  reasoningEffortLabel
+} from '@/lib/model-status-label'
 import { cn } from '@/lib/utils'
 import { $modelPresets, applyModelPreset, modelPresetKey } from '@/store/model-presets'
 import {
@@ -37,7 +42,7 @@ import {
   $currentProvider,
   $currentReasoningEffort
 } from '@/store/session'
-import type { ModelOptionProvider, ModelOptionsResponse } from '@/types/hermes'
+import type { ModelOptionProvider, ModelOptionsResponse } from '@/types/jarvis'
 
 import { ModelEditSubmenu, resolveFastControl } from './model-edit-submenu'
 
@@ -47,7 +52,7 @@ import { ModelEditSubmenu, resolveFastControl } from './model-edit-submenu'
 export const ModelMenuCloseContext = createContext<() => void>(() => {})
 
 interface ModelMenuPanelProps {
-  gateway?: HermesGateway
+  gateway?: JarvisGateway
   onSelectModel: (selection: { model: string; provider: string }) => Promise<boolean> | void
   requestGateway: <T>(method: string, params?: Record<string, unknown>) => Promise<T>
 }
@@ -145,7 +150,7 @@ export function ModelMenuPanel({ gateway, onSelectModel, requestGateway }: Model
   }
 
   // Selecting a model row restores that model's remembered preset onto the
-  // session (effort/fast), gated by capability. Unset → Hermes defaults.
+  // session (effort/fast), gated by capability. Unset → Jarvis defaults.
   const selectFamily = async (family: ModelFamily, provider: ModelOptionProvider) => {
     const caps = provider.capabilities?.[family.id]
     const preset = modelPresets[modelPresetKey(provider.slug, family.id)] ?? {}
@@ -170,18 +175,14 @@ export function ModelMenuPanel({ gateway, onSelectModel, requestGateway }: Model
   }
 
   const groups = useMemo(
-    () => groupModels(providers ?? [], search, { model: optionsModel, provider: optionsProvider }, effectiveVisibleModels),
+    () =>
+      groupModels(providers ?? [], search, { model: optionsModel, provider: optionsProvider }, effectiveVisibleModels),
     [providers, search, optionsModel, optionsProvider, effectiveVisibleModels]
   )
 
   return (
     <>
-      <DropdownMenuSearch
-        aria-label={copy.search}
-        onValueChange={setSearch}
-        placeholder={copy.search}
-        value={search}
-      />
+      <DropdownMenuSearch aria-label={copy.search} onValueChange={setSearch} placeholder={copy.search} value={search} />
 
       <DropdownMenuSeparator className="mx-0" />
 
@@ -227,12 +228,12 @@ export function ModelMenuPanel({ gateway, onSelectModel, requestGateway }: Model
                 const caps = group.provider.capabilities?.[family.id]
 
                 // Effective settings for this row: live session state when it's
-                // the active model, otherwise its remembered preset (Hermes
+                // the active model, otherwise its remembered preset (Jarvis
                 // defaults when unset). Row label AND submenu read from these so
                 // they never disagree.
                 const preset = modelPresets[modelPresetKey(group.provider.slug, family.id)] ?? {}
-                const effEffort = isCurrent ? currentReasoningEffort : preset.effort ?? ''
-                const effFast = isCurrent ? currentFastMode : preset.fast ?? false
+                const effEffort = isCurrent ? currentReasoningEffort : (preset.effort ?? '')
+                const effFast = isCurrent ? currentFastMode : (preset.fast ?? false)
 
                 const fastControl = resolveFastControl(
                   activeId ?? family.id,

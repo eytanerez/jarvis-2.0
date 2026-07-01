@@ -2,14 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tooltip'
-import { deleteSession, listAllProfileSessions, setSessionArchived } from '@/hermes'
+import { deleteSession, listAllProfileSessions, setSessionArchived } from '@/jarvis'
 import { useI18n } from '@/i18n'
 import { sessionTitle } from '@/lib/chat-runtime'
 import { triggerHaptic } from '@/lib/haptics'
 import { Archive, ArchiveOff, FolderOpen, Loader2, Trash2 } from '@/lib/icons'
 import { notify, notifyError } from '@/store/notifications'
 import { applyConfiguredDefaultProjectDir, ensureDefaultWorkspaceCwd, setSessions } from '@/store/session'
-import type { SessionInfo } from '@/types/hermes'
+import type { SessionInfo } from '@/types/jarvis'
 
 import { EmptyState, ListRow, LoadingState, SectionHeading, SettingsContent } from './primitives'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
@@ -56,40 +56,46 @@ export function SessionsSettings() {
     void load()
   }, [load])
 
-  const unarchive = useCallback(async (session: SessionInfo) => {
-    setBusyId(session.id)
+  const unarchive = useCallback(
+    async (session: SessionInfo) => {
+      setBusyId(session.id)
 
-    try {
-      await setSessionArchived(session.id, false, session.profile)
-      setLocalSessions(prev => prev.filter(s => s.id !== session.id))
-      // Surface it again in the sidebar without waiting for a full refresh.
-      setSessions(prev => [{ ...session, archived: false }, ...prev.filter(s => s.id !== session.id)])
-      triggerHaptic('selection')
-      notify({ durationMs: 2_000, kind: 'success', message: s.restored })
-    } catch (err) {
-      notifyError(err, s.unarchiveFailed)
-    } finally {
-      setBusyId(null)
-    }
-  }, [s])
+      try {
+        await setSessionArchived(session.id, false, session.profile)
+        setLocalSessions(prev => prev.filter(s => s.id !== session.id))
+        // Surface it again in the sidebar without waiting for a full refresh.
+        setSessions(prev => [{ ...session, archived: false }, ...prev.filter(s => s.id !== session.id)])
+        triggerHaptic('selection')
+        notify({ durationMs: 2_000, kind: 'success', message: s.restored })
+      } catch (err) {
+        notifyError(err, s.unarchiveFailed)
+      } finally {
+        setBusyId(null)
+      }
+    },
+    [s]
+  )
 
-  const remove = useCallback(async (session: SessionInfo) => {
-    if (!window.confirm(s.deleteConfirm(sessionTitle(session)))) {
-      return
-    }
+  const remove = useCallback(
+    async (session: SessionInfo) => {
+      if (!window.confirm(s.deleteConfirm(sessionTitle(session)))) {
+        return
+      }
 
-    setBusyId(session.id)
+      setBusyId(session.id)
 
-    try {
-      await deleteSession(session.id, session.profile)
-      setLocalSessions(prev => prev.filter(s => s.id !== session.id))
-      triggerHaptic('warning')
-    } catch (err) {
-      notifyError(err, s.deleteFailed)
-    } finally {
-      setBusyId(null)
-    }
-  }, [s])
+      try {
+        await deleteSession(session.id, session.profile)
+        setLocalSessions(prev => prev.filter(s => s.id !== session.id))
+        triggerHaptic('warning')
+      } catch (err) {
+        notifyError(err, s.deleteFailed)
+      } finally {
+        setBusyId(null)
+      }
+    },
+    [s]
+  )
 
   useDeepLinkHighlight({
     elementId: id => `archived-session-${id}`,
@@ -167,7 +173,7 @@ export function SessionsSettings() {
 
 // Lets the user pin the default cwd for new sessions. Without this, packaged
 // builds on Windows used to spawn sessions in the install dir (`win-unpacked`
-// / Program Files), which buried any files Hermes wrote there.
+// / Program Files), which buried any files Jarvis wrote there.
 function DefaultProjectDirSetting() {
   const { t } = useI18n()
   const s = t.settings.sessions
@@ -177,11 +183,11 @@ function DefaultProjectDirSetting() {
 
   useEffect(() => {
     // The bridge is only present when running inside Electron. In a Vitest
-    // / Storybook / non-Electron context `window.hermesDesktop` is
+    // / Storybook / non-Electron context `window.jarvisDesktop` is
     // undefined, so guard the WHOLE call chain rather than chaining
     // `?.settings.getDefaultProjectDir().then(...)` (the latter would
     // short-circuit to `undefined.then(...)` and throw at runtime).
-    const settings = window.hermesDesktop?.settings
+    const settings = window.jarvisDesktop?.settings
 
     if (!settings) {
       return
@@ -205,7 +211,7 @@ function DefaultProjectDirSetting() {
   }, [])
 
   const choose = useCallback(async () => {
-    const settings = window.hermesDesktop?.settings
+    const settings = window.jarvisDesktop?.settings
 
     if (!settings) {
       return
@@ -232,7 +238,7 @@ function DefaultProjectDirSetting() {
   }, [s])
 
   const clear = useCallback(async () => {
-    const settings = window.hermesDesktop?.settings
+    const settings = window.jarvisDesktop?.settings
 
     if (!settings) {
       return

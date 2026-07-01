@@ -35,9 +35,9 @@ import {
 } from '@/components/ui/sidebar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tip } from '@/components/ui/tooltip'
-import { searchSessions, type SessionInfo, type SessionSearchResult } from '@/hermes'
 import { useWorktreeInfo } from '@/hooks/use-worktree-info'
 import { useI18n } from '@/i18n'
+import { searchSessions, type SessionInfo, type SessionSearchResult } from '@/jarvis'
 import { comboTokens } from '@/lib/keybinds/combo'
 import { profileColor } from '@/lib/profile-color'
 import { sessionMatchesSearch } from '@/lib/session-search'
@@ -188,7 +188,12 @@ function ReorderableList({
   }
 
   return (
-    <DndContext autoScroll={reorderAutoScroll} collisionDetection={closestCenter} onDragEnd={handleDragEnd} sensors={sensors}>
+    <DndContext
+      autoScroll={reorderAutoScroll}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+      sensors={sensors}
+    >
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
         {children}
       </SortableContext>
@@ -391,10 +396,10 @@ export function ChatSidebar({
       timeout = setTimeout(() => setNewSessionKbdFlash(false), 140)
     }
 
-    window.addEventListener('hermes:new-session-shortcut', onShortcut)
+    window.addEventListener('jarvis:new-session-shortcut', onShortcut)
 
     return () => {
-      window.removeEventListener('hermes:new-session-shortcut', onShortcut)
+      window.removeEventListener('jarvis:new-session-shortcut', onShortcut)
       clearTimeout(timeout)
     }
   }, [])
@@ -533,6 +538,7 @@ export function ChatSidebar({
 
     if (!next.length && agentOrderIds.length) {
       setSidebarSessionOrderIds([])
+
       return
     }
 
@@ -569,7 +575,14 @@ export function ChatSidebar({
       ...parent,
       groups: orderByIds(parent.groups, group => group.id, workspaceOrderIds)
     }))
-  }, [worktreeGroupingActive, agentSessions, s.noWorkspace, worktreeResolver, workspaceParentOrderIds, workspaceOrderIds])
+  }, [
+    worktreeGroupingActive,
+    agentSessions,
+    s.noWorkspace,
+    worktreeResolver,
+    workspaceParentOrderIds,
+    workspaceOrderIds
+  ])
 
   const loadMoreForProfileGroup = useCallback(
     (profile: string) => {
@@ -797,12 +810,12 @@ export function ChatSidebar({
         'relative h-full min-w-0 overflow-hidden border-t-0 border-b-0 text-foreground transition-none',
         panesFlipped ? 'border-l border-r-0' : 'border-r border-l-0',
         sidebarOpen
-          ? 'border-(--sidebar-edge-border) bg-(--ui-sidebar-surface-background) opacity-100'
+          ? 'border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] bg-[color-mix(in_srgb,var(--ui-sidebar-surface-background)_94%,#02040a)] opacity-100'
           : 'pointer-events-none border-transparent bg-transparent opacity-0',
         // While floated by PaneShell's hover-reveal, force visible + interactive
         // — on hover (group-hover/reveal) or when keyboard-pinned (data-forced).
-        'in-data-[pane-hover-reveal=open]:pointer-events-auto in-data-[pane-hover-reveal=open]:border-(--sidebar-edge-border) in-data-[pane-hover-reveal=open]:bg-(--ui-sidebar-surface-background) in-data-[pane-hover-reveal=open]:opacity-100',
-        'group-hover/reveal:pointer-events-auto group-hover/reveal:border-(--sidebar-edge-border) group-hover/reveal:bg-(--ui-sidebar-surface-background) group-hover/reveal:opacity-100'
+        'in-data-[pane-hover-reveal=open]:pointer-events-auto in-data-[pane-hover-reveal=open]:border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] in-data-[pane-hover-reveal=open]:bg-[color-mix(in_srgb,var(--ui-sidebar-surface-background)_94%,#02040a)] in-data-[pane-hover-reveal=open]:opacity-100',
+        'group-hover/reveal:pointer-events-auto group-hover/reveal:border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] group-hover/reveal:bg-[color-mix(in_srgb,var(--ui-sidebar-surface-background)_94%,#02040a)] group-hover/reveal:opacity-100'
       )}
       collapsible="none"
     >
@@ -832,9 +845,9 @@ export function ChatSidebar({
                         // resolved region has been observed to swallow clicks on the
                         // top rows. Same carve-out as USER_BUBBLE_BASE_CLASS in
                         // thread.tsx.
-                        'flex h-7 w-full justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[0.8125rem] font-medium text-(--ui-text-secondary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag] hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none',
+                        'flex h-7 w-full justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[0.8125rem] font-medium text-(--ui-text-secondary) transition-[background-color,border-color,color,transform] duration-150 ease-out [-webkit-app-region:no-drag] hover:border-[color-mix(in_srgb,var(--jarvis-hairline)_42%,transparent)] hover:bg-(--ui-control-hover-background) hover:text-white active:scale-[0.99]',
                         active &&
-                          'border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-foreground shadow-none hover:border-(--ui-stroke-tertiary)!',
+                          'border-[color-mix(in_srgb,var(--jarvis-blue)_44%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_12%,var(--ui-control-active-background))] text-white shadow-[inset_0_0.0625rem_0_color-mix(in_srgb,#fff_6%,transparent)] hover:border-[color-mix(in_srgb,var(--jarvis-blue)_58%,transparent)]!',
                         !isInteractive &&
                           'cursor-default hover:border-transparent hover:bg-transparent hover:text-inherit'
                       )}
@@ -1253,8 +1266,7 @@ function SidebarSessionsSection({
   // Sessions inside repos/worktrees are date-ordered and static.
   const renderRows = (items: SessionInfo[]) => items.map(session => renderRow(session, false))
 
-  const flatVirtualized =
-    !showEmptyState && !groups?.length && !tree?.length && sessions.length >= VIRTUALIZE_THRESHOLD
+  const flatVirtualized = !showEmptyState && !groups?.length && !tree?.length && sessions.length >= VIRTUALIZE_THRESHOLD
 
   let inner: React.ReactNode
 
@@ -1291,7 +1303,12 @@ function SidebarSessionsSection({
   } else if (groups?.length) {
     // Profile/source groups never reorder; render them flat with static rows.
     inner = groups.map(group => (
-      <SidebarWorkspaceGroup group={group} key={group.id} onNewSession={onNewSessionInWorkspace} renderRows={renderRows} />
+      <SidebarWorkspaceGroup
+        group={group}
+        key={group.id}
+        onNewSession={onNewSessionInWorkspace}
+        renderRows={renderRows}
+      />
     ))
   } else if (flatVirtualized) {
     const virtual = (
@@ -1550,7 +1567,8 @@ function SidebarWorkspaceParent({
     >
       <WorkspaceHeader
         action={
-          onNewSession && (newSessionPath || soleWorktree) && (
+          onNewSession &&
+          (newSessionPath || soleWorktree) && (
             <WorkspaceAddButton label={s.newSessionIn(parent.label)} onClick={() => onNewSession?.(newSessionPath)} />
           )
         }

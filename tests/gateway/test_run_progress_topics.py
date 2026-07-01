@@ -147,7 +147,7 @@ class FakeAgent:
 
 class LongPreviewAgent:
     """Agent that emits a tool call with a very long preview string."""
-    LONG_CMD = "cd /home/teknium/.hermes/hermes-agent/.worktrees/hermes-d8860339 && source .venv/bin/activate && python -m pytest tests/gateway/test_run_progress_topics.py -n0 -q"
+    LONG_CMD = "cd /home/teknium/.jarvis/jarvis-brain/.worktrees/jarvis-d8860339 && source .venv/bin/activate && python -m pytest tests/gateway/test_run_progress_topics.py -n0 -q"
 
     def __init__(self, **kwargs):
         self.tool_progress_callback = kwargs.get("tool_progress_callback")
@@ -247,22 +247,22 @@ def _make_runner(adapter):
 
 
 @pytest.mark.asyncio
-async def test_run_agent_progress_stays_in_originating_topic(monkeypatch, tmp_path):
-    monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "all")
+async def test_run_brain_progress_stays_in_originating_topic(monkeypatch, tmp_path):
+    monkeypatch.setenv("JARVIS_TOOL_PROGRESS_MODE", "all")
 
     fake_dotenv = types.ModuleType("dotenv")
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = FakeAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = FakeAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
     import tools.terminal_tool  # noqa: F401 - register terminal emoji for this fake-agent test
 
     adapter = ProgressCaptureAdapter()
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "fake"})
     source = SessionSource(
         platform=Platform.TELEGRAM,
@@ -271,7 +271,7 @@ async def test_run_agent_progress_stays_in_originating_topic(monkeypatch, tmp_pa
         thread_id="17585",
     )
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -294,21 +294,21 @@ async def test_run_agent_progress_stays_in_originating_topic(monkeypatch, tmp_pa
 
 
 @pytest.mark.asyncio
-async def test_run_agent_progress_edits_keep_originating_topic_metadata(monkeypatch, tmp_path):
-    monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "all")
+async def test_run_brain_progress_edits_keep_originating_topic_metadata(monkeypatch, tmp_path):
+    monkeypatch.setenv("JARVIS_TOOL_PROGRESS_MODE", "all")
 
     fake_dotenv = types.ModuleType("dotenv")
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = FakeAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = FakeAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
     adapter = MetadataEditProgressCaptureAdapter()
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "fake"})
     source = SessionSource(
         platform=Platform.TELEGRAM,
@@ -317,7 +317,7 @@ async def test_run_agent_progress_edits_keep_originating_topic_metadata(monkeypa
         thread_id="17585",
     )
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -332,22 +332,22 @@ async def test_run_agent_progress_edits_keep_originating_topic_metadata(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_run_agent_progress_does_not_use_event_message_id_for_telegram_dm(monkeypatch, tmp_path):
+async def test_run_brain_progress_does_not_use_event_message_id_for_telegram_dm(monkeypatch, tmp_path):
     """Telegram DM progress must not reuse event message id as thread metadata."""
-    monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "all")
+    monkeypatch.setenv("JARVIS_TOOL_PROGRESS_MODE", "all")
 
     fake_dotenv = types.ModuleType("dotenv")
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = FakeAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = FakeAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
     adapter = ProgressCaptureAdapter(platform=Platform.TELEGRAM)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -357,7 +357,7 @@ async def test_run_agent_progress_does_not_use_event_message_id_for_telegram_dm(
         thread_id=None,
     )
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -374,9 +374,9 @@ async def test_run_agent_progress_does_not_use_event_message_id_for_telegram_dm(
 
 
 @pytest.mark.asyncio
-async def test_run_agent_progress_uses_event_message_id_for_slack_dm(monkeypatch, tmp_path):
+async def test_run_brain_progress_uses_event_message_id_for_slack_dm(monkeypatch, tmp_path):
     """Slack DM progress should keep event ts fallback threading."""
-    monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "all")
+    monkeypatch.setenv("JARVIS_TOOL_PROGRESS_MODE", "all")
     # Since PR #8006, Slack's built-in display tier sets tool_progress="off"
     # by default. Override via config so this test still exercises the
     # progress-callback path the Slack DM event_message_id threading depends on.
@@ -390,14 +390,14 @@ async def test_run_agent_progress_uses_event_message_id_for_slack_dm(monkeypatch
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = FakeAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = FakeAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
     adapter = ProgressCaptureAdapter(platform=Platform.SLACK)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -407,7 +407,7 @@ async def test_run_agent_progress_uses_event_message_id_for_slack_dm(monkeypatch
         thread_id=None,
     )
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -424,22 +424,22 @@ async def test_run_agent_progress_uses_event_message_id_for_slack_dm(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_run_agent_feishu_progress_replies_inside_existing_thread(monkeypatch, tmp_path):
+async def test_run_brain_feishu_progress_replies_inside_existing_thread(monkeypatch, tmp_path):
     """Feishu needs reply_to plus reply_in_thread metadata for topic-scoped progress."""
-    monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "all")
+    monkeypatch.setenv("JARVIS_TOOL_PROGRESS_MODE", "all")
 
     fake_dotenv = types.ModuleType("dotenv")
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = FakeAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = FakeAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
     adapter = ProgressCaptureAdapter(platform=Platform.FEISHU)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -449,7 +449,7 @@ async def test_run_agent_feishu_progress_replies_inside_existing_thread(monkeypa
         thread_id="topic_17585",
     )
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -477,29 +477,29 @@ def _run_long_preview_helper(monkeypatch, tmp_path, preview_length=0):
 
     Returns (adapter, result) after running the agent with LongPreviewAgent.
     ``preview_length`` controls display.tool_preview_length in the config file
-    that _run_agent reads — so the gateway picks it up the same way production does.
+    that _run_brain reads — so the gateway picks it up the same way production does.
     """
     import asyncio
     import yaml
 
-    monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "all")
+    monkeypatch.setenv("JARVIS_TOOL_PROGRESS_MODE", "all")
 
     fake_dotenv = types.ModuleType("dotenv")
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = LongPreviewAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = LongPreviewAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
-    # Write config.yaml so _run_agent picks up tool_preview_length
+    # Write config.yaml so _run_brain picks up tool_preview_length
     config = {"display": {"tool_preview_length": preview_length}}
     (tmp_path / "config.yaml").write_text(yaml.dump(config), encoding="utf-8")
 
     adapter = ProgressCaptureAdapter()
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -510,7 +510,7 @@ def _run_long_preview_helper(monkeypatch, tmp_path, preview_length=0):
     )
 
     result = asyncio.get_event_loop().run_until_complete(
-        runner._run_agent(
+        runner._run_brain(
             message="hello",
             context_prompt="",
             history=[],
@@ -698,16 +698,16 @@ async def _run_with_agent(
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = agent_cls
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = agent_cls
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
     adapter = adapter_cls(platform=platform)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
     if config_data and "streaming" in config_data:
         runner.config.streaming = StreamingConfig.from_dict(config_data["streaming"])
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
     source = SessionSource(
         platform=platform,
@@ -726,7 +726,7 @@ async def _run_with_agent(
             message_id="queued-1",
         )
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -738,7 +738,7 @@ async def _run_with_agent(
 
 
 @pytest.mark.asyncio
-async def test_run_agent_rolls_progress_bubble_before_platform_limit(monkeypatch, tmp_path):
+async def test_run_brain_rolls_progress_bubble_before_platform_limit(monkeypatch, tmp_path):
     """Tool progress should start a second editable bubble before Telegram's limit.
 
     Regression: once the first progress bubble grew past the platform limit,
@@ -771,7 +771,7 @@ async def test_run_agent_rolls_progress_bubble_before_platform_limit(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_run_agent_surfaces_real_interim_commentary(monkeypatch, tmp_path):
+async def test_run_brain_surfaces_real_interim_commentary(monkeypatch, tmp_path):
     adapter, result = await _run_with_agent(
         monkeypatch,
         tmp_path,
@@ -785,7 +785,7 @@ async def test_run_agent_surfaces_real_interim_commentary(monkeypatch, tmp_path)
 
 
 @pytest.mark.asyncio
-async def test_run_agent_surfaces_interim_commentary_by_default(monkeypatch, tmp_path):
+async def test_run_brain_surfaces_interim_commentary_by_default(monkeypatch, tmp_path):
     adapter, result = await _run_with_agent(
         monkeypatch,
         tmp_path,
@@ -797,7 +797,7 @@ async def test_run_agent_surfaces_interim_commentary_by_default(monkeypatch, tmp
 
 
 @pytest.mark.asyncio
-async def test_run_agent_suppresses_interim_commentary_when_disabled(monkeypatch, tmp_path):
+async def test_run_brain_suppresses_interim_commentary_when_disabled(monkeypatch, tmp_path):
     adapter, result = await _run_with_agent(
         monkeypatch,
         tmp_path,
@@ -811,7 +811,7 @@ async def test_run_agent_suppresses_interim_commentary_when_disabled(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_run_agent_tool_progress_does_not_control_interim_commentary(monkeypatch, tmp_path):
+async def test_run_brain_tool_progress_does_not_control_interim_commentary(monkeypatch, tmp_path):
     """tool_progress=all with interim_assistant_messages=false should not surface commentary."""
     adapter, result = await _run_with_agent(
         monkeypatch,
@@ -826,7 +826,7 @@ async def test_run_agent_tool_progress_does_not_control_interim_commentary(monke
 
 
 @pytest.mark.asyncio
-async def test_run_agent_streaming_does_not_enable_completed_interim_commentary(
+async def test_run_brain_streaming_does_not_enable_completed_interim_commentary(
     monkeypatch, tmp_path
 ):
     """Streaming alone with interim_assistant_messages=false should not surface commentary."""
@@ -867,7 +867,7 @@ async def test_display_streaming_does_not_enable_gateway_streaming(monkeypatch, 
 
 
 @pytest.mark.asyncio
-async def test_run_agent_interim_commentary_works_with_tool_progress_off(monkeypatch, tmp_path):
+async def test_run_brain_interim_commentary_works_with_tool_progress_off(monkeypatch, tmp_path):
     adapter, result = await _run_with_agent(
         monkeypatch,
         tmp_path,
@@ -886,7 +886,7 @@ async def test_run_agent_interim_commentary_works_with_tool_progress_off(monkeyp
 
 
 @pytest.mark.asyncio
-async def test_run_agent_bluebubbles_uses_commentary_send_path_for_quick_replies(monkeypatch, tmp_path):
+async def test_run_brain_bluebubbles_uses_commentary_send_path_for_quick_replies(monkeypatch, tmp_path):
     adapter, result = await _run_with_agent(
         monkeypatch,
         tmp_path,
@@ -906,7 +906,7 @@ async def test_run_agent_bluebubbles_uses_commentary_send_path_for_quick_replies
 
 
 @pytest.mark.asyncio
-async def test_run_agent_previewed_final_marks_already_sent(monkeypatch, tmp_path):
+async def test_run_brain_previewed_final_marks_already_sent(monkeypatch, tmp_path):
     adapter, result = await _run_with_agent(
         monkeypatch,
         tmp_path,
@@ -920,7 +920,7 @@ async def test_run_agent_previewed_final_marks_already_sent(monkeypatch, tmp_pat
 
 
 @pytest.mark.asyncio
-async def test_run_agent_matrix_streaming_omits_cursor(monkeypatch, tmp_path):
+async def test_run_brain_matrix_streaming_omits_cursor(monkeypatch, tmp_path):
     adapter, result = await _run_with_agent(
         monkeypatch,
         tmp_path,
@@ -1000,7 +1000,7 @@ async def test_transformed_response_edits_streamed_message_in_place(monkeypatch,
 
 
 @pytest.mark.asyncio
-async def test_run_agent_queued_message_does_not_treat_commentary_as_final(monkeypatch, tmp_path):
+async def test_run_brain_queued_message_does_not_treat_commentary_as_final(monkeypatch, tmp_path):
     QueuedCommentaryAgent.calls = 0
     adapter, result = await _run_with_agent(
         monkeypatch,
@@ -1018,7 +1018,7 @@ async def test_run_agent_queued_message_does_not_treat_commentary_as_final(monke
 
 
 @pytest.mark.asyncio
-async def test_run_agent_defers_background_review_notification_until_release(monkeypatch, tmp_path):
+async def test_run_brain_defers_background_review_notification_until_release(monkeypatch, tmp_path):
     adapter, result = await _run_with_agent(
         monkeypatch,
         tmp_path,
@@ -1134,7 +1134,7 @@ async def test_base_processing_stops_typing_before_hung_post_delivery_callback(
 
 
 @pytest.mark.asyncio
-async def test_run_agent_drops_tool_progress_after_generation_invalidation(monkeypatch, tmp_path):
+async def test_run_brain_drops_tool_progress_after_generation_invalidation(monkeypatch, tmp_path):
     import yaml
 
     (tmp_path / "config.yaml").write_text(
@@ -1146,15 +1146,15 @@ async def test_run_agent_drops_tool_progress_after_generation_invalidation(monke
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = DelayedProgressAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = DelayedProgressAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
     import tools.terminal_tool  # noqa: F401 - register terminal tool metadata
 
     adapter = ProgressCaptureAdapter(platform=Platform.DISCORD)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -1178,7 +1178,7 @@ async def test_run_agent_drops_tool_progress_after_generation_invalidation(monke
 
     adapter.send = send_and_invalidate
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -1196,7 +1196,7 @@ async def test_run_agent_drops_tool_progress_after_generation_invalidation(monke
 
 
 @pytest.mark.asyncio
-async def test_run_agent_drops_interim_commentary_after_generation_invalidation(monkeypatch, tmp_path):
+async def test_run_brain_drops_interim_commentary_after_generation_invalidation(monkeypatch, tmp_path):
     import yaml
 
     (tmp_path / "config.yaml").write_text(
@@ -1208,14 +1208,14 @@ async def test_run_agent_drops_interim_commentary_after_generation_invalidation(
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = DelayedInterimAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = DelayedInterimAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
     adapter = ProgressCaptureAdapter(platform=Platform.DISCORD)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -1239,7 +1239,7 @@ async def test_run_agent_drops_interim_commentary_after_generation_invalidation(
 
     adapter.send = send_and_invalidate
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -1358,21 +1358,21 @@ async def test_terminal_progress_renders_fenced_code_block(monkeypatch, tmp_path
     'bash' as a literal first code line).  In non-verbose ("all"/"new") mode the
     command is collapsed to a single line capped at tool_preview_length so a long
     or multi-line command doesn't render as a huge block (#42634)."""
-    monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "all")
+    monkeypatch.setenv("JARVIS_TOOL_PROGRESS_MODE", "all")
 
     fake_dotenv = types.ModuleType("dotenv")
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = TerminalCommandAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = TerminalCommandAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
     import tools.terminal_tool  # noqa: F401 - register terminal emoji
 
     adapter = CodeBlockProgressAdapter(platform=Platform.TELEGRAM)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -1382,7 +1382,7 @@ async def test_terminal_progress_renders_fenced_code_block(monkeypatch, tmp_path
         thread_id=None,
     )
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -1411,21 +1411,21 @@ async def test_terminal_progress_verbose_shows_full_command(monkeypatch, tmp_pat
     """Verbose mode on a markdown-capable gateway renders the FULL multi-line
     command in a bare fenced block (no truncation, no 'bash' tag).  This is the
     parity guarantee for #42634: verbose keeps full detail, non-verbose caps."""
-    monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "verbose")
+    monkeypatch.setenv("JARVIS_TOOL_PROGRESS_MODE", "verbose")
 
     fake_dotenv = types.ModuleType("dotenv")
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = TerminalCommandAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = TerminalCommandAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
     import tools.terminal_tool  # noqa: F401 - register terminal emoji
 
     adapter = CodeBlockProgressAdapter(platform=Platform.TELEGRAM)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -1435,7 +1435,7 @@ async def test_terminal_progress_verbose_shows_full_command(monkeypatch, tmp_pat
         thread_id=None,
     )
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -1459,21 +1459,21 @@ async def test_terminal_progress_no_bash_block_in_verbose_mode(monkeypatch, tmp_
     """#41215 also rendered the bash block in verbose mode. The revert removed it
     from both branches, so verbose progress must not emit a fenced ```bash block
     either (verbose still shows args by opt-in, just not as a code block)."""
-    monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "verbose")
+    monkeypatch.setenv("JARVIS_TOOL_PROGRESS_MODE", "verbose")
 
     fake_dotenv = types.ModuleType("dotenv")
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = TerminalCommandAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = TerminalCommandAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
     import tools.terminal_tool  # noqa: F401 - register terminal emoji
 
     adapter = CodeBlockProgressAdapter(platform=Platform.TELEGRAM)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -1483,7 +1483,7 @@ async def test_terminal_progress_no_bash_block_in_verbose_mode(monkeypatch, tmp_
         thread_id=None,
     )
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],
@@ -1521,21 +1521,21 @@ async def test_consecutive_terminal_progress_collapses_headers(monkeypatch, tmp_
     """Back-to-back terminal calls render ONE "terminal" header followed by
     adjacent code blocks; a different tool in between resets the header so the
     next terminal call gets a fresh one."""
-    monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "all")
+    monkeypatch.setenv("JARVIS_TOOL_PROGRESS_MODE", "all")
 
     fake_dotenv = types.ModuleType("dotenv")
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
 
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = MultiTerminalCommandAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = MultiTerminalCommandAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
     import tools.terminal_tool  # noqa: F401 - register terminal emoji
 
     adapter = CodeBlockProgressAdapter(platform=Platform.TELEGRAM)
     runner = _make_runner(adapter)
     gateway_run = importlib.import_module("gateway.run")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
 
     source = SessionSource(
@@ -1545,7 +1545,7 @@ async def test_consecutive_terminal_progress_collapses_headers(monkeypatch, tmp_
         thread_id=None,
     )
 
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hello",
         context_prompt="",
         history=[],

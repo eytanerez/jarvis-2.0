@@ -1,4 +1,4 @@
-"""Tests for pending follow-up extraction in recursive _run_agent calls.
+"""Tests for pending follow-up extraction in recursive _run_brain calls.
 
 When pending_event is None (Path B: pending comes from interrupt_message),
 accessing pending_event.channel_prompt previously raised AttributeError.
@@ -18,7 +18,7 @@ def _extract_channel_prompt(pending_event):
     """Reproduce the fixed logic from gateway/run.py.
 
     Mirrors the variable-capture pattern used before the recursive
-    _run_agent call so we can test both paths without a full runner.
+    _run_brain call so we can test both paths without a full runner.
     """
     next_channel_prompt = None
     if pending_event is not None:

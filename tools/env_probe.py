@@ -1,11 +1,11 @@
 """Local-environment toolchain probe for the system prompt.
 
 When the terminal backend is local (the agent's tools run on the same
-machine as Hermes itself), we surface a single deterministic line about
+machine as Jarvis itself), we surface a single deterministic line about
 Python tooling state so models don't have to discover it by hitting
 walls.  Common failure modes this addresses:
 
-* Hermes ships under one Python (e.g. 3.11 in a bundled venv) while the
+* Jarvis ships under one Python (e.g. 3.11 in a bundled venv) while the
   user's login shell has a different one (e.g. 3.12 system).  ``pip``
   resolved from PATH may not match ``python3 -m pip``.
 * The bundled-venv Python has no pip module installed → ``python3 -m
@@ -22,7 +22,7 @@ PEP 668), it emits nothing — no token cost.
 Remote terminal backends (docker, modal, ssh, …) are skipped: the
 host's Python state is irrelevant when tools run inside a sandbox.
 The sandbox has its own existing probe (``_probe_remote_backend``)
-in ``agent/prompt_builder.py``.
+in ``brain/prompt_builder.py``.
 
 Toggle via ``agent.environment_probe`` in config.yaml (default True).
 """
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 _CACHE_LOCK = threading.Lock()
 _CACHED_LINE: Optional[str] = None  # None = not probed yet; "" = probed, nothing to say.
 
-# Remote backends — keep in sync with agent/prompt_builder.py:_REMOTE_TERMINAL_BACKENDS.
+# Remote backends — keep in sync with brain/prompt_builder.py:_REMOTE_TERMINAL_BACKENDS.
 # Duplicated rather than imported to avoid a circular import (prompt_builder
 # imports nothing from tools).
 _REMOTE_BACKENDS = frozenset({

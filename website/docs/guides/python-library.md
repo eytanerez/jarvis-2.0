@@ -1,49 +1,49 @@
 ---
 sidebar_position: 5
-title: "Using Hermes as a Python Library"
-description: "Embed AIAgent in your own Python scripts, web apps, or automation pipelines — no CLI required"
+title: "Using Jarvis as a Python Library"
+description: "Embed AIBrain in your own Python scripts, web apps, or automation pipelines — no CLI required"
 ---
 
-# Using Hermes as a Python Library
+# Using Jarvis as a Python Library
 
-Hermes isn't just a CLI tool. You can import `AIAgent` directly and use it programmatically in your own Python scripts, web applications, or automation pipelines. This guide shows you how.
+Jarvis isn't just a CLI tool. You can import `AIBrain` directly and use it programmatically in your own Python scripts, web applications, or automation pipelines. This guide shows you how.
 
 ---
 
 ## Installation
 
-Install Hermes directly from the repository:
+Install Jarvis directly from the repository:
 
 ```bash
-pip install git+https://github.com/NousResearch/hermes-agent.git
+pip install git+https://github.com/NousResearch/jarvis-agent.git
 ```
 
 Or with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv pip install git+https://github.com/NousResearch/hermes-agent.git
+uv pip install git+https://github.com/NousResearch/jarvis-agent.git
 ```
 
 You can also pin it in your `requirements.txt`:
 
 ```text
-hermes-agent @ git+https://github.com/NousResearch/hermes-agent.git
+jarvis-agent @ git+https://github.com/NousResearch/jarvis-agent.git
 ```
 
 :::tip
-The same environment variables used by the CLI are required when using Hermes as a library. At minimum, set `OPENROUTER_API_KEY` (or `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` if using direct provider access).
+The same environment variables used by the CLI are required when using Jarvis as a library. At minimum, set `OPENROUTER_API_KEY` (or `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` if using direct provider access).
 :::
 
 ---
 
 ## Basic Usage
 
-The simplest way to use Hermes is the `chat()` method — pass a message, get a string back:
+The simplest way to use Jarvis is the `chat()` method — pass a message, get a string back:
 
 ```python
-from run_agent import AIAgent
+from run_brain import AIBrain
 
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4.6",
     quiet_mode=True,
 )
@@ -54,7 +54,7 @@ print(response)
 `chat()` handles the full conversation loop internally — tool calls, retries, everything — and returns just the final text response.
 
 :::warning
-Always set `quiet_mode=True` when embedding Hermes in your own code. Without it, the agent prints CLI spinners, progress indicators, and other terminal output that will clutter your application's output.
+Always set `quiet_mode=True` when embedding Jarvis in your own code. Without it, the agent prints CLI spinners, progress indicators, and other terminal output that will clutter your application's output.
 :::
 
 ---
@@ -64,7 +64,7 @@ Always set `quiet_mode=True` when embedding Hermes in your own code. Without it,
 For more control over the conversation, use `run_conversation()` directly. It returns a dictionary with the full response, message history, and metadata:
 
 ```python
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4.6",
     quiet_mode=True,
 )
@@ -101,14 +101,14 @@ Control which toolsets the agent has access to using `enabled_toolsets` or `disa
 
 ```python
 # Only enable web tools (browsing, search)
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4.6",
     enabled_toolsets=["web"],
     quiet_mode=True,
 )
 
 # Enable everything except terminal access
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4.6",
     disabled_toolsets=["terminal"],
     quiet_mode=True,
@@ -126,7 +126,7 @@ Use `enabled_toolsets` when you want a minimal, locked-down agent (e.g., only we
 Maintain conversation state across multiple turns by passing the message history back in:
 
 ```python
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4.6",
     quiet_mode=True,
 )
@@ -152,7 +152,7 @@ The `conversation_history` parameter accepts the `messages` list from a previous
 Enable trajectory saving to capture conversations in ShareGPT format — useful for generating training data or debugging:
 
 ```python
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4.6",
     save_trajectories=True,
     quiet_mode=True,
@@ -171,7 +171,7 @@ Each conversation is appended as a single JSONL line, making it easy to collect 
 Use `ephemeral_system_prompt` to set a custom system prompt that guides the agent's behavior but is **not** saved to trajectory files (keeping your training data clean):
 
 ```python
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4",
     ephemeral_system_prompt="You are a SQL expert. Only answer database questions.",
     quiet_mode=True,
@@ -187,17 +187,17 @@ This is ideal for building specialized agents — a code reviewer, a documentati
 
 ## Batch Processing
 
-For running many prompts in parallel, Hermes includes `batch_runner.py`. It manages concurrent `AIAgent` instances with proper resource isolation:
+For running many prompts in parallel, Jarvis includes `batch_runner.py`. It manages concurrent `AIBrain` instances with proper resource isolation:
 
 ```bash
 python batch_runner.py --input prompts.jsonl --output results.jsonl
 ```
 
-Each prompt gets its own `task_id` and isolated environment. If you need custom batch logic, you can build your own using `AIAgent` directly:
+Each prompt gets its own `task_id` and isolated environment. If you need custom batch logic, you can build your own using `AIBrain` directly:
 
 ```python
 import concurrent.futures
-from run_agent import AIAgent
+from run_brain import AIBrain
 
 prompts = [
     "Explain recursion",
@@ -207,7 +207,7 @@ prompts = [
 
 def process_prompt(prompt):
     # Create a fresh agent per task for thread safety
-    agent = AIAgent(
+    agent = AIBrain(
         model="anthropic/claude-sonnet-4",
         quiet_mode=True,
         skip_memory=True,
@@ -222,7 +222,7 @@ for prompt, result in zip(prompts, results):
 ```
 
 :::warning
-Always create a **new `AIAgent` instance per thread or task**. The agent maintains internal state (conversation history, tool sessions, iteration counters) that is not thread-safe to share.
+Always create a **new `AIBrain` instance per thread or task**. The agent maintains internal state (conversation history, tool sessions, iteration counters) that is not thread-safe to share.
 :::
 
 ---
@@ -234,7 +234,7 @@ Always create a **new `AIAgent` instance per thread or task**. The agent maintai
 ```python
 from fastapi import FastAPI
 from pydantic import BaseModel
-from run_agent import AIAgent
+from run_brain import AIBrain
 
 app = FastAPI()
 
@@ -244,7 +244,7 @@ class ChatRequest(BaseModel):
 
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    agent = AIAgent(
+    agent = AIBrain(
         model=request.model,
         quiet_mode=True,
         skip_context_files=True,
@@ -258,7 +258,7 @@ async def chat(request: ChatRequest):
 
 ```python
 import discord
-from run_agent import AIAgent
+from run_brain import AIBrain
 
 client = discord.Client(intents=discord.Intents.default())
 
@@ -266,9 +266,9 @@ client = discord.Client(intents=discord.Intents.default())
 async def on_message(message):
     if message.author == client.user:
         return
-    if message.content.startswith("!hermes "):
+    if message.content.startswith("!jarvis "):
         query = message.content[8:]
-        agent = AIAgent(
+        agent = AIBrain(
             model="anthropic/claude-sonnet-4",
             quiet_mode=True,
             skip_context_files=True,
@@ -287,11 +287,11 @@ client.run("YOUR_DISCORD_TOKEN")
 #!/usr/bin/env python3
 """CI step: auto-review a PR diff."""
 import subprocess
-from run_agent import AIAgent
+from run_brain import AIBrain
 
 diff = subprocess.check_output(["git", "diff", "main...HEAD"]).decode()
 
-agent = AIAgent(
+agent = AIBrain(
     model="anthropic/claude-sonnet-4",
     quiet_mode=True,
     skip_context_files=True,
@@ -311,7 +311,7 @@ print(review)
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `model` | `str` | `""` | Model in OpenRouter format (defaults to empty; resolved from your hermes config at runtime) |
+| `model` | `str` | `""` | Model in OpenRouter format (defaults to empty; resolved from your jarvis config at runtime) |
 | `quiet_mode` | `bool` | `False` | Suppress CLI output |
 | `enabled_toolsets` | `List[str]` | `None` | Whitelist specific toolsets |
 | `disabled_toolsets` | `List[str]` | `None` | Blacklist specific toolsets |
@@ -335,7 +335,7 @@ print(review)
 :::
 
 :::warning
-- **Thread safety**: Create one `AIAgent` per thread or task. Never share an instance across concurrent calls.
+- **Thread safety**: Create one `AIBrain` per thread or task. Never share an instance across concurrent calls.
 - **Resource cleanup**: The agent automatically cleans up resources (terminal sessions, browser instances) when a conversation ends. If you're running in a long-lived process, ensure each conversation completes normally.
 - **Iteration limits**: The default `max_iterations=90` is generous. For simple Q&A use cases, consider lowering it (e.g., `max_iterations=10`) to prevent runaway tool-calling loops and control costs.
 :::

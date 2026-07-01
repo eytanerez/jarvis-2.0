@@ -1,7 +1,7 @@
 ---
 sidebar_position: 11
 title: "Cron 内部机制"
-description: "Hermes 如何存储、调度、编辑、暂停、加载技能以及投递 cron 任务"
+description: "Jarvis 如何存储、调度、编辑、暂停、加载技能以及投递 cron 任务"
 ---
 
 # Cron 内部机制
@@ -16,7 +16,7 @@ cron 子系统提供定时任务执行能力——从简单的单次延迟到带
 | `cron/scheduler.py` | 调度器循环——到期任务检测、执行、重复计数跟踪 |
 | `tools/cronjob_tools.py` | 面向模型的 `cronjob` 工具注册与处理器 |
 | `gateway/run.py` | Gateway 集成——在长运行循环中触发 cron tick |
-| `hermes_cli/cron.py` | CLI `hermes cron` 子命令 |
+| `jarvis_cli/cron.py` | CLI `jarvis cron` 子命令 |
 
 ## 调度模型
 
@@ -33,7 +33,7 @@ cron 子系统提供定时任务执行能力——从简单的单次延迟到带
 
 ## 任务存储
 
-任务存储在 `~/.hermes/cron/jobs.json` 中，采用原子写入语义（先写入临时文件，再重命名）。每条任务记录包含：
+任务存储在 `~/.jarvis/cron/jobs.json` 中，采用原子写入语义（先写入临时文件，再重命名）。每条任务记录包含：
 
 ```json
 {
@@ -89,7 +89,7 @@ tick()
   3. 筛选到期任务（next_run <= now 且 state == "scheduled"）
   4. 对每个到期任务：
      a. 将状态设为 "running"
-     b. 创建全新的 AIAgent 会话（无对话历史）
+     b. 创建全新的 AIBrain 会话（无对话历史）
      c. 按顺序加载附加技能（以用户消息形式注入）
      d. 通过 agent 执行任务 prompt（提示词）
      e. 将响应投递到配置的目标
@@ -104,7 +104,7 @@ tick()
 
 在 gateway 模式下，调度器运行在专用后台线程中（`gateway/run.py` 中的 `_start_cron_ticker`），每 60 秒调用一次 `scheduler.tick()`，与消息处理并行运行。
 
-在 CLI 模式下，cron 任务仅在运行 `hermes cron` 命令或活跃 CLI 会话期间触发。
+在 CLI 模式下，cron 任务仅在运行 `jarvis cron` 命令或活跃 CLI 会话期间触发。
 
 ### 全新会话隔离
 
@@ -135,7 +135,7 @@ cron 任务可通过 `skills` 字段附加一个或多个技能。执行时：
 任务还可通过 `script` 字段附加 Python 脚本。该脚本在每次 agent 轮次*之前*运行，其 stdout 作为上下文注入到 prompt 中。这支持数据采集和变更检测模式：
 
 ```python
-# ~/.hermes/scripts/check_competitors.py
+# ~/.jarvis/scripts/check_competitors.py
 import requests, json
 # 获取竞争对手发布说明，与上次运行结果进行差异比对
 # 将摘要打印到 stdout——agent 进行分析并报告
@@ -144,15 +144,15 @@ import requests, json
 脚本超时默认为 120 秒。`_get_script_timeout()` 通过三层链路解析限制：
 
 1. **模块级覆盖** — `_SCRIPT_TIMEOUT`（用于测试/monkeypatching）。仅在与默认值不同时使用。
-2. **环境变量** — `HERMES_CRON_SCRIPT_TIMEOUT`
+2. **环境变量** — `JARVIS_CRON_SCRIPT_TIMEOUT`
 3. **配置** — `config.yaml` 中的 `cron.script_timeout_seconds`（通过 `load_config()` 读取）
 4. **默认值** — 120 秒
 
 ### Provider 恢复
 
-`run_job()` 将用户配置的备用 provider 和凭证池传入 `AIAgent` 实例：
+`run_job()` 将用户配置的备用 provider 和凭证池传入 `AIBrain` 实例：
 
-- **备用 provider** — 从 `config.yaml` 读取 `fallback_providers`（列表）或 `fallback_model`（旧版字典），与 gateway 的 `_load_fallback_model()` 模式一致。以 `fallback_model=` 形式传入 `AIAgent.__init__`，后者将两种格式规范化为备用链。
+- **备用 provider** — 从 `config.yaml` 读取 `fallback_providers`（列表）或 `fallback_model`（旧版字典），与 gateway 的 `_load_fallback_model()` 模式一致。以 `fallback_model=` 形式传入 `AIBrain.__init__`，后者将两种格式规范化为备用链。
 - **凭证池** — 通过 `agent.credential_pool` 中的 `load_pool(provider)` 使用解析后的运行时 provider 名称加载。仅在池中有凭证时传入（`pool.has_credentials()`）。在遭遇 429/限速错误时启用同 provider 的密钥轮换。
 
 这与 gateway 的行为保持一致——否则 cron agent 在遭遇限速时将直接失败而不尝试恢复。
@@ -164,7 +164,7 @@ Cron 任务结果可投递到任何受支持的平台：
 | 目标 | 语法 | 示例 |
 |--------|--------|---------|
 | 来源聊天 | `origin` | 投递到创建该任务的聊天 |
-| 本地文件 | `local` | 保存到 `~/.hermes/cron/output/` |
+| 本地文件 | `local` | 保存到 `~/.jarvis/cron/output/` |
 | Telegram | `telegram` 或 `telegram:<chat_id>` | `telegram:-1001234567890` |
 | Discord | `discord` 或 `discord:#channel` | `discord:#engineering` |
 | Slack | `slack` | 投递到 Slack 主频道 |
@@ -205,20 +205,20 @@ Cron 运行的会话已禁用 `cronjob` 工具集。这可防止：
 
 ## 锁机制
 
-调度器使用跨进程文件锁（Unix 上的 `fcntl.flock`，Windows 上的 `msvcrt.locking`）防止重叠的 tick 对同一批到期任务执行两次——即使在 gateway 的进程内 ticker 与独立的 `hermes cron` / 手动 `tick()` 调用之间也如此。若无法获取锁，`tick()` 立即返回 0。
+调度器使用跨进程文件锁（Unix 上的 `fcntl.flock`，Windows 上的 `msvcrt.locking`）防止重叠的 tick 对同一批到期任务执行两次——即使在 gateway 的进程内 ticker 与独立的 `jarvis cron` / 手动 `tick()` 调用之间也如此。若无法获取锁，`tick()` 立即返回 0。
 
 ## CLI 接口
 
-`hermes cron` CLI 提供直接的任务管理功能：
+`jarvis cron` CLI 提供直接的任务管理功能：
 
 ```bash
-hermes cron list                    # 显示所有任务
-hermes cron create                  # 交互式创建任务（别名：add）
-hermes cron edit <job_id>           # 编辑任务配置
-hermes cron pause <job_id>          # 暂停运行中的任务
-hermes cron resume <job_id>         # 恢复已暂停的任务
-hermes cron run <job_id>            # 触发立即执行
-hermes cron remove <job_id>         # 删除任务
+jarvis cron list                    # 显示所有任务
+jarvis cron create                  # 交互式创建任务（别名：add）
+jarvis cron edit <job_id>           # 编辑任务配置
+jarvis cron pause <job_id>          # 暂停运行中的任务
+jarvis cron resume <job_id>         # 恢复已暂停的任务
+jarvis cron run <job_id>            # 触发立即执行
+jarvis cron remove <job_id>         # 删除任务
 ```
 
 ## 相关文档

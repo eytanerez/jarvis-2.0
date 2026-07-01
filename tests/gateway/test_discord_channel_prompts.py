@@ -51,9 +51,9 @@ class _CapturingAgent:
 
 
 def _install_fake_agent(monkeypatch):
-    fake_run_agent = types.ModuleType("run_agent")
-    fake_run_agent.AIAgent = _CapturingAgent
-    monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+    fake_run_brain = types.ModuleType("run_brain")
+    fake_run_brain.AIBrain = _CapturingAgent
+    monkeypatch.setitem(sys.modules, "run_brain", fake_run_brain)
 
 
 def _make_adapter():
@@ -210,12 +210,12 @@ async def test_retry_preserves_channel_prompt(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_run_agent_appends_channel_prompt_to_ephemeral_system_prompt(monkeypatch, tmp_path):
+async def test_run_brain_appends_channel_prompt_to_ephemeral_system_prompt(monkeypatch, tmp_path):
     _install_fake_agent(monkeypatch)
     runner = _make_runner()
 
     (tmp_path / "config.yaml").write_text("agent:\n  system_prompt: Global prompt\n", encoding="utf-8")
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(gateway_run, "_env_path", tmp_path / ".env")
     monkeypatch.setattr(gateway_run, "load_dotenv", lambda *args, **kwargs: None)
     monkeypatch.setattr(gateway_run, "_load_gateway_config", lambda: {})
@@ -231,7 +231,7 @@ async def test_run_agent_appends_channel_prompt_to_ephemeral_system_prompt(monke
         },
     )
 
-    import hermes_cli.tools_config as tools_config
+    import jarvis_cli.tools_config as tools_config
 
     monkeypatch.setattr(tools_config, "_get_platform_tools", lambda user_config, platform_key: {"core"})
 
@@ -242,7 +242,7 @@ async def test_run_agent_appends_channel_prompt_to_ephemeral_system_prompt(monke
         message_id="m1",
         channel_prompt="Channel prompt",
     )
-    result = await runner._run_agent(
+    result = await runner._run_brain(
         message="hi",
         context_prompt="Context prompt",
         history=[],

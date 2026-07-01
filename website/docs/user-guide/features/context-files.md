@@ -1,26 +1,26 @@
 ---
 sidebar_position: 8
 title: "Context Files"
-description: "Project context files — .hermes.md, AGENTS.md, CLAUDE.md, global SOUL.md, and .cursorrules — automatically injected into every conversation"
+description: "Project context files — .jarvis.md, AGENTS.md, CLAUDE.md, global SOUL.md, and .cursorrules — automatically injected into every conversation"
 ---
 
 # Context Files
 
-Hermes Agent automatically discovers and loads context files that shape how it behaves. Some are project-local and discovered from your working directory. `SOUL.md` is now global to the Hermes instance and is loaded from `HERMES_HOME` only.
+Jarvis automatically discovers and loads context files that shape how it behaves. Some are project-local and discovered from your working directory. `SOUL.md` is now global to the Jarvis instance and is loaded from `JARVIS_HOME` only.
 
 ## Supported Context Files
 
 | File | Purpose | Discovery |
 |------|---------|-----------| 
-| **.hermes.md** / **HERMES.md** | Project instructions (highest priority) | Walks to git root |
+| **.jarvis.md** / **JARVIS.md** | Project instructions (highest priority) | Walks to git root |
 | **AGENTS.md** | Project instructions, conventions, architecture | CWD at startup + subdirectories progressively |
 | **CLAUDE.md** | Claude Code context files (also detected) | CWD at startup + subdirectories progressively |
-| **SOUL.md** | Global personality and tone customization for this Hermes instance | `HERMES_HOME/SOUL.md` only |
+| **SOUL.md** | Global personality and tone customization for this Jarvis instance | `JARVIS_HOME/SOUL.md` only |
 | **.cursorrules** | Cursor IDE coding conventions | CWD only |
 | **.cursor/rules/*.mdc** | Cursor IDE rule modules | CWD only |
 
 :::info Priority system
-Only **one** project context type is loaded per session (first match wins): `.hermes.md` → `AGENTS.md` → `CLAUDE.md` → `.cursorrules`. **SOUL.md** is always loaded independently as the agent identity (slot #1).
+Only **one** project context type is loaded per session (first match wins): `.jarvis.md` → `AGENTS.md` → `CLAUDE.md` → `.cursorrules`. **SOUL.md** is always loaded independently as the agent identity (slot #1).
 :::
 
 ## AGENTS.md
@@ -29,7 +29,7 @@ Only **one** project context type is loaded per session (first match wins): `.he
 
 ### Progressive Subdirectory Discovery
 
-At session start, Hermes loads the `AGENTS.md` from your working directory into the system prompt. As the agent navigates into subdirectories during the session (via `read_file`, `terminal`, `search_files`, etc.), it **progressively discovers** context files in those directories and injects them into the conversation at the moment they become relevant.
+At session start, Jarvis loads the `AGENTS.md` from your working directory into the system prompt. As the agent navigates into subdirectories during the session (via `read_file`, `terminal`, `search_files`, etc.), it **progressively discovers** context files in those directories and injects them into the conversation at the moment they become relevant.
 
 ```
 my-project/
@@ -83,30 +83,30 @@ This is a Next.js 14 web application with a Python FastAPI backend.
 
 **Location:**
 
-- `~/.hermes/SOUL.md`
-- or `$HERMES_HOME/SOUL.md` if you run Hermes with a custom home directory
+- `~/.jarvis/SOUL.md`
+- or `$JARVIS_HOME/SOUL.md` if you run Jarvis with a custom home directory
 
 Important details:
 
-- Hermes seeds a default `SOUL.md` automatically if one does not exist yet
-- Hermes loads `SOUL.md` only from `HERMES_HOME`
-- Hermes does not probe the working directory for `SOUL.md`
+- Jarvis seeds a default `SOUL.md` automatically if one does not exist yet
+- Jarvis loads `SOUL.md` only from `JARVIS_HOME`
+- Jarvis does not probe the working directory for `SOUL.md`
 - If the file is empty, nothing from `SOUL.md` is added to the prompt
 - If the file has content, the content is injected verbatim after scanning and truncation
 
 ## .cursorrules
 
-Hermes is compatible with Cursor IDE's `.cursorrules` file and `.cursor/rules/*.mdc` rule modules. If these files exist in your project root and no higher-priority context file (`.hermes.md`, `AGENTS.md`, or `CLAUDE.md`) is found, they're loaded as the project context.
+Jarvis is compatible with Cursor IDE's `.cursorrules` file and `.cursor/rules/*.mdc` rule modules. If these files exist in your project root and no higher-priority context file (`.jarvis.md`, `AGENTS.md`, or `CLAUDE.md`) is found, they're loaded as the project context.
 
-This means your existing Cursor conventions automatically apply when using Hermes.
+This means your existing Cursor conventions automatically apply when using Jarvis.
 
 ## How Context Files Are Loaded
 
 ### At startup (system prompt)
 
-Context files are loaded by `build_context_files_prompt()` in `agent/prompt_builder.py`:
+Context files are loaded by `build_context_files_prompt()` in `brain/prompt_builder.py`:
 
-1. **Scan working directory** — checks for `.hermes.md` → `AGENTS.md` → `CLAUDE.md` → `.cursorrules` (first match wins)
+1. **Scan working directory** — checks for `.jarvis.md` → `AGENTS.md` → `CLAUDE.md` → `.cursorrules` (first match wins)
 2. **Content is read** — each file is read as UTF-8 text
 3. **Security scan** — content is checked for prompt injection patterns
 4. **Truncation** — files exceeding `context_file_max_chars` characters (default 20,000) are head/tail truncated (70% head, 20% tail, with a marker in the middle)
@@ -115,7 +115,7 @@ Context files are loaded by `build_context_files_prompt()` in `agent/prompt_buil
 
 ### During the session (progressive discovery)
 
-`SubdirectoryHintTracker` in `agent/subdirectory_hints.py` watches tool call arguments for file paths:
+`SubdirectoryHintTracker` in `brain/subdirectory_hints.py` watches tool call arguments for file paths:
 
 1. **Path extraction** — after each tool call, file paths are extracted from arguments (`path`, `workdir`, shell commands)
 2. **Ancestor walk** — the directory and up to 5 parent directories are checked (stopping at already-visited directories)

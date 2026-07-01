@@ -83,16 +83,16 @@ function AttachmentPill({ attachment, onRemove }: { attachment: ComposerAttachme
           aria-busy={isUploading || undefined}
           aria-label={canPreview ? c.previewLabel(attachment.label) : attachment.label}
           className={cn(
-            'flex max-w-56 items-center gap-2 rounded-2xl border bg-background/50 px-2 py-1.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] transition-colors disabled:cursor-default',
+            'flex max-w-56 items-center gap-2 rounded-md border bg-[color-mix(in_srgb,var(--dt-card)_72%,#02040a)] px-2 py-1.5 text-left shadow-[inset_0_1px_0_color-mix(in_srgb,#fff_6%,transparent)] transition-colors disabled:cursor-default',
             hasUploadError
               ? 'border-destructive/45 hover:border-destructive/60'
-              : 'border-border/60 hover:border-primary/35 hover:bg-accent/45'
+              : 'border-[color-mix(in_srgb,var(--jarvis-hairline)_62%,transparent)] hover:border-[color-mix(in_srgb,var(--jarvis-blue)_48%,transparent)] hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)]'
           )}
           disabled={!canPreview}
           onClick={() => void openPreview()}
           type="button"
         >
-          <span className="relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-border/55 bg-muted/35 text-muted-foreground">
+          <span className="relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_52%,transparent)] bg-[color-mix(in_srgb,var(--dt-muted)_42%,transparent)] text-muted-foreground">
             {attachment.previewUrl && attachment.kind === 'image' ? (
               <img
                 alt={attachment.label}
@@ -133,7 +133,7 @@ function AttachmentPill({ attachment, onRemove }: { attachment: ComposerAttachme
         {onRemove && (
           <button
             aria-label={c.removeAttachment(attachment.label)}
-            className="absolute -right-1 -top-1 grid size-3.5 place-items-center rounded-full border border-border/70 bg-background text-muted-foreground opacity-0 shadow-xs transition hover:bg-accent hover:text-foreground group-hover/attachment:opacity-100 focus-visible:opacity-100"
+            className="absolute -right-1 -top-1 grid size-3.5 place-items-center rounded-[3px] border border-[color-mix(in_srgb,var(--jarvis-hairline)_70%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel)_96%,#02040a)] text-(--jarvis-muted) opacity-0 shadow-xs transition hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_12%,transparent)] hover:text-white group-hover/attachment:opacity-100 focus-visible:opacity-100"
             onClick={() => onRemove(attachment.id)}
             type="button"
           >

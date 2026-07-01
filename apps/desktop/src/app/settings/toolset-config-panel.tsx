@@ -11,13 +11,13 @@ import {
   runToolsetPostSetup,
   selectToolsetProvider,
   setEnvVar
-} from '@/hermes'
+} from '@/jarvis'
 import { useI18n } from '@/i18n'
 import { Check, Loader2, Save, Terminal } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { upsertDesktopActionTask } from '@/store/activity'
 import { notify, notifyError } from '@/store/notifications'
-import type { ActionStatusResponse, ToolEnvVar, ToolProvider, ToolsetConfig } from '@/types/hermes'
+import type { ActionStatusResponse, ToolEnvVar, ToolProvider, ToolsetConfig } from '@/types/jarvis'
 
 import { EnvVarActionsMenu, EnvVarActionsTrigger } from './env-var-actions-menu'
 import { Pill } from './primitives'
@@ -178,7 +178,7 @@ interface PostSetupRunnerProps {
 /**
  * Runs a provider's post-setup install hook (npm / pip / binary) via the
  * `/api/tools/toolsets/{name}/post-setup` spawn-action and tails the resulting
- * log inline — the GUI equivalent of the install step `hermes tools` runs
+ * log inline — the GUI equivalent of the install step `jarvis tools` runs
  * after you pick a backend that needs extra dependencies.
  */
 function PostSetupRunner({ toolset, postSetupKey, onComplete }: PostSetupRunnerProps) {
@@ -418,9 +418,7 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange }: ToolsetConfi
               <div className="grid gap-2 bg-muted/20 p-3">
                 {provider.tag && <p className="text-[0.72rem] text-muted-foreground">{provider.tag}</p>}
                 {provider.requires_nous_auth && (
-                  <p className="text-[0.72rem] text-muted-foreground">
-                    {copy.nousIncluded}
-                  </p>
+                  <p className="text-[0.72rem] text-muted-foreground">{copy.nousIncluded}</p>
                 )}
                 {provider.env_vars.length === 0 ? (
                   <p className="text-[0.72rem] text-muted-foreground">{copy.noApiKeyRequired}</p>

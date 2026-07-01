@@ -82,8 +82,8 @@ class GatewayStreamConsumer:
     Usage::
 
         consumer = GatewayStreamConsumer(adapter, chat_id, config, metadata=metadata)
-        # Pass consumer.on_delta as stream_delta_callback to AIAgent
-        agent = AIAgent(..., stream_delta_callback=consumer.on_delta)
+        # Pass consumer.on_delta as stream_delta_callback to AIBrain
+        agent = AIBrain(..., stream_delta_callback=consumer.on_delta)
         # Start the consumer as an asyncio task
         task = asyncio.create_task(consumer.run())
         # ... run agent in thread pool ...
@@ -97,7 +97,7 @@ class GatewayStreamConsumer:
 
     # Reasoning/thinking tags that models emit inline in content.
     # Must stay in sync with cli.py _OPEN_TAGS/_CLOSE_TAGS and
-    # run_agent.py _strip_think_blocks() tag variants.
+    # run_brain.py _strip_think_blocks() tag variants.
     _OPEN_THINK_TAGS = (
         "<REASONING_SCRATCHPAD>", "<think>", "<reasoning>",
         "<THINKING>", "<thinking>", "<thought>",
@@ -338,7 +338,7 @@ class GatewayStreamConsumer:
     # content.  The CLI's _stream_delta suppresses these via a state
     # machine; we do the same here so gateway users never see raw
     # reasoning tags.  The agent also strips them from the final
-    # response (run_agent.py _strip_think_blocks), but the stream
+    # response (run_brain.py _strip_think_blocks), but the stream
     # consumer sends intermediate edits before that stripping happens.
 
     def _filter_and_accumulate(self, text: str) -> None:
@@ -1145,7 +1145,7 @@ class GatewayStreamConsumer:
             # Commentary messages are interim status updates (e.g. "Using browser
             # tool..."), not the final response. Setting already_sent would cause
             # the final response to be incorrectly suppressed when there are
-            # multiple tool calls. See: https://github.com/NousResearch/hermes-agent/issues/10454
+            # multiple tool calls. See: https://github.com/NousResearch/jarvis-brain/issues/10454
             if result.success:
                 # Commentary counts as fresh content — close off any
                 # stale tool bubble above it so the next tool starts a
@@ -1222,7 +1222,7 @@ class GatewayStreamConsumer:
         """Return True when the adapter would rather finalize a streamed reply
         by sending a fresh message and deleting the preview than by editing the
         preview in place — e.g. Telegram, whose ``sendRichMessage`` send path
-        currently renders richer markdown than Hermes' MarkdownV2 edit path.
+        currently renders richer markdown than Jarvis' MarkdownV2 edit path.
 
         Returns False when there is no real preview to replace (no message id,
         or the ``__no_edit__`` sentinel), when the adapter doesn't expose the

@@ -1,5 +1,5 @@
-import type { HermesWorktreeInfo } from '@/global'
-import type { SessionInfo } from '@/hermes'
+import type { JarvisWorktreeInfo } from '@/global'
+import type { SessionInfo } from '@/jarvis'
 
 export interface SidebarSessionGroup {
   id: string
@@ -18,7 +18,11 @@ export interface SidebarSessionGroup {
 const NO_WORKSPACE_ID = '__no_workspace__'
 
 /** Path split into segments, ignoring trailing slashes and mixed separators. */
-const segments = (path: string): string[] => path.replace(/[/\\]+$/, '').split(/[/\\]/).filter(Boolean)
+const segments = (path: string): string[] =>
+  path
+    .replace(/[/\\]+$/, '')
+    .split(/[/\\]/)
+    .filter(Boolean)
 
 /** Last path segment. */
 export const baseName = (path: string): string | undefined => segments(path).pop()
@@ -36,7 +40,7 @@ interface Labelable {
  * Disambiguate groups whose basename collides (worktrees all end in the same
  * `apps/desktop`, sibling repos share a folder name, etc.) by walking up the
  * path and prepending parent segments until each colliding label is unique —
- * e.g. `hermes-agent/desktop` vs `hermes-agent-wt-rtl/desktop`. Groups with a
+ * e.g. `jarvis-brain/desktop` vs `jarvis-agent-wt-rtl/desktop`. Groups with a
  * unique basename keep their short label untouched.
  */
 function disambiguateLabels(groups: Labelable[]): void {
@@ -137,7 +141,7 @@ export interface SidebarWorkspaceTree {
 }
 
 /** Resolves a session cwd to git-worktree identity (from the local fs probe). */
-export type WorktreeResolver = (cwd: string) => HermesWorktreeInfo | null | undefined
+export type WorktreeResolver = (cwd: string) => JarvisWorktreeInfo | null | undefined
 
 interface WorkspacePlacement {
   parentKey: string
@@ -149,8 +153,7 @@ interface WorkspacePlacement {
 }
 
 /** Replace a path's final segment, preserving its prefix + separators. */
-const withBaseName = (path: string, name: string): string =>
-  path.replace(/[/\\]+$/, '').replace(/[^/\\]+$/, name)
+const withBaseName = (path: string, name: string): string => path.replace(/[/\\]+$/, '').replace(/[^/\\]+$/, name)
 
 /**
  * Path-only fallback for when git metadata is unavailable (remote backends,
@@ -271,7 +274,12 @@ export function workspaceTreeFor(
 
     if (!entry) {
       entry = {
-        group: { id: placement.worktreeKey, label: placement.worktreeLabel, path: placement.worktreePath, sessions: [] },
+        group: {
+          id: placement.worktreeKey,
+          label: placement.worktreeLabel,
+          path: placement.worktreePath,
+          sessions: []
+        },
         parentKey: placement.parentKey,
         parentLabel: placement.parentLabel,
         parentPath: placement.parentPath

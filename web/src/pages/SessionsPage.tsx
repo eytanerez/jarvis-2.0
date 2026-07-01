@@ -150,7 +150,7 @@ function ToolCallBlock({
 
 // Context-compaction handoff blocks are persisted as ``role="user"`` or
 // ``role="assistant"`` with content starting with one of these prefixes —
-// they're metadata inserted by ``agent/context_compressor.py``, NOT real
+// they're metadata inserted by ``brain/context_compressor.py``, NOT real
 // turns the user typed or the model replied with. Rendering them with
 // the same styling as regular messages confuses operators scrolling the
 // session timeline (#29824 — "WebUI can show context compaction block
@@ -160,7 +160,7 @@ function ToolCallBlock({
 //
 // Keep these prefixes (and the END marker below) in sync with
 // ``SUMMARY_PREFIX`` / ``LEGACY_SUMMARY_PREFIX`` and the
-// merge-into-tail marker in ``agent/context_compressor.py``.
+// merge-into-tail marker in ``brain/context_compressor.py``.
 const COMPACTION_PREFIXES = [
   "[CONTEXT COMPACTION — REFERENCE ONLY]",
   "[CONTEXT COMPACTION - REFERENCE ONLY]",
@@ -247,7 +247,7 @@ function MessageBubble({
 
   // When a compaction handoff is merged into the front of the first
   // tail message (the compressor's double-collision path —
-  // ``_merge_summary_into_tail`` in ``agent/context_compressor.py``),
+  // ``_merge_summary_into_tail`` in ``brain/context_compressor.py``),
   // the message we received is ``[CONTEXT COMPACTION ...] + END_MARKER
   // + <original assistant reply>``. We split it back into two visual
   // rows here so the operator's actual answer survives as a readable
@@ -1135,9 +1135,9 @@ export default function SessionsPage() {
         const res = await fetch(api.exportSessionUrl(id), {
           credentials: "include",
           headers: {
-            "X-Hermes-Session-Token":
-              (window as unknown as { __HERMES_SESSION_TOKEN__?: string })
-                .__HERMES_SESSION_TOKEN__ ?? "",
+            "X-Jarvis-Session-Token":
+              (window as unknown as { __JARVIS_SESSION_TOKEN__?: string })
+                .__JARVIS_SESSION_TOKEN__ ?? "",
           },
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1421,7 +1421,7 @@ export default function SessionsPage() {
               <span className="text-xs font-mondwest tracking-[0.12em] truncate">
                 {activeAction === "restart"
                   ? t.status.restartGateway
-                  : t.status.updateHermes}
+                  : t.status.updateJarvis}
               </span>
 
               <Badge

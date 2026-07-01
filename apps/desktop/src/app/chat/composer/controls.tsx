@@ -15,16 +15,16 @@ import type { ChatBarState, VoiceStatus } from './types'
 export const ICON_BTN = 'size-(--composer-control-size) shrink-0 rounded-md'
 export const GHOST_ICON_BTN = cn(
   ICON_BTN,
-  'text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground'
+  'border-[color-mix(in_srgb,var(--jarvis-hairline)_36%,transparent)] text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-white'
 )
 // Send/voice-conversation primary: solid foreground-on-background circle
 // (reads as black-on-white in light mode, white-on-black in dark mode) to
 // match the reference composer's high-contrast CTA. Keeps the pill itself
 // neutral and lets the action visually dominate the row.
 export const PRIMARY_ICON_BTN = cn(
-  'size-(--composer-control-primary-size,var(--composer-control-size)) shrink-0 rounded-full p-0',
-  'bg-foreground text-background hover:bg-foreground/90',
-  'disabled:bg-foreground/30 disabled:text-background disabled:opacity-100'
+  'size-(--composer-control-primary-size,var(--composer-control-size)) shrink-0 rounded-md p-0',
+  'border-[color-mix(in_srgb,var(--jarvis-blue)_64%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_22%,var(--jarvis-panel))] text-white shadow-[0_0_1rem_color-mix(in_srgb,var(--jarvis-blue)_18%,transparent)] hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_34%,var(--jarvis-panel))]',
+  'disabled:border-[color-mix(in_srgb,var(--jarvis-hairline)_40%,transparent)] disabled:bg-[color-mix(in_srgb,var(--jarvis-panel)_70%,transparent)] disabled:text-(--ui-text-tertiary) disabled:opacity-80'
 )
 
 interface ConversationProps {
@@ -190,7 +190,7 @@ function ConversationPill({
       {listening && (
         <Button
           aria-label={c.stopListening}
-          className="h-(--composer-control-size) shrink-0 gap-1.5 rounded-full px-2.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="h-(--composer-control-size) shrink-0 gap-1.5 rounded-md px-2.5 text-xs text-(--jarvis-muted) hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] hover:text-white"
           disabled={disabled}
           onClick={() => {
             triggerHaptic('submit')
@@ -206,7 +206,7 @@ function ConversationPill({
       )}
       <Button
         aria-label={c.endConversation}
-        className="h-(--composer-control-size) gap-1.5 rounded-full bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+        className="h-(--composer-control-size) gap-1.5 rounded-md px-3 text-xs font-medium"
         disabled={disabled}
         onClick={() => {
           triggerHaptic('close')
@@ -278,9 +278,10 @@ function DictationButton({
         className={cn(
           GHOST_ICON_BTN,
           'p-0',
-          'data-[active=true]:bg-accent data-[active=true]:text-foreground',
-          status === 'recording' && 'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary',
-          status === 'transcribing' && 'bg-primary/10 text-primary'
+          'data-[active=true]:border-[color-mix(in_srgb,var(--jarvis-blue)_48%,transparent)] data-[active=true]:bg-[color-mix(in_srgb,var(--jarvis-blue)_12%,transparent)] data-[active=true]:text-white',
+          status === 'recording' &&
+            'bg-[color-mix(in_srgb,var(--jarvis-blue)_14%,transparent)] text-(--jarvis-blue) hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_20%,transparent)] hover:text-white',
+          status === 'transcribing' && 'bg-[color-mix(in_srgb,var(--jarvis-blue)_14%,transparent)] text-(--jarvis-blue)'
         )}
         data-active={active}
         disabled={disabled || !state.enabled || status === 'transcribing'}

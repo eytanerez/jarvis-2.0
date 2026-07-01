@@ -55,13 +55,13 @@ import { detectTrigger, textBeforeCaret, type TriggerState } from '@/app/chat/co
 import { ComposerTriggerPopover } from '@/app/chat/composer/trigger-popover'
 import {
   extractDroppedFiles,
-  HERMES_PATHS_MIME,
   isImagePath,
+  JARVIS_PATHS_MIME,
   partitionDroppedFiles
 } from '@/app/chat/hooks/use-composer-actions'
 import { uploadComposerAttachment } from '@/app/session/hooks/use-prompt-actions'
 import { ClarifyTool } from '@/components/assistant-ui/clarify-tool'
-import { DirectiveContent, hermesDirectiveFormatter } from '@/components/assistant-ui/directive-text'
+import { DirectiveContent, jarvisDirectiveFormatter } from '@/components/assistant-ui/directive-text'
 import { MarkdownText, MarkdownTextContent } from '@/components/assistant-ui/markdown-text'
 import { ThreadMessageList } from '@/components/assistant-ui/thread-list'
 import { ToolFallback, ToolGroupSlot } from '@/components/assistant-ui/tool-fallback'
@@ -84,9 +84,9 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Loader } from '@/components/ui/loader'
-import type { HermesGateway } from '@/hermes'
 import { useResizeObserver } from '@/hooks/use-resize-observer'
 import { useI18n } from '@/i18n'
+import type { JarvisGateway } from '@/jarvis'
 import { attachmentDisplayText, attachmentId, pathLabel } from '@/lib/chat-runtime'
 import { DATA_IMAGE_URL_RE } from '@/lib/embedded-images'
 import { LinkifiedText } from '@/lib/external-link'
@@ -164,7 +164,7 @@ function contentHasVisibleText(content: unknown): boolean {
 export const Thread: FC<{
   clampToComposer?: boolean
   cwd?: string | null
-  gateway?: HermesGateway | null
+  gateway?: JarvisGateway | null
   intro?: IntroProps
   loading?: ThreadLoadingState
   onBranchInNewChat?: (messageId: string) => void
@@ -188,7 +188,9 @@ export const Thread: FC<{
 }) => {
   const messageComponents = useMemo(
     () => ({
-      AssistantMessage: () => <AssistantMessage onBranchInNewChat={onBranchInNewChat} onDismissError={onDismissError} />,
+      AssistantMessage: () => (
+        <AssistantMessage onBranchInNewChat={onBranchInNewChat} onDismissError={onDismissError} />
+      ),
       SystemMessage,
       UserEditComposer: () => <UserEditComposer cwd={cwd} gateway={gateway} sessionId={sessionId} />,
       UserMessage: () => <UserMessage onCancel={onCancel} onRestoreToMessage={onRestoreToMessage} />
@@ -426,7 +428,7 @@ const StreamStallIndicator: FC = () => {
     <StatusRow
       className="mt-1.5"
       data-slot="aui_stream-stall"
-      label={compacting ? COMPACTION_LABEL : 'Hermes is thinking'}
+      label={compacting ? COMPACTION_LABEL : 'Jarvis is thinking'}
     >
       <span aria-hidden="true" className="dither inline-block size-3 rounded-[2px] text-midground/80 animate-pulse" />
       {compacting && <CompactionHint />}
@@ -770,16 +772,16 @@ const MessageTimestamp: FC = () => {
 const AssistantFooter: FC<MessageActionProps> = props => (
   <div className="flex min-h-6 flex-col items-end gap-1 pr-(--message-text-indent) pl-(--message-text-indent)">
     <BranchPickerPrimitive.Root
-      className="inline-flex h-6 items-center gap-1 text-xs text-muted-foreground"
+      className="inline-flex h-6 items-center gap-1 text-xs text-(--jarvis-muted)"
       hideWhenSingleBranch
     >
-      <BranchPickerPrimitive.Previous className="grid size-6 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-default disabled:opacity-35">
+      <BranchPickerPrimitive.Previous className="grid size-6 place-items-center rounded-md text-(--jarvis-muted) transition-colors hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] hover:text-white disabled:cursor-default disabled:opacity-35">
         <Codicon name="chevron-left" size="0.875rem" />
       </BranchPickerPrimitive.Previous>
       <span className="tabular-nums">
         <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
       </span>
-      <BranchPickerPrimitive.Next className="grid size-6 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-default disabled:opacity-35">
+      <BranchPickerPrimitive.Next className="grid size-6 place-items-center rounded-md text-(--jarvis-muted) transition-colors hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] hover:text-white disabled:cursor-default disabled:opacity-35">
         <Codicon name="chevron-right" size="0.875rem" />
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
@@ -827,10 +829,10 @@ function StickyHumanMessageContainer({ attachments, children }: { attachments?: 
 // so without the carve-out, clicking a stuck bubble drags the window instead of
 // opening the edit composer.
 const USER_BUBBLE_BASE_CLASS =
-  'composer-human-message standalone-glass relative flex w-full min-w-0 max-w-full flex-col gap-1.5 overflow-y-auto rounded-xl border bg-(--dt-user-bubble) px-3 py-2 text-left [-webkit-app-region:no-drag]'
+  'composer-human-message standalone-glass relative flex w-full min-w-0 max-w-full flex-col gap-1.5 overflow-y-auto rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_68%,transparent)] bg-[color-mix(in_srgb,var(--dt-user-bubble)_86%,#02040a)] px-3 py-2 text-left shadow-[inset_0_0.0625rem_0_color-mix(in_srgb,#fff_5%,transparent)] [-webkit-app-region:no-drag]'
 
 const USER_ACTION_ICON_BUTTON_CLASS =
-  'grid place-items-center rounded-md bg-transparent text-(--ui-text-secondary) transition-colors hover:bg-(--ui-control-active-background) hover:text-foreground disabled:cursor-default disabled:text-(--ui-text-quaternary) disabled:opacity-70'
+  'grid place-items-center rounded-md bg-transparent text-(--ui-text-secondary) transition-colors hover:bg-(--ui-control-active-background) hover:text-white disabled:cursor-default disabled:text-(--ui-text-quaternary) disabled:opacity-70'
 
 const USER_ACTION_ICON_SIZE = '0.6875rem'
 const StopGlyph = <IconPlayerStopFilled aria-hidden className="size-3.5 -translate-y-px" />
@@ -1168,7 +1170,7 @@ const SystemMessage: FC = () => {
 
 interface UserEditComposerProps {
   cwd: string | null
-  gateway: HermesGateway | null
+  gateway: JarvisGateway | null
   sessionId: string | null
 }
 
@@ -1362,7 +1364,7 @@ const UserEditComposer: FC<UserEditComposerProps> = ({ cwd, gateway, sessionId }
         return
       }
 
-      const serialized = hermesDirectiveFormatter.serialize(item)
+      const serialized = jarvisDirectiveFormatter.serialize(item)
       const starter = serialized.endsWith(':')
       const text = starter || serialized.endsWith(' ') ? serialized : `${serialized} `
       const directive = !starter && serialized.match(/^@([^:]+):(.+)$/)
@@ -1499,7 +1501,7 @@ const UserEditComposer: FC<UserEditComposerProps> = ({ cwd, gateway, sessionId }
   }, [])
 
   const handleDragEnter = (event: ReactDragEvent<HTMLElement>) => {
-    if (!dragHasAttachments(event.dataTransfer, HERMES_PATHS_MIME)) {
+    if (!dragHasAttachments(event.dataTransfer, JARVIS_PATHS_MIME)) {
       return
     }
 
@@ -1512,7 +1514,7 @@ const UserEditComposer: FC<UserEditComposerProps> = ({ cwd, gateway, sessionId }
   }
 
   const handleDragOver = (event: ReactDragEvent<HTMLElement>) => {
-    if (!dragHasAttachments(event.dataTransfer, HERMES_PATHS_MIME)) {
+    if (!dragHasAttachments(event.dataTransfer, JARVIS_PATHS_MIME)) {
       return
     }
 
@@ -1530,7 +1532,7 @@ const UserEditComposer: FC<UserEditComposerProps> = ({ cwd, gateway, sessionId }
   }
 
   const handleDrop = (event: ReactDragEvent<HTMLElement>) => {
-    if (!dragHasAttachments(event.dataTransfer, HERMES_PATHS_MIME)) {
+    if (!dragHasAttachments(event.dataTransfer, JARVIS_PATHS_MIME)) {
       return
     }
 

@@ -137,14 +137,14 @@ class TestFirecrawlClientConfig:
                     api_url="https://firecrawl-gateway.nousresearch.com",
                 )
 
-    def test_nous_auth_token_respects_hermes_home_override(self, tmp_path):
-        """Auth lookup should read from HERMES_HOME/auth.json, not ~/.hermes/auth.json."""
+    def test_nous_auth_token_respects_jarvis_home_override(self, tmp_path):
+        """Auth lookup should read from JARVIS_HOME/auth.json, not ~/.jarvis/auth.json."""
         real_home = tmp_path / "real-home"
-        (real_home / ".hermes").mkdir(parents=True)
+        (real_home / ".jarvis").mkdir(parents=True)
 
-        hermes_home = tmp_path / "hermes-home"
-        hermes_home.mkdir()
-        (hermes_home / "auth.json").write_text(json.dumps({
+        jarvis_home = tmp_path / "jarvis-home"
+        jarvis_home.mkdir()
+        (jarvis_home / "auth.json").write_text(json.dumps({
             "providers": {
                 "nous": {
                     "access_token": "nous-token",
@@ -154,7 +154,7 @@ class TestFirecrawlClientConfig:
 
         with patch.dict(os.environ, {
             "HOME": str(real_home),
-            "HERMES_HOME": str(hermes_home),
+            "JARVIS_HOME": str(jarvis_home),
         }, clear=False):
             import tools.web_tools
             importlib.reload(tools.web_tools)
@@ -245,7 +245,7 @@ class TestBackendSelection:
     """Test suite for _get_backend() backend selection logic.
 
     The backend is configured via config.yaml (web.backend), set by
-    ``hermes tools``.  Falls back to key-based detection for legacy/manual
+    ``jarvis tools``.  Falls back to key-based detection for legacy/manual
     setups.
     """
 
@@ -522,7 +522,7 @@ class TestWebSearchSchema:
         fake_provider.name = "parallel"
 
         with patch("tools.web_tools._get_search_backend", return_value="parallel"), \
-             patch("agent.web_search_registry.get_provider", return_value=fake_provider), \
+             patch("brain.web_search_registry.get_provider", return_value=fake_provider), \
              patch("tools.interrupt.is_interrupted", return_value=False), \
              patch.object(tools.web_tools._debug, "log_call"), \
              patch.object(tools.web_tools._debug, "save"):
@@ -550,7 +550,7 @@ class TestWebSearchErrorHandling:
         fake_provider.name = "firecrawl"
 
         with patch("tools.web_tools._get_search_backend", return_value="firecrawl"), \
-             patch("agent.web_search_registry.get_provider", return_value=fake_provider), \
+             patch("brain.web_search_registry.get_provider", return_value=fake_provider), \
              patch("tools.interrupt.is_interrupted", return_value=False), \
              patch.object(tools.web_tools._debug, "log_call") as mock_log_call, \
              patch.object(tools.web_tools._debug, "save"):
@@ -657,7 +657,7 @@ class TestCheckWebApiKey:
         monkeypatch,
     ):
         monkeypatch.delenv("TOOL_GATEWAY_USER_TOKEN", raising=False)
-        monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+        monkeypatch.setenv("JARVIS_HOME", str(tmp_path))
         expired_at = "2000-01-01T00:00:00+00:00"
         (tmp_path / "auth.json").write_text(json.dumps({
             "providers": {
@@ -675,7 +675,7 @@ class TestCheckWebApiKey:
             return "fresh-token"
 
         monkeypatch.setattr(
-            "hermes_cli.auth.resolve_nous_access_token",
+            "jarvis_cli.auth.resolve_nous_access_token",
             _record_refresh,
         )
 

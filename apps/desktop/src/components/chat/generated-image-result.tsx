@@ -19,7 +19,13 @@ const ASPECT_HINTS: Record<string, number> = {
 }
 
 function hintedRatio(aspectRatio?: string): number {
-  return ASPECT_HINTS[String(aspectRatio ?? '').toLowerCase().trim()] ?? ASPECT_HINTS.landscape
+  return (
+    ASPECT_HINTS[
+      String(aspectRatio ?? '')
+        .toLowerCase()
+        .trim()
+    ] ?? ASPECT_HINTS.landscape
+  )
 }
 
 function isInlineSrc(path: string): boolean {
@@ -31,15 +37,15 @@ async function resolveImageSrc(path: string): Promise<string> {
     return path
   }
 
-  if (window.hermesDesktop && isRemoteGateway()) {
+  if (window.jarvisDesktop && isRemoteGateway()) {
     return gatewayMediaDataUrl(path)
   }
 
-  if (!window.hermesDesktop?.readFileDataUrl) {
+  if (!window.jarvisDesktop?.readFileDataUrl) {
     return mediaExternalUrl(path)
   }
 
-  return window.hermesDesktop.readFileDataUrl(filePathFromMediaPath(path))
+  return window.jarvisDesktop.readFileDataUrl(filePathFromMediaPath(path))
 }
 
 export const GeneratedImage: FC<{ aspectRatio?: string; result?: unknown }> = ({ aspectRatio, result }) => {
@@ -94,7 +100,7 @@ export const GeneratedImage: FC<{ aspectRatio?: string; result?: unknown }> = ({
         href="#"
         onClick={event => {
           event.preventDefault()
-          void window.hermesDesktop?.openExternal(mediaExternalUrl(image))
+          void window.jarvisDesktop?.openExternal(mediaExternalUrl(image))
         }}
       >
         {copy.openImage}: {mediaName(image)}
@@ -107,7 +113,7 @@ export const GeneratedImage: FC<{ aspectRatio?: string; result?: unknown }> = ({
       <span
         aria-label={pending ? t.assistant.tool.renderingImage : undefined}
         aria-live={pending ? 'polite' : undefined}
-        className="group/image relative block max-w-full overflow-hidden rounded-2xl transition-[width,height] duration-300 ease-out"
+        className="group/image relative block max-w-full overflow-hidden rounded-lg transition-[width,height] duration-300 ease-out"
         data-slot="aui_generated-image"
         role={pending ? 'status' : undefined}
         style={{

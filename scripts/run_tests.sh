@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Canonical test runner for hermes-agent. Run this instead of calling
+# Canonical test runner for jarvis-agent. Run this instead of calling
 # `pytest` directly to guarantee your local run matches CI behavior.
 #
 # What this script enforces:
@@ -11,13 +11,13 @@
 #   * Env vars blanked (conftest.py also does this, but this
 #     is belt-and-suspenders for anyone running pytest outside our
 #     conftest path — e.g. on a single file)
-#   * Proper venv activation (probes .venv, venv, then ~/.hermes/...)
+#   * Proper venv activation (probes .venv, venv, then ~/.jarvis/...)
 #
 # Usage:
 #   scripts/run_tests.sh                            # full suite
 #   scripts/run_tests.sh -j 4                       # cap parallelism
-#   scripts/run_tests.sh tests/agent/               # discover only here
-#   scripts/run_tests.sh tests/agent/ tests/acp/    # multiple roots
+#   scripts/run_tests.sh tests/brain/               # discover only here
+#   scripts/run_tests.sh tests/brain/ tests/acp/    # multiple roots
 #   scripts/run_tests.sh tests/foo.py               # single file
 #   scripts/run_tests.sh tests/foo.py -- --tb=long  # path + pytest args
 #   scripts/run_tests.sh -- -v --tb=long            # pytest args only
@@ -34,7 +34,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # ── Activate venv ───────────────────────────────────────────────────────────
 VENV=""
-for candidate in "$REPO_ROOT/.venv" "$REPO_ROOT/venv" "$HOME/.hermes/hermes-agent/venv"; do
+for candidate in "$REPO_ROOT/.venv" "$REPO_ROOT/venv" "$HOME/.jarvis/jarvis-brain/venv"; do
   if [ -f "$candidate/bin/activate" ]; then
     VENV="$candidate"
     break
@@ -52,8 +52,8 @@ PYTHON="$VENV/bin/python"
 # ── Live-gateway plugin (computed before we drop env) ───────────────────────
 EXTRA_PYTHONPATH=""
 EXTRA_PYTEST_PLUGINS=""
-if [ -f "$HOME/.hermes/pytest_live_guard.py" ]; then
-  EXTRA_PYTHONPATH="$HOME/.hermes"
+if [ -f "$HOME/.jarvis/pytest_live_guard.py" ]; then
+  EXTRA_PYTHONPATH="$HOME/.jarvis"
   EXTRA_PYTEST_PLUGINS="pytest_live_guard"
 fi
 

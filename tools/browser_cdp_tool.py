@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 CDP_DOCS_URL = "https://chromedevtools.github.io/devtools-protocol/"
 
-# ``websockets`` is a direct hermes-agent dependency because the browser CDP
+# ``websockets`` is a direct jarvis-agent dependency because the browser CDP
 # supervisor and browser_dialog tool import it during tool discovery. Wrap the
 # import so a clean error surfaces if an environment is stale or incomplete.
 try:
@@ -273,7 +273,7 @@ def _browser_cdp_via_supervisor(
         )
 
     try:
-        from agent.async_utils import safe_schedule_threadsafe
+        from brain.async_utils import safe_schedule_threadsafe
         fut = safe_schedule_threadsafe(_do_cdp(), loop)
         if fut is None:
             return tool_error(

@@ -1,13 +1,13 @@
-# nix/tui.nix — Hermes TUI (Ink/React) compiled with tsc and bundled
-{ pkgs, hermesNpmLib, ... }:
+# nix/tui.nix — Jarvis TUI (Ink/React) compiled with tsc and bundled
+{ pkgs, jarvisNpmLib, ... }:
 let
-  npm = hermesNpmLib.mkNpmPassthru { folder = "ui-tui"; attr = "tui"; pname = "hermes-tui"; };
+  npm = jarvisNpmLib.mkNpmPassthru { folder = "ui-tui"; attr = "tui"; pname = "jarvis-tui"; };
 
   packageJson = builtins.fromJSON (builtins.readFile (npm.src + "/ui-tui/package.json"));
   version = packageJson.version;
 in
 pkgs.buildNpmPackage (npm // {
-  pname = "hermes-tui";
+  pname = "jarvis-tui";
   inherit version;
 
   doCheck = false;
@@ -21,12 +21,12 @@ pkgs.buildNpmPackage (npm // {
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out/lib/hermes-tui
+    mkdir -p $out/lib/jarvis-tui
     # esbuild writes to ui-tui/dist/ from the source root (no cd).
-    cp -r ui-tui/dist $out/lib/hermes-tui/dist
+    cp -r ui-tui/dist $out/lib/jarvis-tui/dist
 
     # package.json kept for "type": "module" resolution on `node dist/entry.js`.
-    cp ui-tui/package.json $out/lib/hermes-tui/
+    cp ui-tui/package.json $out/lib/jarvis-tui/
 
     runHook postInstall
   '';

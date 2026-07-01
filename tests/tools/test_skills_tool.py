@@ -82,10 +82,10 @@ class TestParseFrontmatter:
 
     def test_nested_yaml(self):
         content = (
-            "---\nname: test\nmetadata:\n  hermes:\n    tags: [a, b]\n---\n\nBody.\n"
+            "---\nname: test\nmetadata:\n  jarvis:\n    tags: [a, b]\n---\n\nBody.\n"
         )
         fm, body = _parse_frontmatter(content)
-        assert fm["metadata"]["hermes"]["tags"] == ["a", "b"]
+        assert fm["metadata"]["jarvis"]["tags"] == ["a", "b"]
 
     def test_malformed_yaml_fallback(self):
         """Malformed YAML falls back to simple key:value parsing."""
@@ -397,27 +397,27 @@ class TestSkillView:
         with (
             patch("tools.skills_tool.SKILLS_DIR", tmp_path),
             patch(
-                "agent.skill_preprocessing.load_skills_config",
+                "brain.skill_preprocessing.load_skills_config",
                 return_value={"template_vars": True, "inline_shell": False},
             ),
         ):
             skill_dir = _make_skill(
                 tmp_path,
                 "templated",
-                body="Run ${HERMES_SKILL_DIR}/scripts/do.sh in ${HERMES_SESSION_ID}",
+                body="Run ${JARVIS_SKILL_DIR}/scripts/do.sh in ${JARVIS_SESSION_ID}",
             )
             raw = skill_view("templated", task_id="session-123")
 
         result = json.loads(raw)
         assert result["success"] is True
         assert f"Run {skill_dir}/scripts/do.sh in session-123" in result["content"]
-        assert "${HERMES_SKILL_DIR}" not in result["content"]
+        assert "${JARVIS_SKILL_DIR}" not in result["content"]
 
     def test_skill_view_applies_inline_shell_when_enabled(self, tmp_path):
         with (
             patch("tools.skills_tool.SKILLS_DIR", tmp_path),
             patch(
-                "agent.skill_preprocessing.load_skills_config",
+                "brain.skill_preprocessing.load_skills_config",
                 return_value={
                     "template_vars": True,
                     "inline_shell": True,
@@ -441,7 +441,7 @@ class TestSkillView:
         with (
             patch("tools.skills_tool.SKILLS_DIR", tmp_path),
             patch(
-                "agent.skill_preprocessing.load_skills_config",
+                "brain.skill_preprocessing.load_skills_config",
                 return_value={"template_vars": True, "inline_shell": False},
             ),
         ):
@@ -500,7 +500,7 @@ class TestSkillView:
             _make_skill(
                 tmp_path,
                 "tagged",
-                frontmatter_extra="metadata:\n  hermes:\n    tags: [fine-tuning, llm]\n",
+                frontmatter_extra="metadata:\n  jarvis:\n    tags: [fine-tuning, llm]\n",
             )
             raw = skill_view("tagged")
         result = json.loads(raw)
@@ -685,38 +685,38 @@ class TestSkillMatchesPlatform:
         assert skill_matches_platform({"platforms": None}) is True
 
     def test_macos_on_darwin(self):
-        with patch("agent.skill_utils.sys") as mock_sys:
+        with patch("brain.skill_utils.sys") as mock_sys:
             mock_sys.platform = "darwin"
             assert skill_matches_platform({"platforms": ["macos"]}) is True
 
     def test_macos_on_linux(self):
-        with patch("agent.skill_utils.sys") as mock_sys:
+        with patch("brain.skill_utils.sys") as mock_sys:
             mock_sys.platform = "linux"
             assert skill_matches_platform({"platforms": ["macos"]}) is False
 
     def test_linux_on_linux(self):
-        with patch("agent.skill_utils.sys") as mock_sys:
+        with patch("brain.skill_utils.sys") as mock_sys:
             mock_sys.platform = "linux"
             assert skill_matches_platform({"platforms": ["linux"]}) is True
 
     def test_linux_on_darwin(self):
-        with patch("agent.skill_utils.sys") as mock_sys:
+        with patch("brain.skill_utils.sys") as mock_sys:
             mock_sys.platform = "darwin"
             assert skill_matches_platform({"platforms": ["linux"]}) is False
 
     def test_windows_on_win32(self):
-        with patch("agent.skill_utils.sys") as mock_sys:
+        with patch("brain.skill_utils.sys") as mock_sys:
             mock_sys.platform = "win32"
             assert skill_matches_platform({"platforms": ["windows"]}) is True
 
     def test_windows_on_linux(self):
-        with patch("agent.skill_utils.sys") as mock_sys:
+        with patch("brain.skill_utils.sys") as mock_sys:
             mock_sys.platform = "linux"
             assert skill_matches_platform({"platforms": ["windows"]}) is False
 
     def test_multi_platform_match(self):
         """Skills listing multiple platforms should match any of them."""
-        with patch("agent.skill_utils.sys") as mock_sys:
+        with patch("brain.skill_utils.sys") as mock_sys:
             mock_sys.platform = "darwin"
             assert skill_matches_platform({"platforms": ["macos", "linux"]}) is True
             mock_sys.platform = "linux"
@@ -726,20 +726,20 @@ class TestSkillMatchesPlatform:
 
     def test_string_instead_of_list(self):
         """A single string value should be treated as a one-element list."""
-        with patch("agent.skill_utils.sys") as mock_sys:
+        with patch("brain.skill_utils.sys") as mock_sys:
             mock_sys.platform = "darwin"
             assert skill_matches_platform({"platforms": "macos"}) is True
             mock_sys.platform = "linux"
             assert skill_matches_platform({"platforms": "macos"}) is False
 
     def test_case_insensitive(self):
-        with patch("agent.skill_utils.sys") as mock_sys:
+        with patch("brain.skill_utils.sys") as mock_sys:
             mock_sys.platform = "darwin"
             assert skill_matches_platform({"platforms": ["MacOS"]}) is True
             assert skill_matches_platform({"platforms": ["MACOS"]}) is True
 
     def test_unknown_platform_no_match(self):
-        with patch("agent.skill_utils.sys") as mock_sys:
+        with patch("brain.skill_utils.sys") as mock_sys:
             mock_sys.platform = "linux"
             assert skill_matches_platform({"platforms": ["freebsd"]}) is False
 
@@ -755,7 +755,7 @@ class TestFindAllSkillsPlatformFiltering:
     def test_excludes_incompatible_platform(self, tmp_path):
         with (
             patch("tools.skills_tool.SKILLS_DIR", tmp_path),
-            patch("agent.skill_utils.sys") as mock_sys,
+            patch("brain.skill_utils.sys") as mock_sys,
         ):
             mock_sys.platform = "linux"
             _make_skill(tmp_path, "universal-skill")
@@ -768,7 +768,7 @@ class TestFindAllSkillsPlatformFiltering:
     def test_includes_matching_platform(self, tmp_path):
         with (
             patch("tools.skills_tool.SKILLS_DIR", tmp_path),
-            patch("agent.skill_utils.sys") as mock_sys,
+            patch("brain.skill_utils.sys") as mock_sys,
         ):
             mock_sys.platform = "darwin"
             _make_skill(tmp_path, "mac-only", frontmatter_extra="platforms: [macos]\n")
@@ -780,7 +780,7 @@ class TestFindAllSkillsPlatformFiltering:
         """Skills without platforms field should appear on any platform."""
         with (
             patch("tools.skills_tool.SKILLS_DIR", tmp_path),
-            patch("agent.skill_utils.sys") as mock_sys,
+            patch("brain.skill_utils.sys") as mock_sys,
         ):
             mock_sys.platform = "win32"
             _make_skill(tmp_path, "generic-skill")
@@ -791,7 +791,7 @@ class TestFindAllSkillsPlatformFiltering:
     def test_multi_platform_skill(self, tmp_path):
         with (
             patch("tools.skills_tool.SKILLS_DIR", tmp_path),
-            patch("agent.skill_utils.sys") as mock_sys,
+            patch("brain.skill_utils.sys") as mock_sys,
         ):
             _make_skill(
                 tmp_path, "cross-plat", frontmatter_extra="platforms: [macos, linux]\n"
@@ -920,7 +920,7 @@ class TestSkillViewPrerequisites:
                 "remote-ready",
                 frontmatter_extra="prerequisites:\n  env_vars: [PERSISTED_REMOTE_KEY]\n",
             )
-            from hermes_cli.config import save_env_value
+            from jarvis_cli.config import save_env_value
 
             save_env_value("PERSISTED_REMOTE_KEY", "persisted-value")
             monkeypatch.delenv("PERSISTED_REMOTE_KEY", raising=False)
@@ -1052,7 +1052,7 @@ class TestSkillViewPrerequisites:
 name: legacy-flat
 description: Legacy flat skill.
 metadata:
-  hermes:
+  jarvis:
     tags: [legacy, flat]
 required_environment_variables:
   - name: LEGACY_KEY
@@ -1085,7 +1085,7 @@ Do the legacy thing.
         monkeypatch.delenv("TENOR_API_KEY", raising=False)
 
         def fake_secret_callback(var_name, prompt, metadata=None):
-            from hermes_cli.config import save_env_value
+            from jarvis_cli.config import save_env_value
 
             save_env_value(var_name, "captured-value")
             return {
@@ -1112,7 +1112,7 @@ Do the legacy thing.
                     "    prompt: Tenor API key\n"
                 ),
             )
-            from hermes_cli.config import save_env_value
+            from jarvis_cli.config import save_env_value
 
             save_env_value("TENOR_API_KEY", "")
             raw = skill_view("gif-search")
@@ -1146,7 +1146,7 @@ class TestSkillViewCollisionDetection:
         return (
             patch("tools.skills_tool.SKILLS_DIR", local_dir),
             patch(
-                "agent.skill_utils.get_external_skills_dirs",
+                "brain.skill_utils.get_external_skills_dirs",
                 return_value=list(external_dirs),
             ),
         )

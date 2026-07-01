@@ -55,13 +55,13 @@ export function KeybindPanel() {
   return (
     <DialogPrimitive.Root onOpenChange={next => !next && closeKeybindPanel()} open={open}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[200] bg-black/25 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[200] bg-black/55 backdrop-blur-[2px] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           aria-describedby={undefined}
-          className="fixed left-1/2 top-[9vh] z-[210] flex max-h-[82vh] w-[min(38rem,calc(100vw-2rem))] -translate-x-1/2 flex-col overflow-hidden rounded-xl border border-(--stroke-nous) bg-(--ui-chat-bubble-background) shadow-nous duration-150 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+          className="fixed left-1/2 top-[9vh] z-[210] flex max-h-[82vh] w-[min(38rem,calc(100vw-2rem))] -translate-x-1/2 flex-col overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--jarvis-blue)_24%,var(--jarvis-hairline))] bg-[color-mix(in_srgb,var(--jarvis-panel)_94%,transparent)] shadow-[0_24px_80px_rgba(0,0,0,0.58),0_0_42px_color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] duration-150 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
         >
           {/* Header */}
-          <div className="flex items-center justify-between gap-3 border-b border-(--ui-stroke-tertiary) px-4 py-3">
+          <div className="flex items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] px-4 py-3">
             <div className="min-w-0">
               <DialogPrimitive.Title className="text-sm font-semibold text-foreground">{k.title}</DialogPrimitive.Title>
               <DialogPrimitive.Description className="mt-0.5 text-[0.72rem] text-muted-foreground">
@@ -114,7 +114,7 @@ function CategoryHeader({ label, onToggle, open }: { label: string; onToggle: ()
       onClick={onToggle}
       type="button"
     >
-      <span className="text-[0.64rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">{label}</span>
+      <span className="text-[0.64rem] font-semibold uppercase text-(--jarvis-muted)">{label}</span>
       <DisclosureCaret
         className="text-(--ui-text-tertiary) opacity-0 transition group-hover/kbd-cat:opacity-100"
         open={open}
@@ -149,8 +149,8 @@ function KeybindRow({ action }: { action: KeybindActionMeta }) {
     .find(Boolean)
 
   return (
-    <div className="group flex items-center gap-2.5 rounded-lg px-2.5 py-1 transition-colors hover:bg-(--chrome-action-hover)">
-      <span className="min-w-0 flex-1 truncate text-[0.82rem] text-foreground/90">{label}</span>
+    <div className="group flex items-center gap-2.5 rounded-md px-2.5 py-1 transition-colors hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_8%,transparent)]">
+      <span className="min-w-0 flex-1 truncate text-[0.82rem] text-(--jarvis-text)">{label}</span>
 
       {conflict && (
         <span className="flex size-4 items-center justify-center text-amber-500/90" title={k.conflictWith(conflict)}>
@@ -161,7 +161,7 @@ function KeybindRow({ action }: { action: KeybindActionMeta }) {
       {/* Click the caps to rebind — the on-screen editor does the same thing. */}
       <button
         aria-label={k.rebind}
-        className="flex shrink-0 items-center gap-1 rounded-lg outline-none"
+        className="flex shrink-0 items-center gap-1 rounded-md outline-none"
         onClick={() => (capturing ? endCapture() : beginCapture(action.id))}
         title={k.rebind}
         type="button"
@@ -182,7 +182,7 @@ function KeybindRow({ action }: { action: KeybindActionMeta }) {
       ) : (
         <button
           aria-label={k.reset}
-          className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground/70 opacity-0 transition-all hover:bg-(--ui-control-active-background) hover:text-foreground group-hover:opacity-100"
+          className="grid size-6 shrink-0 place-items-center rounded-md text-(--jarvis-muted) opacity-0 transition-all hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] hover:text-white group-hover:opacity-100"
           onClick={() => resetBinding(action.id)}
           title={k.reset}
           type="button"
@@ -202,8 +202,8 @@ function ReadonlyRow({ shortcut }: { shortcut: KeybindReadonly }) {
   const label = k.actions[shortcut.id] ?? shortcut.id
 
   return (
-    <div className="flex items-center gap-2.5 rounded-lg px-2.5 py-1">
-      <span className="min-w-0 flex-1 truncate text-[0.82rem] text-foreground/75">{label}</span>
+    <div className="flex items-center gap-2.5 rounded-md px-2.5 py-1">
+      <span className="min-w-0 flex-1 truncate text-[0.82rem] text-(--jarvis-muted)">{label}</span>
       <div className="flex shrink-0 items-center gap-1">
         {shortcut.keys.map(key => (
           <KbdCombo combo={key} key={key} />

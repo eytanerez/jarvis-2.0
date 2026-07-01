@@ -42,17 +42,17 @@ export function SearchField({
   return (
     <div
       className={cn(
-        'inline-flex max-w-full items-center gap-1.5 border-b border-transparent px-0.5 transition-colors focus-within:border-(--ui-stroke-secondary)',
+        'inline-flex max-w-full items-center gap-1.5 border-b border-transparent px-0.5 transition-colors focus-within:border-[color-mix(in_srgb,var(--jarvis-blue)_54%,transparent)]',
         containerClassName
       )}
     >
-      <Search className="pointer-events-none size-3.5 shrink-0 text-muted-foreground/70" />
+      <Search className="pointer-events-none size-3.5 shrink-0 text-(--jarvis-muted)" />
       <input
         aria-label={ariaLabel}
         className={cn(
           // `field-sizing: content` grows the input to fit the placeholder/typed
           // text, capped by the container's max-width — no awkward empty space.
-          'h-7 max-w-full bg-transparent text-sm text-foreground [field-sizing:content] placeholder:text-muted-foreground focus:outline-none',
+          'h-7 max-w-full bg-transparent text-sm text-(--jarvis-text) [field-sizing:content] placeholder:text-(--jarvis-muted) focus:outline-none',
           inputClassName
         )}
         onChange={event => onChange(event.target.value)}
@@ -63,11 +63,11 @@ export function SearchField({
       />
       {trailingAction}
       {loading ? (
-        <Loader2 className="pointer-events-none size-3.5 shrink-0 animate-spin text-muted-foreground/70" />
+        <Loader2 className="pointer-events-none size-3.5 shrink-0 animate-spin text-(--jarvis-muted)" />
       ) : value ? (
         <Button
           aria-label={t.ui.search.clear}
-          className="shrink-0 text-muted-foreground/85 hover:bg-accent/60 hover:text-foreground"
+          className="shrink-0 text-(--jarvis-muted) hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] hover:text-white"
           onClick={clear}
           size="icon-xs"
           variant="ghost"

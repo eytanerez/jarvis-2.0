@@ -87,7 +87,7 @@ def test_filter_allows_log_without_exc_info() -> None:
     assert f.filter(record) is True
 
 
-# -- End-to-end: drive a real JSON-RPC `ping` through acp.run_agent ---------
+# -- End-to-end: drive a real JSON-RPC `ping` through acp.run_brain ---------
 
 
 class _FakeAgent:
@@ -169,7 +169,7 @@ async def test_bare_ping_request_produces_proper_response_and_no_stderr_noise(
         await loop.connect_read_pipe(lambda: client_input_proto, out_read_file)
 
         agent_task = asyncio.create_task(
-            acp.run_agent(
+            acp.run_brain(
                 _FakeAgent(),
                 input_stream=agent_output,
                 output_stream=agent_input,

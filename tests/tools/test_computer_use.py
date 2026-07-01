@@ -22,7 +22,7 @@ def _reset_backend():
     from tools.computer_use.tool import reset_backend_for_tests
     reset_backend_for_tests()
     # Force the noop backend.
-    with patch.dict(os.environ, {"HERMES_COMPUTER_USE_BACKEND": "noop"}, clear=False):
+    with patch.dict(os.environ, {"JARVIS_COMPUTER_USE_BACKEND": "noop"}, clear=False):
         yield
     reset_backend_for_tests()
 
@@ -664,7 +664,7 @@ class TestCuaCaptureImageDimensions:
 
 class TestAnthropicAdapterMultimodal:
     def test_multimodal_envelope_becomes_tool_result_with_image_block(self):
-        from agent.anthropic_adapter import convert_messages_to_anthropic
+        from brain.anthropic_adapter import convert_messages_to_anthropic
 
         fake_png = "iVBORw0KGgo="
         messages = [
@@ -704,7 +704,7 @@ class TestAnthropicAdapterMultimodal:
 
     def test_old_screenshots_are_evicted_beyond_max_keep(self):
         """Image blocks in old tool_results get replaced with placeholders."""
-        from agent.anthropic_adapter import convert_messages_to_anthropic
+        from brain.anthropic_adapter import convert_messages_to_anthropic
 
         fake_png = "iVBORw0KGgo="
 
@@ -768,7 +768,7 @@ class TestAnthropicAdapterMultimodal:
         assert len(placeholders) == 2
 
     def test_content_parts_helper_filters_to_text_and_image(self):
-        from agent.anthropic_adapter import _content_parts_to_anthropic_blocks
+        from brain.anthropic_adapter import _content_parts_to_anthropic_blocks
 
         fake_png = "iVBORw0KGgo="
         blocks = _content_parts_to_anthropic_blocks([
@@ -788,7 +788,7 @@ class TestAnthropicAdapterMultimodal:
 
 class TestCompressorScreenshotPruning:
     def _make_compressor(self):
-        from agent.context_compressor import ContextCompressor
+        from brain.context_compressor import ContextCompressor
         # Minimal constructor — _prune_old_tool_results doesn't need a real client.
         c = ContextCompressor.__new__(ContextCompressor)
         return c
@@ -851,7 +851,7 @@ class TestCompressorScreenshotPruning:
 
 class TestImageAwareTokenEstimator:
     def test_image_block_counts_as_flat_1500_tokens(self):
-        from agent.model_metadata import estimate_messages_tokens_rough
+        from brain.model_metadata import estimate_messages_tokens_rough
         huge_b64 = "A" * (1024 * 1024)  # 1MB of base64 text
         messages = [
             {"role": "user", "content": "hi"},
@@ -866,7 +866,7 @@ class TestImageAwareTokenEstimator:
         assert tokens < 5000, f"image-aware counter returned {tokens} tokens — too high"
 
     def test_multimodal_envelope_counts_images(self):
-        from agent.model_metadata import estimate_messages_tokens_rough
+        from brain.model_metadata import estimate_messages_tokens_rough
         messages = [
             {"role": "tool", "tool_call_id": "c1", "content": {
                 "_multimodal": True,
@@ -888,7 +888,7 @@ class TestImageAwareTokenEstimator:
 
 class TestPromptGuidance:
     def test_computer_use_guidance_constant_exists(self):
-        from agent.prompt_builder import COMPUTER_USE_GUIDANCE
+        from brain.prompt_builder import COMPUTER_USE_GUIDANCE
         assert "background" in COMPUTER_USE_GUIDANCE.lower()
         assert "element" in COMPUTER_USE_GUIDANCE.lower()
         # Security callouts must remain
@@ -901,7 +901,7 @@ class TestPromptGuidance:
 
 class TestRunAgentMultimodalHelpers:
     def test_is_multimodal_tool_result(self):
-        from run_agent import _is_multimodal_tool_result
+        from run_brain import _is_multimodal_tool_result
         assert _is_multimodal_tool_result({
             "_multimodal": True, "content": [{"type": "text", "text": "x"}]
         })
@@ -910,7 +910,7 @@ class TestRunAgentMultimodalHelpers:
         assert not _is_multimodal_tool_result({"_multimodal": True, "content": "not a list"})
 
     def test_multimodal_text_summary_prefers_summary(self):
-        from run_agent import _multimodal_text_summary
+        from run_brain import _multimodal_text_summary
         out = _multimodal_text_summary({
             "_multimodal": True,
             "content": [{"type": "text", "text": "detailed"}],
@@ -919,7 +919,7 @@ class TestRunAgentMultimodalHelpers:
         assert out == "short"
 
     def test_multimodal_text_summary_falls_back_to_parts(self):
-        from run_agent import _multimodal_text_summary
+        from run_brain import _multimodal_text_summary
         out = _multimodal_text_summary({
             "_multimodal": True,
             "content": [{"type": "text", "text": "detailed"}],
@@ -927,7 +927,7 @@ class TestRunAgentMultimodalHelpers:
         assert out == "detailed"
 
     def test_append_subdir_hint_to_multimodal_appends_to_text_part(self):
-        from run_agent import _append_subdir_hint_to_multimodal
+        from run_brain import _append_subdir_hint_to_multimodal
         env = {
             "_multimodal": True,
             "content": [
@@ -943,7 +943,7 @@ class TestRunAgentMultimodalHelpers:
         assert env["text_summary"] == "summary\n[subdir hint]"
 
     def test_trajectory_normalize_strips_images(self):
-        from run_agent import _trajectory_normalize_msg
+        from run_brain import _trajectory_normalize_msg
         msg = {
             "role": "tool",
             "tool_call_id": "c1",
@@ -962,9 +962,9 @@ class TestRunAgentMultimodalHelpers:
         )
 
     def test_computer_use_image_result_becomes_error_for_text_only_model(self):
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
-        agent = object.__new__(AIAgent)
+        agent = object.__new__(AIBrain)
         agent.provider = "deepseek"
         agent.model = "deepseek-v4-pro"
         result = {
@@ -985,9 +985,9 @@ class TestRunAgentMultimodalHelpers:
         assert "image_url" not in content
 
     def test_computer_use_image_result_preserved_for_vision_model(self):
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
-        agent = object.__new__(AIAgent)
+        agent = object.__new__(AIBrain)
         result = {
             "_multimodal": True,
             "content": [
@@ -1003,9 +1003,9 @@ class TestRunAgentMultimodalHelpers:
         assert any(part.get("type") == "image_url" for part in content)
 
     def test_other_multimodal_tool_uses_text_summary_for_text_only_model(self):
-        from run_agent import AIAgent
+        from run_brain import AIBrain
 
-        agent = object.__new__(AIAgent)
+        agent = object.__new__(AIBrain)
         agent.provider = "custom"
         agent.model = "text-only"
         result = {
@@ -1458,7 +1458,7 @@ class TestCuaEnvironmentScrubbing:
     def test_cua_session_sanitizes_provider_env_vars(self):
         """_CuaDriverSession._aenter() must sanitize sensitive env vars.
 
-        The cua-driver MCP subprocess should not inherit Hermes-managed credentials
+        The cua-driver MCP subprocess should not inherit Jarvis-managed credentials
         or other sensitive environment variables — only runtime-required vars.
         This is a regression test for issue #37878.
         """

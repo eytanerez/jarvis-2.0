@@ -1,15 +1,15 @@
 # Context Compression and Caching
 
-Hermes Agent uses a dual compression system and Anthropic prompt caching to
+Jarvis uses a dual compression system and Anthropic prompt caching to
 manage context window usage efficiently across long conversations.
 
-Source files: `agent/context_engine.py` (ABC), `agent/context_compressor.py` (default engine),
-`agent/prompt_caching.py`, `gateway/run.py` (session hygiene), `run_agent.py` (search for `_compress_context`)
+Source files: `brain/context_engine.py` (ABC), `brain/context_compressor.py` (default engine),
+`brain/prompt_caching.py`, `gateway/run.py` (session hygiene), `run_brain.py` (search for `_compress_context`)
 
 
 ## Pluggable Context Engine
 
-Context management is built on the `ContextEngine` ABC (`agent/context_engine.py`). The built-in `ContextCompressor` is the default implementation, but plugins can replace it with alternative engines (e.g., Lossless Context Management).
+Context management is built on the `ContextEngine` ABC (`brain/context_engine.py`). The built-in `ContextCompressor` is the default implementation, but plugins can replace it with alternative engines (e.g., Lossless Context Management).
 
 ```yaml
 context:
@@ -30,13 +30,13 @@ Selection is config-driven via `context.engine` in `config.yaml`. The resolution
 
 Plugin engines are **never auto-activated** — the user must explicitly set `context.engine` to the plugin's name. The default `"compressor"` always uses the built-in.
 
-Configure via `hermes plugins` → Provider Plugins → Context Engine, or edit `config.yaml` directly.
+Configure via `jarvis plugins` → Provider Plugins → Context Engine, or edit `config.yaml` directly.
 
 For building a context engine plugin, see [Context Engine Plugins](/developer-guide/context-engine-plugin).
 
 ## Dual Compression System
 
-Hermes has two separate compression layers that operate independently:
+Jarvis has two separate compression layers that operate independently:
 
 ```
                      ┌──────────────────────────┐
@@ -69,7 +69,7 @@ in long gateway sessions.
 
 ### 2. Agent ContextCompressor (50% threshold, configurable)
 
-Located in `agent/context_compressor.py`. This is the **primary compression
+Located in `brain/context_compressor.py`. This is the **primary compression
 system** that runs inside the agent's tool loop with access to accurate,
 API-reported token counts.
 
@@ -110,13 +110,13 @@ The ChatGPT Codex OAuth backend hard-caps gpt-5.5 at a **272K** context window
 (the same slug exposes 1.05M on OpenAI's direct API and OpenRouter, and 400K on
 GitHub Copilot). At the default 50% trigger, compaction would fire at ~136K —
 half the window the model can actually use. When the active route is Codex
-OAuth (`provider: openai-codex`) and the model is gpt-5.5, Hermes raises the
+OAuth (`provider: openai-codex`) and the model is gpt-5.5, Jarvis raises the
 trigger to **85%** (~231K) and prints a one-time notice with the opt-out
 command. Only this exact route is affected; gpt-5.5 on any other provider keeps
 your global `threshold`. To opt back down to the global value:
 
 ```bash
-hermes config set compression.codex_gpt55_autoraise false
+jarvis config set compression.codex_gpt55_autoraise false
 ```
 
 ### Computed Values (for a 200K context model at defaults)
@@ -299,14 +299,14 @@ text for this purpose.
 
 ## Prompt Caching (Anthropic)
 
-Source: `agent/prompt_caching.py`
+Source: `brain/prompt_caching.py`
 
 Reduces input token costs by ~75% on multi-turn conversations by caching the
 conversation prefix. Uses Anthropic's `cache_control` breakpoints.
 
 ### Strategy: system_and_3
 
-Anthropic allows a maximum of 4 `cache_control` breakpoints per request. Hermes
+Anthropic allows a maximum of 4 `cache_control` breakpoints per request. Jarvis
 uses the "system_and_3" strategy:
 
 ```
@@ -373,4 +373,4 @@ The CLI shows caching status at startup:
 
 ## Context Pressure Warnings
 
-Intermediate context-pressure warnings have been removed (see the iteration-budget block in `run_agent.py`, which notes: "No intermediate pressure warnings — they caused models to 'give up' prematurely on complex tasks"). Compression fires when prompt tokens reach the configured `compression.threshold` (default 50%) with no prior warning step; gateway session hygiene fires as the secondary safety net at 85% of the model's context window.
+Intermediate context-pressure warnings have been removed (see the iteration-budget block in `run_brain.py`, which notes: "No intermediate pressure warnings — they caused models to 'give up' prematurely on complex tasks"). Compression fires when prompt tokens reach the configured `compression.threshold` (default 50%) with no prior warning step; gateway session hygiene fires as the secondary safety net at 85% of the model's context window.

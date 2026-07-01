@@ -7,7 +7,7 @@ Verifies that:
   combined skill content when the user types ``/<bundle-slug>``.
 
 The actual ``/<bundle-slug>`` → combined-message build is tested in
-``tests/agent/test_skill_bundles.py``; this file only checks the gateway
+``tests/brain/test_skill_bundles.py``; this file only checks the gateway
 glue (handler wiring, dispatch ordering, event.text rewrite).
 """
 
@@ -59,10 +59,10 @@ def bundles_env(tmp_path, monkeypatch):
     bundles_dir = tmp_path / "skill-bundles"
     skills_dir = tmp_path / "skills"
     skills_dir.mkdir()
-    monkeypatch.setenv("HERMES_BUNDLES_DIR", str(bundles_dir))
+    monkeypatch.setenv("JARVIS_BUNDLES_DIR", str(bundles_dir))
     import tools.skills_tool as skills_tool_module
     monkeypatch.setattr(skills_tool_module, "SKILLS_DIR", skills_dir)
-    import agent.skill_bundles as mod
+    import brain.skill_bundles as mod
     mod._bundles_cache = {}
     mod._bundles_cache_mtime = None
     return bundles_dir, skills_dir
@@ -105,11 +105,11 @@ class TestBundleResolutionPriority:
     def test_bundle_resolves(self, bundles_env):
         bundles_dir, _ = bundles_env
         _make_bundle(bundles_dir, "research", ["alpha"])
-        from agent.skill_bundles import resolve_bundle_command_key
+        from brain.skill_bundles import resolve_bundle_command_key
         assert resolve_bundle_command_key("research") == "/research"
 
     def test_underscore_alias(self, bundles_env):
         bundles_dir, _ = bundles_env
         _make_bundle(bundles_dir, "my-bundle", ["alpha"])
-        from agent.skill_bundles import resolve_bundle_command_key
+        from brain.skill_bundles import resolve_bundle_command_key
         assert resolve_bundle_command_key("my_bundle") == "/my-bundle"

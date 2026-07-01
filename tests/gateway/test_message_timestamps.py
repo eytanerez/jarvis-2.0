@@ -6,7 +6,7 @@ from gateway.message_timestamps import (
     render_user_content_with_timestamp,
     strip_leading_message_timestamps,
 )
-from run_agent import AIAgent
+from run_brain import AIBrain
 
 
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -69,7 +69,7 @@ def test_coerce_message_timestamp_accepts_datetime_and_epoch():
 
 
 def test_persist_user_message_override_keeps_clean_content_and_timestamp_metadata():
-    agent = AIAgent.__new__(AIAgent)
+    agent = AIBrain.__new__(AIBrain)
     agent._persist_user_message_idx = 0
     agent._persist_user_message_override = "[Example User] Clean content"
     agent._persist_user_message_timestamp = _epoch(2026, 4, 28, 13, 40, 53)

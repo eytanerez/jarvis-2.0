@@ -28,7 +28,7 @@ import logging
 import os
 from typing import Any, Dict, List
 
-from agent.web_search_provider import WebSearchProvider
+from brain.web_search_provider import WebSearchProvider
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ def _get_exa_client() -> Any:
     from exa_py import Exa  # noqa: WPS433 — deliberately lazy
 
     client = Exa(api_key=api_key)
-    client.headers["x-exa-integration"] = "hermes-agent"
+    client.headers["x-exa-integration"] = "jarvis-agent"
     _wt._exa_client = client
     return client
 

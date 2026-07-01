@@ -1,29 +1,29 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { HermesReadDirResult } from '@/global'
+import type { JarvisReadDirResult } from '@/global'
 import { $connection, setCurrentCwd } from '@/store/session'
 
 import { resetProjectTreeState } from './files/use-project-tree'
 
 import { RightSidebarPane } from './index'
 
-const readDir = vi.fn<(path: string) => Promise<HermesReadDirResult>>()
+const readDir = vi.fn<(path: string) => Promise<JarvisReadDirResult>>()
 const selectPaths = vi.fn()
 
-function ok(entries: { name: string; path: string; isDirectory: boolean }[]): HermesReadDirResult {
+function ok(entries: { name: string; path: string; isDirectory: boolean }[]): JarvisReadDirResult {
   return { entries }
 }
 
 function installBridge() {
   ;(
     window as unknown as {
-      hermesDesktop: {
+      jarvisDesktop: {
         readDir: typeof readDir
         selectPaths: typeof selectPaths
       }
     }
-  ).hermesDesktop = { readDir, selectPaths }
+  ).jarvisDesktop = { readDir, selectPaths }
 }
 
 describe('RightSidebarPane', () => {
@@ -43,7 +43,7 @@ describe('RightSidebarPane', () => {
     $connection.set(null)
     setCurrentCwd('')
     resetProjectTreeState()
-    delete (window as unknown as { hermesDesktop?: unknown }).hermesDesktop
+    delete (window as unknown as { jarvisDesktop?: unknown }).jarvisDesktop
   })
 
   it('refreshes the current tree without opening the folder picker', async () => {
@@ -51,7 +51,9 @@ describe('RightSidebarPane', () => {
 
     render(<RightSidebarPane onActivateFile={vi.fn()} onActivateFolder={vi.fn()} onChangeCwd={onChangeCwd} />)
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh tree' }).hasAttribute('disabled')).toBe(false))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Refresh tree' }).hasAttribute('disabled')).toBe(false)
+    )
 
     readDir.mockClear()
 

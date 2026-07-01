@@ -39,8 +39,8 @@ function encryptDesktopSecret(value, safeStorageApi) {
 
   if (!encryptionAvailable) {
     throw new Error(
-      'Secure token storage is unavailable, so Hermes Desktop cannot save remote gateway tokens. ' +
-        'Set HERMES_DESKTOP_REMOTE_URL and HERMES_DESKTOP_REMOTE_TOKEN in your environment, or enable OS keychain access and try again.'
+      'Secure token storage is unavailable, so Jarvis Desktop cannot save remote gateway tokens. ' +
+        'Set JARVIS_DESKTOP_REMOTE_URL and JARVIS_DESKTOP_REMOTE_TOKEN in your environment, or enable OS keychain access and try again.'
     )
   }
 
@@ -53,7 +53,7 @@ function encryptDesktopSecret(value, safeStorageApi) {
     const detail = error instanceof Error && error.message ? ` (${error.message})` : ''
     throw new Error(
       `Failed to encrypt the remote gateway token for secure storage${detail}. ` +
-        'Set HERMES_DESKTOP_REMOTE_URL and HERMES_DESKTOP_REMOTE_TOKEN in your environment as a fallback.'
+        'Set JARVIS_DESKTOP_REMOTE_URL and JARVIS_DESKTOP_REMOTE_TOKEN in your environment as a fallback.'
     )
   }
 }
@@ -186,7 +186,10 @@ async function statForIpc(fsImpl, resolvedPath, purpose, typeLabel) {
     if (code === 'ENOENT' || code === 'ENOTDIR') {
       throw ipcPathError(code || 'ENOENT', `${purpose} failed: ${typeLabel} does not exist.`)
     }
-    throw ipcPathError(code || 'read-error', `${purpose} failed: ${error instanceof Error ? error.message : String(error)}`)
+    throw ipcPathError(
+      code || 'read-error',
+      `${purpose} failed: ${error instanceof Error ? error.message : String(error)}`
+    )
   }
 }
 
@@ -201,7 +204,10 @@ async function realpathForIpc(fsImpl, resolvedPath, purpose) {
     return realPath
   } catch (error) {
     const code = error && typeof error === 'object' ? error.code : ''
-    throw ipcPathError(code || 'read-error', `${purpose} failed: ${error instanceof Error ? error.message : String(error)}`)
+    throw ipcPathError(
+      code || 'read-error',
+      `${purpose} failed: ${error instanceof Error ? error.message : String(error)}`
+    )
   }
 }
 

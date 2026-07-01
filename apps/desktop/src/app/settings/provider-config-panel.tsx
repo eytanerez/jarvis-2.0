@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button'
 import { DisclosureCaret } from '@/components/ui/disclosure-caret'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { getMemoryProviderConfig, saveMemoryProviderConfig } from '@/hermes'
+import { getMemoryProviderConfig, saveMemoryProviderConfig } from '@/jarvis'
 import { Check, Loader2, Save } from '@/lib/icons'
 import { notify, notifyError } from '@/store/notifications'
-import type { MemoryProviderConfig, MemoryProviderField } from '@/types/hermes'
+import type { MemoryProviderConfig, MemoryProviderField } from '@/types/jarvis'
 
 import { CONTROL_TEXT } from './constants'
 import { LoadingState, Pill } from './primitives'
@@ -15,9 +15,7 @@ import { LoadingState, Pill } from './primitives'
 /** Seed editable values from the schema: non-secret fields keep their current
  *  value, secret fields start blank (their value is never returned). */
 function seedValues(config: MemoryProviderConfig): Record<string, string> {
-  return Object.fromEntries(
-    config.fields.map(field => [field.key, field.kind === 'secret' ? '' : field.value])
-  )
+  return Object.fromEntries(config.fields.map(field => [field.key, field.kind === 'secret' ? '' : field.value]))
 }
 
 function FieldControl({

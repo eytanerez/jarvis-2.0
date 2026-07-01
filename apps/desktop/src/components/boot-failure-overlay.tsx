@@ -47,7 +47,7 @@ export function BootFailureOverlay() {
       return
     }
 
-    void window.hermesDesktop
+    void window.jarvisDesktop
       ?.getRecentLogs()
       .then(res => setLogs(res.lines ?? []))
       .catch(() => undefined)
@@ -66,7 +66,7 @@ export function BootFailureOverlay() {
     let cancelled = false
 
     void (async () => {
-      const desktop = window.hermesDesktop
+      const desktop = window.jarvisDesktop
 
       if (!desktop?.getConnectionConfig) {
         return
@@ -112,20 +112,20 @@ export function BootFailureOverlay() {
 
   const retry = async () => {
     setBusy('retry')
-    await window.hermesDesktop?.resetBootstrap().catch(() => undefined)
+    await window.jarvisDesktop?.resetBootstrap().catch(() => undefined)
     window.location.reload()
   }
 
   const repair = async () => {
     setBusy('repair')
-    await window.hermesDesktop?.repairBootstrap().catch(() => undefined)
+    await window.jarvisDesktop?.repairBootstrap().catch(() => undefined)
     window.location.reload()
   }
 
   const switchToLocalGateway = async () => {
     setBusy('local')
     // applyConnectionConfig reloads the window from the main process.
-    await window.hermesDesktop?.applyConnectionConfig({ mode: 'local' }).catch(() => undefined)
+    await window.jarvisDesktop?.applyConnectionConfig({ mode: 'local' }).catch(() => undefined)
     setBusy(null)
   }
 
@@ -142,7 +142,7 @@ export function BootFailureOverlay() {
     setBusy('signin')
 
     try {
-      const result = await window.hermesDesktop?.oauthLoginConnectionConfig(remoteReauth.url)
+      const result = await window.jarvisDesktop?.oauthLoginConnectionConfig(remoteReauth.url)
 
       if (result?.connected) {
         notify({ kind: 'success', title: t.boot.failure.signedInTitle, message: t.boot.failure.signedInMessage })
@@ -163,7 +163,7 @@ export function BootFailureOverlay() {
     }
   }
 
-  const openLogs = () => void window.hermesDesktop?.revealLogs().catch(() => undefined)
+  const openLogs = () => void window.jarvisDesktop?.revealLogs().catch(() => undefined)
   const copy = t.boot.failure
 
   const label = signInLabel(remoteReauth, {
@@ -173,14 +173,12 @@ export function BootFailureOverlay() {
   })
 
   return (
-    <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-(--ui-chat-surface-background) p-6">
-      <div className="w-full max-w-[40rem] overflow-hidden rounded-xl border border-(--stroke-nous) bg-(--ui-chat-bubble-background) shadow-nous">
+    <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-[color-mix(in_srgb,var(--jarvis-bg)_94%,transparent)] p-6">
+      <div className="w-full max-w-[40rem] overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--jarvis-blue)_24%,var(--jarvis-hairline))] bg-[color-mix(in_srgb,var(--jarvis-panel)_94%,transparent)] shadow-[0_24px_80px_rgba(0,0,0,0.58),0_0_42px_color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)]">
         <div className="flex items-start gap-3 px-5 py-4">
           <ErrorIcon className="mt-0.5" size="1.25rem" />
           <div>
-            <h2 className="text-[0.9375rem] font-semibold tracking-tight">
-              {remoteReauth ? copy.remoteTitle : copy.title}
-            </h2>
+            <h2 className="text-[0.9375rem] font-semibold">{remoteReauth ? copy.remoteTitle : copy.title}</h2>
             <p className="mt-1 text-[0.8125rem] leading-5 text-(--ui-text-tertiary)">
               {remoteReauth ? copy.remoteDescription : copy.description}
             </p>
@@ -188,7 +186,7 @@ export function BootFailureOverlay() {
         </div>
 
         <div className="grid gap-4 p-5">
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-xs text-destructive">
+          <div className="rounded-md border border-[color-mix(in_srgb,var(--jarvis-danger)_42%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-danger)_10%,transparent)] px-4 py-3 text-xs text-(--jarvis-danger)">
             {boot.error}
           </div>
 
@@ -220,9 +218,7 @@ export function BootFailureOverlay() {
                 {copy.openLogs}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {remoteReauth ? copy.remoteSignInHint : copy.repairHint}
-            </p>
+            <p className="text-xs text-muted-foreground">{remoteReauth ? copy.remoteSignInHint : copy.repairHint}</p>
           </div>
 
           {logs.length > 0 ? (

@@ -9,7 +9,7 @@ const toggleToolset = vi.fn()
 const getToolsetConfig = vi.fn()
 const selectToolsetProvider = vi.fn()
 
-vi.mock('@/hermes', () => ({
+vi.mock('@/jarvis', () => ({
   getSkills: () => getSkills(),
   getToolsets: () => getToolsets(),
   toggleSkill: (name: string, enabled: boolean) => toggleSkill(name, enabled),
@@ -75,9 +75,7 @@ describe('SkillsView toolset management', () => {
   })
 
   it('renders toolset titles without leading emoji', async () => {
-    getToolsets.mockResolvedValue([
-      toolset({ name: 'cronjob', label: '⏰ Cron Jobs', description: 'cron tools' })
-    ])
+    getToolsets.mockResolvedValue([toolset({ name: 'cronjob', label: '⏰ Cron Jobs', description: 'cron tools' })])
 
     await renderSkills()
 

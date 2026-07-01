@@ -183,7 +183,7 @@ def _load_engine_from_dir(engine_dir: Path) -> Optional["ContextEngine"]:
             logger.debug("register() failed for %s: %s", name, e)
 
     # Fallback: find a ContextEngine subclass and instantiate it
-    from agent.context_engine import ContextEngine
+    from brain.context_engine import ContextEngine
     for attr_name in dir(mod):
         attr = getattr(mod, attr_name, None)
         if (isinstance(attr, type) and issubclass(attr, ContextEngine)
@@ -231,7 +231,7 @@ class _EngineCollector:
 
         # Reject conflicts with built-in commands.
         try:
-            from hermes_cli.commands import resolve_command
+            from jarvis_cli.commands import resolve_command
             if resolve_command(clean) is not None:
                 logger.warning(
                     "Context engine '%s' tried to register command '/%s' which conflicts "
@@ -243,7 +243,7 @@ class _EngineCollector:
             pass
 
         try:
-            from hermes_cli.plugins import get_plugin_manager
+            from jarvis_cli.plugins import get_plugin_manager
             manager = get_plugin_manager()
             if clean in manager._plugin_commands:
                 # Don't clobber a regular plugin's command — same conflict

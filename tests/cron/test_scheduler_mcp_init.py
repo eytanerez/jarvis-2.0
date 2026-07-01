@@ -2,12 +2,12 @@
 
 Background
 ==========
-``cron/scheduler.py:run_job()`` constructs ``AIAgent(...)`` directly without
+``cron/scheduler.py:run_job()`` constructs ``AIBrain(...)`` directly without
 calling ``discover_mcp_tools()`` — the initialization that CLI and gateway
 paths do at startup. Cron jobs therefore never saw any MCP tools from
 ``mcp_servers`` in config.yaml. See #4219.
 
-The fix inserts ``discover_mcp_tools()`` before the ``AIAgent(...)`` call,
+The fix inserts ``discover_mcp_tools()`` before the ``AIBrain(...)`` call,
 wrapped in try/except so a broken MCP server can't kill an otherwise
 working cron job. ``discover_mcp_tools`` is idempotent — subsequent ticks
 short-circuit on already-connected servers.
@@ -24,7 +24,7 @@ from unittest.mock import patch
 
 
 def test_no_agent_cron_job_does_not_initialize_mcp():
-    """Cron jobs with no_agent=True are script-only — no AIAgent, no MCP
+    """Cron jobs with no_agent=True are script-only — no AIBrain, no MCP
     tools needed. We must NOT pay the MCP init cost for those."""
     from cron import scheduler
 

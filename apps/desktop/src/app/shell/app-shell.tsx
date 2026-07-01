@@ -144,7 +144,7 @@ export function AppShell({
 
   return (
     <SidebarProvider
-      className="h-screen min-h-0 flex-col bg-background"
+      className="h-screen min-h-0 flex-col bg-[radial-gradient(120%_90%_at_50%_-12%,color-mix(in_srgb,var(--jarvis-blue)_12%,transparent),transparent_58%),var(--jarvis-bg)]"
       onOpenChange={setSidebarOpen}
       open={sidebarOpen}
       style={

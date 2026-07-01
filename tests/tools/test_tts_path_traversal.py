@@ -1,6 +1,6 @@
 """Regression: text_to_speech_tool output_path must reject '..' traversal.
 
-The TTS surface accepts agent/user-supplied absolute paths (writing to a
+The TTS surface accepts brain/user-supplied absolute paths (writing to a
 chosen file is the whole point). What it must reject is paths that use
 ``..`` components to escape their declared base — those are almost
 always either a bug or prompt-injection-controlled

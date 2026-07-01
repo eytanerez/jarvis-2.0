@@ -54,7 +54,7 @@ def _make_mock_server(name, session=None, tools=None):
 class TestLoadMCPConfig:
     def test_no_config_returns_empty(self):
         """No mcp_servers key in config -> empty dict."""
-        with patch("hermes_cli.config.load_config", return_value={"model": "test"}):
+        with patch("jarvis_cli.config.load_config", return_value={"model": "test"}):
             from tools.mcp_tool import _load_mcp_config
             result = _load_mcp_config()
             assert result == {}
@@ -68,7 +68,7 @@ class TestLoadMCPConfig:
                 "env": {},
             }
         }
-        with patch("hermes_cli.config.load_config", return_value={"mcp_servers": servers}):
+        with patch("jarvis_cli.config.load_config", return_value={"mcp_servers": servers}):
             from tools.mcp_tool import _load_mcp_config
             result = _load_mcp_config()
             assert "filesystem" in result
@@ -76,7 +76,7 @@ class TestLoadMCPConfig:
 
     def test_mcp_servers_not_dict_returns_empty(self):
         """mcp_servers set to non-dict value -> empty dict."""
-        with patch("hermes_cli.config.load_config", return_value={"mcp_servers": "invalid"}):
+        with patch("jarvis_cli.config.load_config", return_value={"mcp_servers": "invalid"}):
             from tools.mcp_tool import _load_mcp_config
             result = _load_mcp_config()
             assert result == {}
@@ -137,7 +137,7 @@ class TestMCPStatus:
 # ---------------------------------------------------------------------------
 
 class TestSchemaConversion:
-    def test_converts_mcp_tool_to_hermes_schema(self):
+    def test_converts_mcp_tool_to_jarvis_schema(self):
         from tools.mcp_tool import _convert_mcp_schema
 
         mcp_tool = _make_mcp_tool(name="read_file", description="Read a file")
@@ -473,7 +473,7 @@ class TestRunOnMcpLoop:
             with warnings.catch_warnings(record=True) as caught:
                 warnings.simplefilter("always")
                 with patch(
-                    "agent.async_utils.asyncio.run_coroutine_threadsafe",
+                    "brain.async_utils.asyncio.run_coroutine_threadsafe",
                     side_effect=RuntimeError("scheduler down"),
                 ):
                     with pytest.raises(RuntimeError):
@@ -1083,7 +1083,7 @@ class TestToolsetInjection:
             return server
 
         fake_toolsets = {
-            "hermes-cli": {"tools": ["terminal"], "description": "CLI", "includes": []},
+            "jarvis-cli": {"tools": ["terminal"], "description": "CLI", "includes": []},
             # Built-in toolset named "terminal" — must not be overwritten
             "terminal": {"tools": ["terminal"], "description": "Terminal tools", "includes": []},
         }
@@ -1128,7 +1128,7 @@ class TestToolsetInjection:
             "good": {"command": "npx", "args": []},
         }
         fake_toolsets = {
-            "hermes-cli": {"tools": [], "description": "CLI", "includes": []},
+            "jarvis-cli": {"tools": [], "description": "CLI", "includes": []},
         }
 
         with patch("tools.mcp_tool._MCP_AVAILABLE", True), \
@@ -1170,7 +1170,7 @@ class TestToolsetInjection:
             "good": {"command": "npx", "args": []},
         }
         fake_toolsets = {
-            "hermes-cli": {"tools": [], "description": "CLI", "includes": []},
+            "jarvis-cli": {"tools": [], "description": "CLI", "includes": []},
         }
 
         with patch("tools.mcp_tool._MCP_AVAILABLE", True), \
@@ -2735,7 +2735,7 @@ class TestSamplingCallbackText:
         )
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             params = _make_sampling_params()
@@ -2754,7 +2754,7 @@ class TestSamplingCallbackText:
         fake_client.chat.completions.create.return_value = _make_llm_response()
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ) as mock_call:
             params = _make_sampling_params(system_prompt="Be helpful")
@@ -2775,7 +2775,7 @@ class TestSamplingCallbackText:
         )
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ) as mock_call:
             params = _make_sampling_params(tools=[server_tool])
@@ -2799,7 +2799,7 @@ class TestSamplingCallbackText:
         )
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             params = _make_sampling_params()
@@ -2823,7 +2823,7 @@ class TestSamplingCallbackToolUse:
         fake_client.chat.completions.create.return_value = _make_llm_tool_response()
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             params = _make_sampling_params()
@@ -2850,7 +2850,7 @@ class TestSamplingCallbackToolUse:
         )
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             result = asyncio.run(self.handler(None, _make_sampling_params()))
@@ -2873,7 +2873,7 @@ class TestToolLoopGovernance:
         fake_client.chat.completions.create.return_value = _make_llm_tool_response()
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             params = _make_sampling_params()
@@ -2896,7 +2896,7 @@ class TestToolLoopGovernance:
         responses = [_make_llm_tool_response()]
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             side_effect=lambda **kw: responses[0],
         ):
             # Tool response (round 1 of 1 allowed)
@@ -2920,7 +2920,7 @@ class TestToolLoopGovernance:
         fake_client.chat.completions.create.return_value = _make_llm_tool_response()
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             result = asyncio.run(handler(None, _make_sampling_params()))
@@ -2939,7 +2939,7 @@ class TestSamplingErrors:
         fake_client.chat.completions.create.return_value = _make_llm_response()
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             # First call succeeds
@@ -2961,7 +2961,7 @@ class TestSamplingErrors:
             return _make_llm_response()
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             side_effect=slow_call,
         ):
             result = asyncio.run(handler(None, _make_sampling_params()))
@@ -2973,7 +2973,7 @@ class TestSamplingErrors:
         handler = SamplingHandler("np", {})
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             side_effect=RuntimeError("No LLM provider configured"),
         ):
             result = asyncio.run(handler(None, _make_sampling_params()))
@@ -2991,7 +2991,7 @@ class TestSamplingErrors:
         )
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             result = asyncio.run(handler(None, _make_sampling_params()))
@@ -3011,7 +3011,7 @@ class TestSamplingErrors:
         )
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             result = asyncio.run(handler(None, _make_sampling_params()))
@@ -3030,7 +3030,7 @@ class TestSamplingErrors:
         )
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             result = asyncio.run(handler(None, _make_sampling_params()))
@@ -3051,7 +3051,7 @@ class TestModelWhitelist:
         fake_client.chat.completions.create.return_value = _make_llm_response()
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             result = asyncio.run(handler(None, _make_sampling_params()))
@@ -3062,7 +3062,7 @@ class TestModelWhitelist:
         fake_client = MagicMock()
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             result = asyncio.run(handler(None, _make_sampling_params()))
@@ -3076,7 +3076,7 @@ class TestModelWhitelist:
         fake_client.chat.completions.create.return_value = _make_llm_response()
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             result = asyncio.run(handler(None, _make_sampling_params()))
@@ -3097,7 +3097,7 @@ class TestMalformedToolCallArgs:
         )
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             result = asyncio.run(handler(None, _make_sampling_params()))
@@ -3125,7 +3125,7 @@ class TestMalformedToolCallArgs:
         fake_client.chat.completions.create.return_value = response
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             result = asyncio.run(handler(None, _make_sampling_params()))
@@ -3145,7 +3145,7 @@ class TestMetricsTracking:
         fake_client.chat.completions.create.return_value = _make_llm_response()
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             asyncio.run(handler(None, _make_sampling_params()))
@@ -3160,7 +3160,7 @@ class TestMetricsTracking:
         fake_client.chat.completions.create.return_value = _make_llm_tool_response()
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             return_value=fake_client.chat.completions.create.return_value,
         ):
             asyncio.run(handler(None, _make_sampling_params()))
@@ -3172,7 +3172,7 @@ class TestMetricsTracking:
         handler = SamplingHandler("met3", {})
 
         with patch(
-            "agent.auxiliary_client.call_llm",
+            "brain.auxiliary_client.call_llm",
             side_effect=RuntimeError("No LLM provider configured"),
         ):
             asyncio.run(handler(None, _make_sampling_params()))
@@ -3597,7 +3597,7 @@ class TestMCPSelectiveToolLoading:
             }
         }
         fake_toolsets = {
-            "hermes-cli": {"tools": [], "description": "CLI", "includes": []},
+            "jarvis-cli": {"tools": [], "description": "CLI", "includes": []},
         }
 
         with patch("tools.mcp_tool._MCP_AVAILABLE", True), \

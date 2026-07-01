@@ -67,12 +67,12 @@ def _bootstrap(monkeypatch, tmp_path):
     runner.session_store.append_to_transcript = MagicMock()
     runner.session_store.update_session = MagicMock()
 
-    monkeypatch.setattr(gateway_run, "_hermes_home", tmp_path)
+    monkeypatch.setattr(gateway_run, "_jarvis_home", tmp_path)
     monkeypatch.setattr(
         gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "fake"}
     )
     monkeypatch.setattr(
-        "agent.model_metadata.get_model_context_length",
+        "brain.model_metadata.get_model_context_length",
         lambda *_args, **_kwargs: 100_000,
     )
     return runner
@@ -130,7 +130,7 @@ async def test_agent_failed_early_skip_db_when_agent_has_session_db(
     runner = _bootstrap(monkeypatch, tmp_path)
 
     # Agent fails with transient 429
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         return_value={
             "failed": True,
             "final_response": None,
@@ -160,7 +160,7 @@ async def test_agent_failed_early_no_skip_db_when_no_session_db(
     runner = _bootstrap(monkeypatch, tmp_path)
     runner._session_db = None  # No agent DB → agent_persisted=False
 
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         return_value={
             "failed": True,
             "final_response": None,
@@ -190,7 +190,7 @@ async def test_not_new_messages_skip_db_when_agent_has_session_db(
     runner = _bootstrap(monkeypatch, tmp_path)
 
     # Agent succeeds but history_offset equals messages length → no new messages
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         return_value={
             "final_response": "Hello!",
             "messages": [{"role": "user", "content": "hi"}],
@@ -219,7 +219,7 @@ async def test_normal_path_skip_db_when_agent_has_session_db(
     runner = _bootstrap(monkeypatch, tmp_path)
 
     # Agent succeeds with new messages
-    runner._run_agent = AsyncMock(
+    runner._run_brain = AsyncMock(
         return_value={
             "final_response": "Hello!",
             "messages": [

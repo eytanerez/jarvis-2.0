@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a real interrupt test with actual AIAgent + delegate child.
+"""Run a real interrupt test with actual AIBrain + delegate child.
 
 Not a pytest test — runs directly as a script for live testing.
 """
@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from unittest.mock import MagicMock, patch
-from run_agent import AIAgent, IterationBudget
+from run_brain import AIBrain, IterationBudget
 from tools.delegate_tool import _run_single_child
 from tools.interrupt import set_interrupt, is_interrupted
 
@@ -20,7 +20,7 @@ def main() -> int:
     set_interrupt(False)
 
     # Create parent agent (minimal)
-    parent = AIAgent.__new__(AIAgent)
+    parent = AIBrain.__new__(AIBrain)
     parent._interrupt_requested = False
     parent._interrupt_message = None
     parent._active_children = []
@@ -51,7 +51,7 @@ def main() -> int:
     result_holder = [None]
 
     def run_delegate():
-        with patch("run_agent.OpenAI") as MockOpenAI:
+        with patch("run_brain.OpenAI") as MockOpenAI:
             mock_client = MagicMock()
 
             def slow_create(**kwargs):
@@ -72,13 +72,13 @@ def main() -> int:
             mock_client.close = MagicMock()
             MockOpenAI.return_value = mock_client
 
-            original_init = AIAgent.__init__
+            original_init = AIBrain.__init__
 
             def patched_init(self_agent, *a, **kw):
                 original_init(self_agent, *a, **kw)
                 child_started.set()
 
-            with patch.object(AIAgent, "__init__", patched_init):
+            with patch.object(AIBrain, "__init__", patched_init):
                 try:
                     result = _run_single_child(
                         task_index=0,

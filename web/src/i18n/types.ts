@@ -145,8 +145,8 @@ export interface Translations {
     starting: string;
     startedInBackground: string;
     stopped: string;
-    updateHermes: string;
-    updatingHermes: string;
+    updateJarvis: string;
+    updatingJarvis: string;
     waitingForOutput: string;
   };
 
@@ -560,7 +560,7 @@ export interface Translations {
     fontMono?: string;
   };
 
-  // ── Achievements plugin (plugins/hermes-achievements) ──
+  // ── Achievements plugin (plugins/jarvis-achievements) ──
   achievements: {
     hero: {
       kicker: string;

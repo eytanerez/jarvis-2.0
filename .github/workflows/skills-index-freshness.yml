@@ -18,14 +18,14 @@ permissions:
 
 jobs:
   check-freshness:
-    if: github.repository == 'NousResearch/hermes-agent'
+    if: github.repository == 'NousResearch/jarvis-agent'
     runs-on: ubuntu-latest
     steps:
       - name: Probe live index
         id: probe
         run: |
           set -e
-          URL="https://hermes-agent.nousresearch.com/docs/api/skills-index.json"
+          URL="https://jarvis-agent.nousresearch.com/docs/api/skills-index.json"
           echo "Probing $URL"
           # -L follows redirects; -f fails on HTTP errors; -s suppresses progress
           if ! curl -fsSL -o /tmp/skills-index.json "$URL"; then
@@ -34,24 +34,29 @@ jobs:
             exit 0
           fi
           # Validate + extract generated_at and per-source counts
-          python3 <<'PY' >> "$GITHUB_OUTPUT"
-          import json, sys
+          python3 <<'PY'
+          import json, os, sys, uuid
           from datetime import datetime, timezone
+
+          def set_output(name, value):
+              marker = f"jarvis_output_{uuid.uuid4().hex}"
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+                  output.write(f"{name}<<{marker}\n{value}\n{marker}\n")
 
           try:
               with open("/tmp/skills-index.json") as f:
                   data = json.load(f)
           except Exception as e:
-              print(f"status=parse-failed")
-              print(f"detail=JSON decode error: {e}")
+              set_output("status", "parse-failed")
+              set_output("detail", f"JSON decode error: {e}")
               sys.exit(0)
 
           generated_at = data.get("generated_at", "")
           total = data.get("skill_count", 0)
           skills = data.get("skills", [])
           if not isinstance(skills, list):
-              print("status=invalid-shape")
-              print(f"detail=skills field is not a list (got {type(skills).__name__})")
+              set_output("status", "invalid-shape")
+              set_output("detail", f"skills field is not a list (got {type(skills).__name__})")
               sys.exit(0)
 
           # Per-source counts
@@ -89,14 +94,13 @@ jobs:
 
           if issues:
               detail = "; ".join(issues)
-              print("status=degraded")
-              # GITHUB_OUTPUT doesn't allow newlines without explicit delimiter
-              print(f"detail={detail}")
+              set_output("status", "degraded")
+              set_output("detail", detail)
           else:
-              print("status=ok")
-              print(f"detail=Index OK — {total} skills, generated {generated_at}")
+              set_output("status", "ok")
+              set_output("detail", f"Index OK — {total} skills, generated {generated_at}")
               by_summary = ", ".join(f"{k}={v}" for k, v in by_src.most_common(8))
-              print(f"summary={by_summary}")
+              set_output("summary", by_summary)
           PY
 
       - name: Report status

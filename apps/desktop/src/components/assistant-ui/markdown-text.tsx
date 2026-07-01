@@ -110,28 +110,28 @@ async function mediaSrc(path: string): Promise<string> {
 
   // Stream audio/video through the custom protocol: data URLs are capped and
   // load the whole file into memory, which broke playback for larger videos.
-  if (window.hermesDesktop && ['audio', 'video'].includes(mediaKind(path))) {
+  if (window.jarvisDesktop && ['audio', 'video'].includes(mediaKind(path))) {
     return mediaStreamUrl(path)
   }
 
   // Remote gateway: the image lives on the gateway machine, so read it over the
   // authenticated API rather than this machine's disk.
-  if (window.hermesDesktop && isRemoteGateway()) {
+  if (window.jarvisDesktop && isRemoteGateway()) {
     return gatewayMediaDataUrl(path)
   }
 
-  if (!window.hermesDesktop?.readFileDataUrl) {
+  if (!window.jarvisDesktop?.readFileDataUrl) {
     return mediaExternalUrl(path)
   }
 
-  return window.hermesDesktop.readFileDataUrl(filePathFromMediaPath(path))
+  return window.jarvisDesktop.readFileDataUrl(filePathFromMediaPath(path))
 }
 
 function OpenMediaButton({ kind, path }: { kind: 'audio' | 'video'; path: string }) {
   return (
     <button
       className="mt-2 bg-transparent text-xs font-medium text-muted-foreground underline underline-offset-4 decoration-current/20 hover:text-foreground"
-      onClick={() => void window.hermesDesktop?.openExternal(mediaExternalUrl(path))}
+      onClick={() => void window.jarvisDesktop?.openExternal(mediaExternalUrl(path))}
       type="button"
     >
       Open {kind} file
@@ -188,8 +188,8 @@ function MediaAttachment({ path }: { path: string }) {
 
   if (kind === 'audio' && src) {
     return (
-      <span className="my-3 block max-w-md rounded-xl border border-border bg-muted/35 p-3">
-        <span className="mb-2 block truncate text-xs font-medium text-muted-foreground">{name}</span>
+      <span className="my-3 block max-w-md rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_68%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_72%,transparent)] p-3">
+        <span className="mb-2 block truncate text-xs font-medium text-(--jarvis-muted)">{name}</span>
         <audio className="block w-full" controls onError={() => setFailed(true)} preload="metadata" src={src} />
         {failed && <OpenMediaButton kind="audio" path={path} />}
       </span>
@@ -198,10 +198,10 @@ function MediaAttachment({ path }: { path: string }) {
 
   if (kind === 'video' && src) {
     return (
-      <span className="my-3 block max-w-2xl rounded-xl border border-border bg-muted/35 p-3">
-        <span className="mb-2 block truncate text-xs font-medium text-muted-foreground">{name}</span>
+      <span className="my-3 block max-w-2xl rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_68%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_72%,transparent)] p-3">
+        <span className="mb-2 block truncate text-xs font-medium text-(--jarvis-muted)">{name}</span>
         <video
-          className="block max-h-112 w-full rounded-lg bg-black"
+          className="block max-h-112 w-full rounded-md bg-black"
           controls
           onError={() => setFailed(true)}
           src={src}
