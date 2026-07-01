@@ -13,8 +13,8 @@ import {
 } from '@/components/desktop-onboarding-overlay'
 import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/ui/search-field'
-import { disconnectOAuthProvider, listOAuthProviders } from '@/jarvis'
 import { useI18n } from '@/i18n'
+import { disconnectOAuthProvider, listOAuthProviders } from '@/jarvis'
 import { Check, ChevronDown, ChevronRight, KeyRound, Loader2, Terminal, Trash2 } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
@@ -236,18 +236,18 @@ function ConnectedProviderRow({
   const showHint = !canDisconnect && !terminalDisconnect
 
   return (
-    <div className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1 rounded-[6px] transition-colors hover:bg-(--ui-control-hover-background)">
+    <div className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1 rounded-md transition-colors hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_8%,transparent)]">
       <button className="min-w-0 px-3 py-2.5 text-left" onClick={() => onSelect(provider)} type="button">
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-[length:var(--conversation-text-font-size)] font-semibold">{title}</span>
-          <span className="inline-flex shrink-0 items-center gap-1 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-[3px] bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] px-2 py-0.5 text-xs font-medium text-(--jarvis-blue)">
             <Check className="size-3" />
             {copy.connected}
           </span>
         </div>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">{t.onboarding.flowSubtitles[provider.flow]}</p>
+        <p className="mt-1 text-xs leading-5 text-(--jarvis-muted)">{t.onboarding.flowSubtitles[provider.flow]}</p>
         {showHint && (
-          <p className="mt-0.5 truncate text-[0.68rem] leading-5 text-muted-foreground/70">
+          <p className="mt-0.5 truncate text-[0.68rem] leading-5 text-[color-mix(in_srgb,var(--jarvis-muted)_82%,transparent)]">
             {provider.flow === 'external' ? copy.removeExternalGeneric(title) : copy.removeKeyManaged(title)}
           </p>
         )}
@@ -400,6 +400,7 @@ export function ProvidersSettings({ onClose, onViewChange, view }: ProvidersSett
 
   if (showApiKeys) {
     const q = keyQuery.trim().toLowerCase()
+
     const visibleGroups = q
       ? keyGroups.filter(group => {
           const haystack = [group.name, group.description ?? '', group.primary[0], ...group.advanced.map(([k]) => k)]

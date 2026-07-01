@@ -55,10 +55,10 @@ function ModeCard({
   return (
     <button
       className={cn(
-        'rounded-xl border p-3 text-left transition',
+        'rounded-md border p-3 text-left transition',
         active
-          ? 'border-(--ui-stroke-secondary) bg-(--ui-bg-tertiary)'
-          : 'border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) hover:bg-(--chrome-action-hover)',
+          ? 'border-[color-mix(in_srgb,var(--jarvis-blue)_38%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_11%,transparent)]'
+          : 'border-[color-mix(in_srgb,var(--jarvis-hairline)_62%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_62%,transparent)] hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_8%,transparent)]',
         disabled && 'cursor-not-allowed opacity-50'
       )}
       disabled={disabled}
@@ -66,9 +66,9 @@ function ModeCard({
       type="button"
     >
       <div className="flex items-center gap-2 text-[length:var(--conversation-text-font-size)] font-medium">
-        <Icon className="size-4 text-muted-foreground" />
+        <Icon className="size-4 text-(--jarvis-muted)" />
         <span>{title}</span>
-        {active ? <Check className="ml-auto size-4 text-primary" /> : null}
+        {active ? <Check className="ml-auto size-4 text-(--jarvis-blue)" /> : null}
       </div>
       <p className="mt-1.5 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
         {description}
@@ -81,10 +81,10 @@ function ScopeChip({ active, label, onSelect }: { active: boolean; label: string
   return (
     <button
       className={cn(
-        'rounded-full border px-3 py-1 text-[length:var(--conversation-caption-font-size)] transition',
+        'rounded-[3px] border px-3 py-1 text-[length:var(--conversation-caption-font-size)] transition',
         active
-          ? 'border-(--ui-stroke-secondary) bg-(--ui-bg-tertiary) text-(--ui-text-primary)'
-          : 'border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover)'
+          ? 'border-[color-mix(in_srgb,var(--jarvis-blue)_38%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_11%,transparent)] text-white'
+          : 'border-[color-mix(in_srgb,var(--jarvis-hairline)_62%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_62%,transparent)] text-(--jarvis-muted) hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_8%,transparent)] hover:text-white'
       )}
       onClick={onSelect}
       type="button"
@@ -155,7 +155,7 @@ export function GatewaySettings() {
       })
 
     return () => void (cancelled = true)
-  }, [scope])
+  }, [g.failedLoad, scope])
 
   // Debounced probe of the entered remote URL. Only runs in remote mode with a
   // syntactically plausible URL. The probe result drives whether we render the
@@ -455,7 +455,7 @@ export function GatewaySettings() {
       ) : null}
 
       {state.envOverride ? (
-        <div className="mb-5 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-[length:var(--conversation-caption-font-size)] text-destructive">
+        <div className="mb-5 flex items-start gap-2 rounded-md border border-[color-mix(in_srgb,var(--jarvis-danger)_42%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-danger)_10%,transparent)] px-3 py-2.5 text-[length:var(--conversation-caption-font-size)] text-(--jarvis-danger)">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           <div>
             <div className="font-medium">{g.envOverrideTitle}</div>

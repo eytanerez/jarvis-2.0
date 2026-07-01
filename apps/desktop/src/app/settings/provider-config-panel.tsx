@@ -45,7 +45,7 @@ function FieldControl({
           </SelectContent>
         </Select>
         {(selected?.description || field.description) && (
-          <span className="text-xs text-muted-foreground">{selected?.description || field.description}</span>
+          <span className="text-xs text-(--jarvis-muted)">{selected?.description || field.description}</span>
         )}
       </>
     )
@@ -136,13 +136,13 @@ export function ProviderConfigPanel({ provider }: { provider: string }) {
     <section className="py-3">
       <button
         aria-expanded={expanded}
-        className="flex w-full items-center justify-between gap-3 rounded-lg bg-background/60 px-3 py-2 text-left hover:bg-accent/50"
+        className="flex w-full items-center justify-between gap-3 rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_60%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_58%,transparent)] px-3 py-2 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_9%,transparent)]"
         onClick={() => setExpanded(open => !open)}
         type="button"
       >
         <span className="flex min-w-0 items-center gap-2">
           <DisclosureCaret open={expanded} />
-          <span className="text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
+          <span className="text-[length:var(--conversation-text-font-size)] font-medium text-(--jarvis-text)">
             {config.label} settings
           </span>
           {secretFields.map(field => (
@@ -152,17 +152,17 @@ export function ProviderConfigPanel({ provider }: { provider: string }) {
       </button>
 
       {expanded && (
-        <div className="mt-3 grid gap-4 rounded-xl bg-background/60 p-4">
+        <div className="mt-3 grid gap-4 rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_58%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_62%,transparent)] p-4">
           {config.fields.map(field => (
             <label className="grid gap-1.5" key={field.key}>
-              <span className="text-xs font-medium text-muted-foreground">{field.label}</span>
+              <span className="text-xs font-medium text-(--jarvis-muted)">{field.label}</span>
               <FieldControl
                 field={field}
                 onChange={value => setValues(current => ({ ...current, [field.key]: value }))}
                 value={values[field.key] ?? ''}
               />
               {field.kind !== 'select' && field.description && (
-                <span className="text-xs text-muted-foreground">{field.description}</span>
+                <span className="text-xs text-(--jarvis-muted)">{field.description}</span>
               )}
             </label>
           ))}

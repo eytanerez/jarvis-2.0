@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { useI18n } from '@/i18n'
 import {
   createProfile,
   deleteProfile,
@@ -24,7 +25,6 @@ import {
   renameProfile,
   updateProfileSoul
 } from '@/jarvis'
-import { useI18n } from '@/i18n'
 import { AlertTriangle, Pencil, Save, Terminal, Trash2, Users } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
@@ -224,16 +224,18 @@ function ProfileRow({ active, onSelect, profile }: { active: boolean; onSelect: 
     <button
       className={cn(
         'flex w-full flex-col items-start gap-0.5 rounded-md px-2 py-1.5 text-left transition-colors',
-        active ? 'bg-accent text-foreground' : 'text-foreground/85 hover:bg-accent/60'
+        active
+          ? 'bg-[color-mix(in_srgb,var(--jarvis-blue)_12%,transparent)] text-white'
+          : 'text-(--jarvis-text) hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_9%,transparent)] hover:text-white'
       )}
       onClick={onSelect}
       type="button"
     >
       <span className="flex w-full items-center justify-between gap-2">
         <span className="truncate text-sm font-medium">{profile.name}</span>
-        {profile.is_default && <span className="text-[0.6rem] text-primary">{p.default}</span>}
+        {profile.is_default && <span className="text-[0.6rem] text-(--jarvis-blue)">{p.default}</span>}
       </span>
-      <span className="text-[0.66rem] text-muted-foreground">
+      <span className="text-[0.66rem] text-(--jarvis-muted)">
         {p.skills(profile.skill_count)}
         {profile.has_env ? ` · ${p.env}` : ''}
       </span>
@@ -277,19 +279,19 @@ function ProfileDetail({
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-xl font-semibold tracking-tight">{profile.name}</h3>
+                  <h3 className="text-xl font-semibold">{profile.name}</h3>
                   {profile.is_default && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-medium text-primary">
+                    <span className="rounded-[3px] bg-[color-mix(in_srgb,var(--jarvis-blue)_12%,transparent)] px-2 py-0.5 text-[0.65rem] font-medium text-(--jarvis-blue)">
                       {p.defaultBadge}
                     </span>
                   )}
                   {profile.has_env && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[0.65rem] font-medium text-muted-foreground">
+                    <span className="rounded-[3px] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_80%,transparent)] px-2 py-0.5 text-[0.65rem] font-medium text-(--jarvis-muted)">
                       .env
                     </span>
                   )}
                 </div>
-                <p className="mt-1 font-mono text-[0.7rem] text-muted-foreground" title={profile.path}>
+                <p className="mt-1 font-mono text-[0.7rem] text-(--jarvis-muted)" title={profile.path}>
                   {profile.path}
                 </p>
               </div>

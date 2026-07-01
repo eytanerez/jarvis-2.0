@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PageLoader } from '@/components/page-loader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useI18n } from '@/i18n'
 import {
   deleteEnvVar,
   getActionStatus,
@@ -12,8 +13,7 @@ import {
   selectToolsetProvider,
   setEnvVar
 } from '@/jarvis'
-import { useI18n } from '@/i18n'
-import { Check, Loader2, Save, Terminal } from '@/lib/icons'
+import { Check, ExternalLink, Loader2, Save, Terminal } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { upsertDesktopActionTask } from '@/store/activity'
 import { notify, notifyError } from '@/store/notifications'
@@ -47,6 +47,7 @@ interface EnvVarFieldProps {
 function EnvVarField({ envVar, isSet, onSaved, onCleared }: EnvVarFieldProps) {
   const { t } = useI18n()
   const copy = t.settings.toolsets
+  const envActionsCopy = t.settings.envActions
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
   const [revealed, setRevealed] = useState<string | null>(null)
@@ -107,7 +108,7 @@ function EnvVarField({ envVar, isSet, onSaved, onCleared }: EnvVarFieldProps) {
   }
 
   return (
-    <div className="grid gap-2 rounded-lg bg-background/55 p-2.5">
+    <div className="grid gap-2 rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_72%,transparent)] p-2.5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -118,10 +119,29 @@ function EnvVarField({ envVar, isSet, onSaved, onCleared }: EnvVarFieldProps) {
             </Pill>
           </div>
           {envVar.prompt && envVar.prompt !== envVar.key && (
-            <p className="mt-0.5 text-[0.7rem] text-muted-foreground">{envVar.prompt}</p>
+            <p className="mt-0.5 text-[0.7rem] text-(--jarvis-muted)">{envVar.prompt}</p>
           )}
         </div>
-        {!editing && (
+        {!editing && !isSet && (
+          <div className="flex items-center gap-1.5">
+            <Button disabled={busy} onClick={() => setEditing(true)} size="sm" type="button" variant="secondary">
+              {copy.set}
+            </Button>
+            {envVar.url && (
+              <Button
+                aria-label={envActionsCopy.docs}
+                onClick={() => window.open(envVar.url!, '_blank', 'noopener,noreferrer')}
+                size="icon-sm"
+                title={envActionsCopy.docs}
+                type="button"
+                variant="ghost"
+              >
+                <ExternalLink className="size-3.5" />
+              </Button>
+            )}
+          </div>
+        )}
+        {!editing && isSet && (
           <EnvVarActionsMenu
             clearDisabled={busy}
             docsUrl={envVar.url}
@@ -138,7 +158,7 @@ function EnvVarField({ envVar, isSet, onSaved, onCleared }: EnvVarFieldProps) {
       </div>
 
       {isSet && revealed !== null && (
-        <div className="rounded-md bg-background px-2.5 py-1.5 font-mono text-xs text-foreground">
+        <div className="rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_58%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel)_84%,transparent)] px-2.5 py-1.5 font-mono text-xs text-(--jarvis-text)">
           {revealed || '---'}
         </div>
       )}
@@ -260,10 +280,10 @@ function PostSetupRunner({ toolset, postSetupKey, onComplete }: PostSetupRunnerP
   }, [toolset, postSetupKey, onComplete, copy])
 
   return (
-    <div className="grid gap-2 rounded-lg bg-background/55 p-2.5">
+    <div className="grid gap-2 rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_72%,transparent)] p-2.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[0.72rem] text-muted-foreground">{copy.postSetupHint(postSetupKey)}</p>
+          <p className="text-[0.72rem] text-(--jarvis-muted)">{copy.postSetupHint(postSetupKey)}</p>
         </div>
         <Button disabled={running} onClick={() => void run()} size="sm">
           {running ? <Loader2 className="size-3.5 animate-spin" /> : <Terminal className="size-3.5" />}
@@ -273,7 +293,7 @@ function PostSetupRunner({ toolset, postSetupKey, onComplete }: PostSetupRunnerP
 
       {status && (status.lines.length > 0 || status.running) && (
         <pre
-          className="max-h-48 overflow-y-auto rounded-md bg-background px-2.5 py-1.5 font-mono text-[0.7rem] leading-relaxed text-muted-foreground whitespace-pre-wrap"
+          className="max-h-48 overflow-y-auto rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_58%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel)_86%,transparent)] px-2.5 py-1.5 font-mono text-[0.7rem] leading-relaxed text-(--jarvis-muted) whitespace-pre-wrap"
           data-selectable-text="true"
         >
           {status.lines.length > 0 ? status.lines.join('\n') : copy.postSetupStarting}
@@ -313,7 +333,7 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange }: ToolsetConfi
     } finally {
       setLoading(false)
     }
-  }, [toolset])
+  }, [copy.failedLoad, toolset])
 
   useEffect(() => {
     void refresh()
@@ -381,7 +401,7 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange }: ToolsetConfi
   }
 
   if (emptyMessage) {
-    return <p className="px-1 py-3 text-xs text-muted-foreground">{emptyMessage}</p>
+    return <p className="px-1 py-3 text-xs text-(--jarvis-muted)">{emptyMessage}</p>
   }
 
   return (
@@ -391,18 +411,21 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange }: ToolsetConfi
         const configured = providerConfigured(provider, envState)
 
         return (
-          <div className="overflow-hidden rounded-xl bg-background/60" key={provider.name}>
+          <div
+            className="overflow-hidden rounded-md border border-[color-mix(in_srgb,var(--jarvis-hairline)_60%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_58%,transparent)]"
+            key={provider.name}
+          >
             <button
               aria-pressed={isActive}
               className={cn(
-                'flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition hover:bg-accent/50',
-                isActive && 'bg-accent/40'
+                'flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-[background-color,color] hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_9%,transparent)]',
+                isActive && 'bg-[color-mix(in_srgb,var(--jarvis-blue)_11%,transparent)]'
               )}
               onClick={() => void handleSelect(provider)}
               type="button"
             >
               <span className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-sm font-medium">{provider.name}</span>
+                <span className="truncate text-sm font-medium text-(--jarvis-text)">{provider.name}</span>
                 {provider.badge && <Pill>{provider.badge}</Pill>}
                 {configured && (
                   <Pill tone="primary">
@@ -415,13 +438,13 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange }: ToolsetConfi
             </button>
 
             {isActive && (
-              <div className="grid gap-2 bg-muted/20 p-3">
-                {provider.tag && <p className="text-[0.72rem] text-muted-foreground">{provider.tag}</p>}
+              <div className="grid gap-2 border-t border-[color-mix(in_srgb,var(--jarvis-hairline)_46%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-bg)_28%,transparent)] p-3">
+                {provider.tag && <p className="text-[0.72rem] text-(--jarvis-muted)">{provider.tag}</p>}
                 {provider.requires_nous_auth && (
-                  <p className="text-[0.72rem] text-muted-foreground">{copy.nousIncluded}</p>
+                  <p className="text-[0.72rem] text-(--jarvis-muted)">{copy.nousIncluded}</p>
                 )}
                 {provider.env_vars.length === 0 ? (
-                  <p className="text-[0.72rem] text-muted-foreground">{copy.noApiKeyRequired}</p>
+                  <p className="text-[0.72rem] text-(--jarvis-muted)">{copy.noApiKeyRequired}</p>
                 ) : (
                   provider.env_vars.map(ev => (
                     <EnvVarField

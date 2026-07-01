@@ -96,8 +96,8 @@ export function AboutSettings() {
       <div className="flex flex-col items-center gap-3 pt-6 pb-2 text-center">
         <BrandMark className="size-16" />
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">{a.heading}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <h2 className="text-lg font-semibold">{a.heading}</h2>
+          <p className="mt-1 text-xs text-(--jarvis-muted)">
             {version?.appVersion ? a.version(version.appVersion) : a.versionUnavailable}
           </p>
         </div>
@@ -108,21 +108,24 @@ export function AboutSettings() {
 
         <div
           className={cn(
-            'rounded-xl border px-4 py-3 text-sm',
-            statusTone === 'available' && 'border-primary/30 bg-primary/5 text-foreground',
-            statusTone === 'error' && 'border-destructive/35 bg-destructive/5 text-destructive',
-            statusTone === 'idle' && 'border-border/70 bg-muted/20 text-foreground'
+            'rounded-md border px-4 py-3 text-sm',
+            statusTone === 'available' &&
+              'border-[color-mix(in_srgb,var(--jarvis-blue)_32%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_7%,transparent)] text-(--jarvis-text)',
+            statusTone === 'error' &&
+              'border-[color-mix(in_srgb,var(--jarvis-danger)_42%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-danger)_8%,transparent)] text-(--jarvis-danger)',
+            statusTone === 'idle' &&
+              'border-[color-mix(in_srgb,var(--jarvis-hairline)_68%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-panel-soft)_62%,transparent)] text-(--jarvis-text)'
           )}
         >
           <div className="flex items-start gap-2">
             {statusTone === 'available' ? (
-              <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+              <Sparkles className="mt-0.5 size-4 shrink-0 text-(--jarvis-blue)" />
             ) : statusTone === 'error' ? null : (
               <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
             )}
             <div className="min-w-0">
               <p className="font-medium">{statusLine}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-(--jarvis-muted)">
                 {a.lastChecked(relativeTime(status?.fetchedAt, a))}
                 {justChecked && !checking ? a.justNowSuffix : ''}
               </p>
