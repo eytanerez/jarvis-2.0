@@ -2,6 +2,7 @@ import { useStore } from '@nanostores/react'
 import type { CSSProperties, ReactNode } from 'react'
 import { useSyncExternalStore } from 'react'
 
+import { JarvisOrbBackdrop } from '@/components/jarvis-orb/JarvisOrbBackdrop'
 import { NotificationStack } from '@/components/notifications'
 import { PaneShell } from '@/components/pane-shell'
 import { SidebarProvider } from '@/components/ui/sidebar'
@@ -144,7 +145,7 @@ export function AppShell({
 
   return (
     <SidebarProvider
-      className="h-screen min-h-0 flex-col bg-[radial-gradient(120%_90%_at_50%_-12%,color-mix(in_srgb,var(--jarvis-blue)_12%,transparent),transparent_58%),var(--jarvis-bg)]"
+      className="h-screen min-h-0 flex-col bg-(--jarvis-bg)"
       onOpenChange={setSidebarOpen}
       open={sidebarOpen}
       style={
@@ -166,6 +167,8 @@ export function AppShell({
         } as CSSProperties
       }
     >
+      {!isSecondaryWindow() && <JarvisOrbBackdrop />}
+
       {!hideTitlebarControls && (
         <TitlebarControls leftTools={leftTitlebarTools} onOpenSettings={onOpenSettings} tools={titlebarTools} />
       )}

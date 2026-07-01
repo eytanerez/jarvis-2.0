@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 // Shared chrome styling for interactive statusbar items (button / link / menu
 // trigger). The 'text' variant intentionally omits hover/transition/disabled.
 const STATUSBAR_ACTION_CLASS =
-  'inline-flex h-full items-center gap-1 rounded-none px-1.5 text-[0.6875rem] text-(--ui-text-tertiary) transition-colors hover:bg-(--chrome-action-hover) hover:text-foreground disabled:cursor-default disabled:opacity-45'
+  'inline-flex h-full items-center gap-1 rounded-none px-1.5 font-label text-[0.6875rem] text-(--ui-text-tertiary) transition-colors hover:bg-(--chrome-action-hover) hover:text-foreground disabled:cursor-default disabled:opacity-45'
 
 export interface StatusbarMenuItem {
   id: string
@@ -153,7 +153,7 @@ function StatusbarItemView({ item, navigate }: { item: StatusbarItem; navigate: 
     return (
       <div
         className={cn(
-          'inline-flex h-full items-center gap-1 px-1.5 text-[0.6875rem] text-(--ui-text-tertiary)',
+          'inline-flex h-full items-center gap-1 px-1.5 font-label text-[0.6875rem] text-(--ui-text-tertiary)',
           item.className
         )}
       >

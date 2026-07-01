@@ -460,13 +460,18 @@ export function ChatView({
 
   const { dragKind, dropHandlers } = useFileDropZone({ enabled: showChatBar, onDropFiles, onDropSession })
 
+  // The orb hero is a full-viewport backdrop (JarvisOrbBackdrop, mounted at the
+  // shell root) - this surface floats over it as glass. The idle cockpit view
+  // stays nearly see-through so the scene reads as one continuous whole; once
+  // there's a real transcript to read, the surface firms up for legibility.
+  const surfaceGlassClass = showCockpit
+    ? 'bg-[color-mix(in_srgb,var(--ui-chat-surface-background)_28%,transparent)] backdrop-blur-xl'
+    : 'bg-[color-mix(in_srgb,var(--ui-chat-surface-background)_92%,transparent)] backdrop-blur-md'
+
   return (
     <BeveledFrame chamfer={28} className="h-full min-h-0">
       <div
-        className={cn(
-          'relative isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)',
-          className
-        )}
+        className={cn('relative isolate flex h-full min-w-0 flex-col overflow-hidden', surfaceGlassClass, className)}
       >
         <Backdrop />
         <ChatHeader
@@ -480,7 +485,7 @@ export function ChatView({
         <PromptOverlays />
 
         <div
-          className="relative min-h-0 max-w-full flex-1 overflow-hidden bg-(--ui-chat-surface-background) contain-[layout_paint]"
+          className={cn('relative min-h-0 max-w-full flex-1 overflow-hidden contain-[layout_paint]', surfaceGlassClass)}
           {...dropHandlers}
         >
           <ChatRuntimeBoundary

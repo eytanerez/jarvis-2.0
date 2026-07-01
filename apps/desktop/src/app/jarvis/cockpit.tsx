@@ -1,28 +1,18 @@
 import { useStore } from '@nanostores/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { NEW_CHAT_ROUTE } from '@/app/routes'
 import { buildToolView, type ToolPart } from '@/components/assistant-ui/tool-fallback-model'
 import { BeveledButton } from '@/components/chrome/beveled-button'
-import { JarvisOrbScene, type OrbState } from '@/components/jarvis-orb/JarvisOrbScene'
 import { Codicon } from '@/components/ui/codicon'
+import { useMediaQuery } from '@/hooks/use-media-query'
 import { useI18n } from '@/i18n'
 import type { ChatMessagePart } from '@/lib/chat-messages'
 import { chatMessageText } from '@/lib/chat-messages'
 import { sessionTitle } from '@/lib/chat-runtime'
 import { cn } from '@/lib/utils'
-import { sampleSpeakingLevel } from '@/lib/voice-analyser'
-import {
-  $micActive,
-  $micLevel,
-  $orbAwaitingApproval,
-  $orbError,
-  $orbSpeaking,
-  $orbThinking,
-  $orbToolActive,
-  resolveOrbState
-} from '@/store/jarvis-cockpit'
+import { useOrbState } from '@/store/jarvis-cockpit'
 import { $activeProfile } from '@/store/profile'
 import {
   $activeSessionId,
@@ -36,25 +26,8 @@ import {
   $sessions
 } from '@/store/session'
 import { getToolDiff } from '@/store/tool-diffs'
-import { $voicePlayback } from '@/store/voice-playback'
 
 const TOOL_ACTIVITY_SETTLED_TTL_MS = 7_000
-
-function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  )
-
-  useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const onChange = () => setReduced(query.matches)
-    query.addEventListener('change', onChange)
-
-    return () => query.removeEventListener('change', onChange)
-  }, [])
-
-  return reduced
-}
 
 type ConnectionTone = 'connecting' | 'offline' | 'online'
 
@@ -326,42 +299,18 @@ export function JarvisCockpit({
   onDismissError?: (messageId: string) => void
 }) {
   const { t } = useI18n()
-  const reducedMotion = usePrefersReducedMotion()
-
-  const speaking = useStore($orbSpeaking)
-  const awaitingApproval = useStore($orbAwaitingApproval)
-  const toolActive = useStore($orbToolActive)
-  const thinking = useStore($orbThinking)
-  const listening = useStore($micActive)
-  const error = useStore($orbError)
-
-  const state = resolveOrbState({ awaitingApproval, error, listening, speaking, thinking, toolActive })
-
-  // Sampled per frame by the orb; live audio never flows through React state.
-  const getLevel = useCallback((orbState: OrbState) => {
-    if (orbState === 'speaking') {
-      return sampleSpeakingLevel($voicePlayback.get().audioElement)
-    }
-
-    if (orbState === 'listening') {
-      return $micLevel.get()
-    }
-
-    return 0
-  }, [])
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+  const state = useOrbState()
 
   return (
-    <div className="jarvis-stage absolute inset-0 flex flex-col bg-(--theme-jarvis-bg-deep)">
+    <div className="jarvis-stage absolute inset-0 flex flex-col">
       <CockpitTopStrip onCancel={onCancel} />
 
-      <div className="grid min-h-0 flex-1 place-items-center px-6">
-        <JarvisOrbScene
-          className="aspect-square h-[min(44vh,30rem)] max-w-[82vw] rounded-full"
-          getLevel={getLevel}
-          reducedMotion={reducedMotion}
-          state={state}
-        />
-      </div>
+      {/* The orb itself renders in JarvisOrbBackdrop, a fixed full-viewport
+          layer mounted once at the shell root - this spacer just reserves the
+          same vertical rhythm so the top strip and caption stack keep their
+          original position over it. */}
+      <div className="min-h-0 flex-1" />
 
       <div
         className="relative z-10 flex flex-col items-center gap-4 px-6"

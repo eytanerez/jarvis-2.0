@@ -17,15 +17,19 @@ export interface BeveledButtonProps extends Omit<ComponentProps<typeof Button>, 
   variant?: 'ghost' | 'solid'
 }
 
-export function BeveledButton({ children, className, fullWidth = false, variant = 'ghost', ...props }: BeveledButtonProps) {
+export function BeveledButton({
+  children,
+  className,
+  fullWidth = false,
+  variant = 'ghost',
+  ...props
+}: BeveledButtonProps) {
   return (
     <BeveledFrame chamfer={8} className={fullWidth ? 'flex w-full' : 'inline-flex'} interactive>
       <Button
         className={cn(
           'relative isolate w-full gap-2 overflow-hidden rounded-none border-transparent bg-transparent font-label uppercase tracking-[0.12em] text-(--jarvis-text) shadow-none hover:border-transparent hover:bg-transparent',
-          variant === 'solid'
-            ? 'group-hover:text-(--theme-jarvis-bg-deep)'
-            : 'hover:text-(--jarvis-text)',
+          variant === 'solid' ? 'group-hover:text-(--theme-jarvis-bg-deep)' : 'hover:text-(--jarvis-text)',
           className
         )}
         variant="ghost"
@@ -34,7 +38,7 @@ export function BeveledButton({ children, className, fullWidth = false, variant 
         {variant === 'solid' && (
           <span
             aria-hidden
-            className="absolute inset-0 -z-10 bg-(--jarvis-blue) opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100 motion-reduce:transition-none"
+            className="absolute inset-0 -z-10 bg-(--jarvis-blue) opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100 motion-reduce:transition-none [clip-path:polygon(8px_0,calc(100%-8px)_0,100%_8px,100%_calc(100%-8px),calc(100%-8px)_100%,8px_100%,0_calc(100%-8px),0_8px)]"
           />
         )}
 

@@ -62,10 +62,21 @@ void main() {
   color += vec3(0.72, 0.82, 1.0) * starsFine * 0.8;
   color += vec3(0.75, 0.85, 1.0) * starsCoarse * 1.05;
 
-  float glowPool = exp(-r * r * 2.6) * u_orbBrightness;
-  color += u_orbColor * glowPool * 0.55;
+  // Same wide-aspect problem as the vignette below: r=1 used to sit at the
+  // edge of a small square/circular crop, so a steep falloff still read as a
+  // full glowing orb. On a full-viewport canvas the same falloff collapses to
+  // a tiny hot spot lost in a mostly-black frame. Widened so the glow stays
+  // visible out to roughly where the vignette starts, instead of fading to
+  // nothing well before it.
+  float glowPool = exp(-r * r * 0.75) * u_orbBrightness;
+  color += u_orbColor * glowPool * 0.7;
 
-  float vignette = 1.0 - smoothstep(0.75, 1.55, r) * 0.5;
+  // r is normalized by min(width,height), so on a wide full-viewport canvas
+  // the left/right edges sit well past r=1 (up to ~1.9 in the corners). The
+  // thresholds below are tuned for that wide-aspect range so the vignette
+  // only bites near the true corners instead of crushing the outer thirds of
+  // the screen to black on anything wider than a roughly square crop.
+  float vignette = 1.0 - smoothstep(1.3, 2.1, r) * 0.42;
   color *= vignette;
   color *= clamp(u_intro, 0.0, 1.0);
 
@@ -186,11 +197,7 @@ function buildField(lowSpec: boolean, palette: ReadonlyArray<[number, number, nu
 
     for (let n = 0; n < nodesPerCluster; n++) {
       const spread = 0.55 + rand() * 0.5
-      nodePositions.push([
-        cx + (rand() - 0.5) * spread,
-        cy + (rand() - 0.5) * spread,
-        cz + (rand() - 0.5) * spread
-      ])
+      nodePositions.push([cx + (rand() - 0.5) * spread, cy + (rand() - 0.5) * spread, cz + (rand() - 0.5) * spread])
       nodeColors.push(color)
     }
   }
@@ -363,7 +370,15 @@ export class OrbBackgroundLayer {
     gl.disable(gl.BLEND)
     gl.useProgram(this.skyProgram)
     setAttribute(gl, this.skyProgram, this.quadBuffer, 'a_pos', 2)
-    const skyU = uniformLocations(gl, this.skyProgram, ['u_res', 'u_time', 'u_intro', 'u_orbColor', 'u_orbBrightness'] as const)
+
+    const skyU = uniformLocations(gl, this.skyProgram, [
+      'u_res',
+      'u_time',
+      'u_intro',
+      'u_orbColor',
+      'u_orbBrightness'
+    ] as const)
+
     gl.uniform2f(skyU.u_res, width, height)
     gl.uniform1f(skyU.u_time, input.time)
     gl.uniform1f(skyU.u_intro, this.intro)
@@ -414,7 +429,15 @@ export class OrbBackgroundLayer {
     setAttribute(gl, this.fieldProgram, this.pointBuffer, 'a_color', 3, 32, 12)
     setAttribute(gl, this.fieldProgram, this.pointBuffer, 'a_size', 1, 32, 24)
     setAttribute(gl, this.fieldProgram, this.pointBuffer, 'a_flag', 1, 32, 28)
-    const fieldU = uniformLocations(gl, this.fieldProgram, ['u_viewProj', 'u_spin', 'u_projScale', 'u_time', 'u_intro'] as const)
+
+    const fieldU = uniformLocations(gl, this.fieldProgram, [
+      'u_viewProj',
+      'u_spin',
+      'u_projScale',
+      'u_time',
+      'u_intro'
+    ] as const)
+
     gl.uniformMatrix4fv(fieldU.u_viewProj, false, viewProj)
     gl.uniformMatrix4fv(fieldU.u_spin, false, spin)
     gl.uniform1f(fieldU.u_projScale, projScale)

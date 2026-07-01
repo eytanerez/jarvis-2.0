@@ -868,7 +868,7 @@ export function ChatSidebar({
                       <item.icon className="size-4 shrink-0 text-[color-mix(in_srgb,currentColor_72%,transparent)]" />
                       {contentVisible && (
                         <>
-                          <span className="min-w-0 flex-1 truncate">{s.nav[item.id] ?? item.label}</span>
+                          <span className="min-w-0 flex-1 truncate font-label">{s.nav[item.id] ?? item.label}</span>
                           {isNewSession && (
                             <KbdGroup
                               className={cn('ml-auto opacity-55', newSessionKbdFlash && 'opacity-100!')}

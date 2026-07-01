@@ -1,3 +1,4 @@
+import { useStore } from '@nanostores/react'
 import { atom, computed } from 'nanostores'
 
 import type { OrbState } from '@/components/jarvis-orb/types'
@@ -95,6 +96,23 @@ export interface OrbStateInputs {
   speaking: boolean
   thinking: boolean
   toolActive: boolean
+}
+
+/**
+ * Live orb state, read from the same global stores whether the caller is the
+ * always-mounted `JarvisOrbBackdrop` (drives the 3D visual) or `JarvisCockpit`
+ * (drives the "STANDBY" / "LISTENING" text label) - one derivation, two
+ * consumers, so they can never drift out of sync.
+ */
+export function useOrbState(): OrbState {
+  const speaking = useStore($orbSpeaking)
+  const awaitingApproval = useStore($orbAwaitingApproval)
+  const toolActive = useStore($orbToolActive)
+  const thinking = useStore($orbThinking)
+  const listening = useStore($micActive)
+  const error = useStore($orbError)
+
+  return resolveOrbState({ awaitingApproval, error, listening, speaking, thinking, toolActive })
 }
 
 // Priority: a blocking prompt wins, then the user talking (barge-in), then the

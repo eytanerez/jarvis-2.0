@@ -29,15 +29,25 @@ function chamferedRectPath(width: number, height: number, chamfer: number, cut: 
   points.push(cut.has('tl') ? [c, 0] : [0, 0])
   points.push(cut.has('tr') ? [width - c, 0] : [width, 0])
 
-  if (cut.has('tr')) {points.push([width, c])}
+  if (cut.has('tr')) {
+    points.push([width, c])
+  }
+
   points.push(cut.has('br') ? [width, height - c] : [width, height])
 
-  if (cut.has('br')) {points.push([width - c, height])}
+  if (cut.has('br')) {
+    points.push([width - c, height])
+  }
+
   points.push(cut.has('bl') ? [c, height] : [0, height])
 
-  if (cut.has('bl')) {points.push([0, height - c])}
+  if (cut.has('bl')) {
+    points.push([0, height - c])
+  }
 
-  if (cut.has('tl')) {points.push([0, c])}
+  if (cut.has('tl')) {
+    points.push([0, c])
+  }
 
   return `M ${points.map(([x, y]) => `${x} ${y}`).join(' L ')} Z`
 }
@@ -72,7 +82,7 @@ export function BeveledFrame({
   const path = chamferedRectPath(size.width, size.height, chamfer, cutCorners)
 
   return (
-    <div className={cn('relative', interactive && 'group', className)} ref={containerRef}>
+    <div className={cn('relative [-webkit-app-region:no-drag]', interactive && 'group', className)} ref={containerRef}>
       {children}
       {path && (
         <svg
