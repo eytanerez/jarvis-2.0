@@ -5948,7 +5948,7 @@ def _update_via_zip(args):
         )
         sys.exit(1)
     zip_url = (
-        f"https://github.com/NousResearch/jarvis-brain/archive/refs/heads/{branch}.zip"
+        f"https://github.com/NousResearch/hermes-agent/archive/refs/heads/{branch}.zip"
     )
 
     print("→ Downloading latest version...")
@@ -6356,12 +6356,17 @@ def _discard_stashed_changes(
 # =========================================================================
 
 OFFICIAL_REPO_URLS = {
+    "https://github.com/NousResearch/hermes-agent.git",
+    "git@github.com:NousResearch/hermes-agent.git",
+    "https://github.com/NousResearch/hermes-agent",
+    "git@github.com:NousResearch/hermes-agent",
+    # Legacy names kept for existing installs and historical forks.
     "https://github.com/NousResearch/jarvis-agent.git",
     "git@github.com:NousResearch/jarvis-agent.git",
     "https://github.com/NousResearch/jarvis-agent",
     "git@github.com:NousResearch/jarvis-agent",
 }
-OFFICIAL_REPO_URL = "https://github.com/NousResearch/jarvis-agent.git"
+OFFICIAL_REPO_URL = "https://github.com/NousResearch/hermes-agent.git"
 SKIP_UPSTREAM_PROMPT_FILE = ".skip_upstream_prompt"
 
 
@@ -6426,6 +6431,45 @@ def _add_upstream_remote(git_cmd: list[str], cwd: Path) -> bool:
         return False
 
 
+def _remote_tracking_ref(remote: str, branch: str) -> str:
+    """Return the remote-tracking ref used by the updater for a branch."""
+    return f"refs/remotes/{remote}/{branch}"
+
+
+def _remote_tracking_name(remote: str, branch: str) -> str:
+    """Return the short remote-tracking name used in user-facing git commands."""
+    return f"{remote}/{branch}"
+
+
+def _fetch_remote_branch(
+    git_cmd: list[str],
+    cwd: Path,
+    remote: str,
+    branch: str,
+    *,
+    quiet: bool = False,
+) -> subprocess.CompletedProcess:
+    """Fetch one branch into its remote-tracking ref.
+
+    Some existing installs have narrow or stale remote fetch refspecs (for
+    example, an ``upstream`` remote that only tracks an old release tag).
+    ``git fetch upstream main`` updates FETCH_HEAD in that situation but does
+    not create ``upstream/main``, which made ``jarvis update --check`` report
+    that the branch did not exist.  Use an explicit refspec so update checks
+    and pulls are independent of the user's current remote.fetch config.
+    """
+    refspec = f"refs/heads/{branch}:{_remote_tracking_ref(remote, branch)}"
+    cmd = git_cmd + ["fetch", remote, refspec]
+    if quiet:
+        cmd.append("--quiet")
+    return subprocess.run(
+        cmd,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+
+
 def _count_commits_between(git_cmd: list[str], cwd: Path, base: str, head: str) -> int:
     """Count commits on `head` that are not on `base`. Returns -1 on error."""
     try:
@@ -6459,23 +6503,6 @@ def _mark_skip_upstream_prompt():
         pass
 
 
-def _sync_fork_with_upstream(git_cmd: list[str], cwd: Path) -> bool:
-    """Attempt to push updated main to origin (sync fork).
-
-    Returns True if push succeeded, False otherwise.
-    """
-    try:
-        result = subprocess.run(
-            git_cmd + ["push", "origin", "main", "--force-with-lease"],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-        )
-        return result.returncode == 0
-    except Exception:
-        return False
-
-
 def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
     """Check if fork is behind upstream and sync if safe.
 
@@ -6483,7 +6510,7 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
     - If upstream remote doesn't exist, ask user if they want to add it
     - Compare origin/main with upstream/main
     - If origin/main is strictly behind upstream/main, pull from upstream
-    - Try to sync fork back to origin if possible
+    - Leave the user's fork remote untouched; update is a local install action
     """
     has_upstream = _has_upstream_remote(git_cmd, cwd)
 
@@ -6495,7 +6522,7 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
         # Ask user if they want to add upstream
         print()
         print("ℹ Your fork is not tracking the official Jarvis repository.")
-        print("  This means you may miss updates from NousResearch/jarvis-agent.")
+        print("  This means you may miss updates from NousResearch/hermes-agent.")
         print()
         try:
             response = (
@@ -6508,16 +6535,14 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
         if response in {"", "y", "yes"}:
             print("→ Adding upstream remote...")
             if _add_upstream_remote(git_cmd, cwd):
-                print(
-                    "  ✓ Added upstream: https://github.com/NousResearch/jarvis-agent.git"
-                )
+                print(f"  ✓ Added upstream: {OFFICIAL_REPO_URL}")
                 has_upstream = True
             else:
                 print("  ✗ Failed to add upstream remote. Skipping upstream sync.")
                 return
         else:
             print(
-                "  Skipped. Run 'git remote add upstream https://github.com/NousResearch/jarvis-agent.git' to add later."
+                f"  Skipped. Run 'git remote add upstream {OFFICIAL_REPO_URL}' to add later."
             )
             _mark_skip_upstream_prompt()
             return
@@ -6527,14 +6552,14 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
     # fetch drags in thousands of auto-generated branches.
     print()
     print("→ Fetching upstream...")
-    try:
-        subprocess.run(
-            git_cmd + ["fetch", "upstream", "main", "--quiet"],
-            cwd=cwd,
-            capture_output=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError:
+    fetch_result = _fetch_remote_branch(
+        git_cmd,
+        cwd,
+        "upstream",
+        "main",
+        quiet=True,
+    )
+    if fetch_result.returncode != 0:
         print("  ✗ Failed to fetch upstream. Skipping upstream sync.")
         return
 
@@ -6580,16 +6605,7 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
         return
 
     print("  ✓ Updated from upstream")
-
-    # Try to sync fork back to origin
-    print("→ Syncing fork...")
-    if _sync_fork_with_upstream(git_cmd, cwd):
-        print("  ✓ Fork synced with upstream")
-    else:
-        print(
-            "  ℹ Got updates from upstream but couldn't push to fork (no write access?)"
-        )
-        print("    Your local repo is updated, but your fork on GitHub may be behind.")
+    print("  ℹ Local checkout updated; your fork remote was not pushed.")
 
 
 def _invalidate_update_cache():
@@ -7933,37 +7949,34 @@ def _cmd_update_check(branch: str = "main", *, branch_explicit: bool = False):
     # non-default branch we skip the upstream probe and use origin directly.
     if branch == "main":
         print("→ Fetching from upstream...")
-        fetch_result = subprocess.run(
-            git_cmd + ["fetch", "upstream", branch],
-            cwd=PROJECT_ROOT,
-            capture_output=True,
-            text=True,
+        fetch_result = _fetch_remote_branch(
+            git_cmd,
+            PROJECT_ROOT,
+            "upstream",
+            branch,
         )
         if fetch_result.returncode != 0:
             # Fallback to origin if upstream doesn't exist
             print("→ Fetching from origin...")
-            fetch_result = subprocess.run(
-                git_cmd + ["fetch", "origin", branch],
-                cwd=PROJECT_ROOT,
-                capture_output=True,
-                text=True,
+            fetch_result = _fetch_remote_branch(
+                git_cmd,
+                PROJECT_ROOT,
+                "origin",
+                branch,
             )
-            upstream_exists = False
-            compare_branch = f"origin/{branch}"
+            compare_branch = _remote_tracking_name("origin", branch)
         else:
-            upstream_exists = True
-            compare_branch = f"upstream/{branch}"
+            compare_branch = _remote_tracking_name("upstream", branch)
     else:
         # Non-default branch: compare against origin/<branch> directly.
         print("→ Fetching from origin...")
-        fetch_result = subprocess.run(
-            git_cmd + ["fetch", "origin", branch],
-            cwd=PROJECT_ROOT,
-            capture_output=True,
-            text=True,
+        fetch_result = _fetch_remote_branch(
+            git_cmd,
+            PROJECT_ROOT,
+            "origin",
+            branch,
         )
-        upstream_exists = False
-        compare_branch = f"origin/{branch}"
+        compare_branch = _remote_tracking_name("origin", branch)
 
     if fetch_result.returncode != 0:
         stderr = fetch_result.stderr.strip()
@@ -8673,11 +8686,11 @@ def _cmd_update_impl(args, gateway_mode: bool):
         branch = _resolve_update_branch(args)
 
         print("→ Fetching updates...")
-        fetch_result = subprocess.run(
-            git_cmd + ["fetch", "origin", branch],
-            cwd=PROJECT_ROOT,
-            capture_output=True,
-            text=True,
+        fetch_result = _fetch_remote_branch(
+            git_cmd,
+            PROJECT_ROOT,
+            "origin",
+            branch,
         )
         if fetch_result.returncode != 0:
             stderr = fetch_result.stderr.strip()

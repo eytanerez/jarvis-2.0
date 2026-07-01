@@ -184,7 +184,7 @@ class TestCmdUpdateBranchFallback:
         """Regression for issue #26172: forks whose local HEAD already matches
         origin/main must still consult upstream/main before printing
         "Already up to date!" — otherwise a fork that's caught up to its own
-        origin but behind NousResearch/jarvis-agent silently misses updates.
+        origin but behind NousResearch/hermes-agent silently misses updates.
         """
         from jarvis_cli import main as hm
 
@@ -748,6 +748,10 @@ class TestCmdUpdateCheckBranchFlag:
         commands = [" ".join(str(a) for a in c.args[0]) for c in mock_run.call_args_list]
         # Should have tried upstream first.
         assert any("fetch" in c and "upstream" in c for c in commands), commands
+        assert any(
+            c == "git fetch upstream refs/heads/main:refs/remotes/upstream/main"
+            for c in commands
+        ), commands
         # Compare ref is upstream/main (upstream fetch succeeded).
         rev_list_cmds = [c for c in commands if "rev-list" in c]
         assert any("upstream/main" in c for c in rev_list_cmds), rev_list_cmds

@@ -8,6 +8,13 @@ import pytest
 from jarvis_cli import config as jarvis_config
 from jarvis_cli import main as jarvis_main
 
+FETCH_ORIGIN_MAIN = [
+    "git",
+    "fetch",
+    "origin",
+    "refs/heads/main:refs/remotes/origin/main",
+]
+
 
 # ---------------------------------------------------------------------------
 # Managed-uv compatibility for tests that patch shutil.which
@@ -407,7 +414,7 @@ def test_cmd_update_retries_optional_extras_individually_when_all_fails(monkeypa
 
     def fake_run(cmd, **kwargs):
         recorded.append(cmd)
-        if cmd == ["git", "fetch", "origin", "main"]:
+        if cmd == FETCH_ORIGIN_MAIN:
             return SimpleNamespace(stdout="", stderr="", returncode=0)
         if cmd == ["git", "rev-parse", "--abbrev-ref", "HEAD"]:
             return SimpleNamespace(stdout="main\n", stderr="", returncode=0)
@@ -456,7 +463,7 @@ def test_cmd_update_succeeds_with_extras(monkeypatch, tmp_path):
 
     def fake_run(cmd, **kwargs):
         recorded.append(cmd)
-        if cmd == ["git", "fetch", "origin", "main"]:
+        if cmd == FETCH_ORIGIN_MAIN:
             return SimpleNamespace(stdout="", stderr="", returncode=0)
         if cmd == ["git", "rev-parse", "--abbrev-ref", "HEAD"]:
             return SimpleNamespace(stdout="main\n", stderr="", returncode=0)
@@ -700,7 +707,7 @@ def test_cmd_update_fetch_is_scoped_to_target_branch(monkeypatch, tmp_path):
     jarvis_main.cmd_update(SimpleNamespace())
 
     fetch_calls = [c for c in recorded if "fetch" in c]
-    assert fetch_calls == [["git", "fetch", "origin", "main"]]
+    assert fetch_calls == [FETCH_ORIGIN_MAIN]
     assert ["git", "fetch", "origin"] not in recorded
 
 

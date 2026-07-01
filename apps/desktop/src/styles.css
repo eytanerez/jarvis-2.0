@@ -404,6 +404,9 @@
     --theme-orb-particle: #a7d9ff;
     --theme-orb-error: #ff4d6a;
     --theme-orb-approval: color-mix(in srgb, #ffd24a 70%, #7fb6ff);
+    /* The one deliberately warm color in the scene: unmistakable "I'm recording
+       you" cue against an otherwise cool teal/blue/purple palette. */
+    --theme-orb-listening: #ffb020;
 
     --jarvis-bg: var(--theme-jarvis-bg-deep);
     --jarvis-panel: var(--theme-jarvis-panel);

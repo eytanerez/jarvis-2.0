@@ -1,6 +1,6 @@
 import { atom, computed } from 'nanostores'
 
-import type { OrbState } from '@/components/jarvis/orb'
+import type { OrbState } from '@/components/jarvis-orb/types'
 import { $clarifyRequest } from '@/store/clarify'
 import { $approvalRequest, $secretRequest, $sudoRequest } from '@/store/prompts'
 import { $awaitingResponse, $busy, $messages } from '@/store/session'

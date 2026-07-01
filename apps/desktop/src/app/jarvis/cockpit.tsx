@@ -14,7 +14,7 @@ import {
   SKILLS_ROUTE
 } from '@/app/routes'
 import { buildToolView, type ToolPart } from '@/components/assistant-ui/tool-fallback-model'
-import { JarvisOrb, type OrbState } from '@/components/jarvis/orb'
+import { JarvisOrbScene, type OrbState } from '@/components/jarvis-orb/JarvisOrbScene'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import {
@@ -196,7 +196,7 @@ function CockpitTopStrip({ onCancel }: { onCancel: () => Promise<void> | void })
       : t.jarvis.newSession
 
   return (
-    <div className="relative z-10 flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--theme-jarvis-stroke)_46%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--theme-jarvis-panel)_46%,transparent),transparent)] px-5 py-3 backdrop-blur-[0.375rem]">
+    <div className="relative z-10 mt-(--titlebar-height) flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--theme-jarvis-stroke)_46%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--theme-jarvis-panel)_46%,transparent),transparent)] px-5 py-3 backdrop-blur-[0.375rem]">
       <span className="jarvis-wordmark text-[0.8125rem]">{t.jarvis.wordmark}</span>
 
       <span className="flex items-center gap-1.5">
@@ -452,7 +452,7 @@ export function JarvisCockpit({
       <CockpitTopStrip onCancel={onCancel} />
 
       <div className="grid min-h-0 flex-1 place-items-center px-6">
-        <JarvisOrb
+        <JarvisOrbScene
           className="aspect-square h-[min(44vh,30rem)] max-w-[82vw] rounded-full"
           getLevel={getLevel}
           reducedMotion={reducedMotion}
