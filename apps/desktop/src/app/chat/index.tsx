@@ -461,11 +461,11 @@ export function ChatView({
   const { dragKind, dropHandlers } = useFileDropZone({ enabled: showChatBar, onDropFiles, onDropSession })
 
   // The orb hero is a full-viewport backdrop (JarvisOrbBackdrop, mounted at the
-  // shell root) - this surface floats over it as glass. The idle cockpit view
-  // stays nearly see-through so the scene reads as one continuous whole; once
-  // there's a real transcript to read, the surface firms up for legibility.
+  // shell root). In cockpit mode this surface is fully transparent - no tint,
+  // no blur - so the scene reads as one continuous whole; once there's a real
+  // transcript to read, the surface firms up into glass for legibility.
   const surfaceGlassClass = showCockpit
-    ? 'bg-[color-mix(in_srgb,var(--ui-chat-surface-background)_28%,transparent)] backdrop-blur-xl'
+    ? 'bg-transparent'
     : 'bg-[color-mix(in_srgb,var(--ui-chat-surface-background)_92%,transparent)] backdrop-blur-md'
 
   return (

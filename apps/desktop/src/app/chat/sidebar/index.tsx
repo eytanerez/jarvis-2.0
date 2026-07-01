@@ -809,13 +809,15 @@ export function ChatSidebar({
       className={cn(
         'relative h-full min-w-0 overflow-hidden border-t-0 border-b-0 text-foreground transition-none',
         panesFlipped ? 'border-l border-r-0' : 'border-r border-l-0',
+        // Translucent glass over the full-viewport orb scene: a light tint plus
+        // backdrop blur, never an opaque fill, so the sky stays visible behind.
         sidebarOpen
-          ? 'border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] bg-[color-mix(in_srgb,var(--ui-sidebar-surface-background)_94%,#02040a)] opacity-100'
+          ? 'border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] bg-[color-mix(in_srgb,var(--ui-sidebar-surface-background)_42%,transparent)] opacity-100 backdrop-blur-xl'
           : 'pointer-events-none border-transparent bg-transparent opacity-0',
         // While floated by PaneShell's hover-reveal, force visible + interactive
         // — on hover (group-hover/reveal) or when keyboard-pinned (data-forced).
-        'in-data-[pane-hover-reveal=open]:pointer-events-auto in-data-[pane-hover-reveal=open]:border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] in-data-[pane-hover-reveal=open]:bg-[color-mix(in_srgb,var(--ui-sidebar-surface-background)_94%,#02040a)] in-data-[pane-hover-reveal=open]:opacity-100',
-        'group-hover/reveal:pointer-events-auto group-hover/reveal:border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] group-hover/reveal:bg-[color-mix(in_srgb,var(--ui-sidebar-surface-background)_94%,#02040a)] group-hover/reveal:opacity-100'
+        'in-data-[pane-hover-reveal=open]:pointer-events-auto in-data-[pane-hover-reveal=open]:border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] in-data-[pane-hover-reveal=open]:bg-[color-mix(in_srgb,var(--ui-sidebar-surface-background)_42%,transparent)] in-data-[pane-hover-reveal=open]:opacity-100 in-data-[pane-hover-reveal=open]:backdrop-blur-xl',
+        'group-hover/reveal:pointer-events-auto group-hover/reveal:border-[color-mix(in_srgb,var(--jarvis-hairline)_64%,transparent)] group-hover/reveal:bg-[color-mix(in_srgb,var(--ui-sidebar-surface-background)_42%,transparent)] group-hover/reveal:opacity-100 group-hover/reveal:backdrop-blur-xl'
       )}
       collapsible="none"
     >

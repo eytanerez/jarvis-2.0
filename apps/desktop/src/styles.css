@@ -1530,18 +1530,10 @@ canvas {
     color: color-mix(in srgb, var(--theme-orb-core) 88%, transparent);
   }
 
-  /* Deep cockpit backdrop: a night sky the orb can bloom against. Electric blue
-     graphite pools stay low-contrast so the WebGL bloom remains the focal
-     point. Sits behind the canvas; the orb owns the glow. */
+  /* The cockpit paints no backdrop of its own: the full-viewport orb scene
+     (JarvisOrbBackdrop at the shell root) owns the night sky, and any paint
+     here would sit on top of it and hide it. */
   .jarvis-stage {
-    background:
-      radial-gradient(
-        120% 82% at 50% 34%,
-        color-mix(in srgb, var(--theme-orb-glow) 18%, transparent) 0%,
-        transparent 56%
-      ),
-      radial-gradient(85% 55% at 100% 12%, color-mix(in srgb, var(--theme-orb-ring) 10%, transparent), transparent 62%),
-      linear-gradient(180deg, color-mix(in srgb, var(--theme-jarvis-panel) 24%, transparent), transparent 32%),
-      radial-gradient(140% 120% at 50% 120%, var(--theme-jarvis-bg) 0%, var(--theme-jarvis-bg-deep) 100%);
+    background: transparent;
   }
 }
