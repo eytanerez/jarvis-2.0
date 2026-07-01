@@ -19,6 +19,7 @@ export const ja = defineLocale({
     toolActivity: 'ツールアクティビティ',
     menu: {
       open: 'Jarvis メニューを開く',
+      label: 'メニュー',
       navigation: 'ナビゲーション',
       advanced: '詳細',
       newSession: '新規セッション',
@@ -310,6 +311,8 @@ export const ja = defineLocale({
       toolViewDesc: 'プロダクト表示は生のツールペイロードを隠し、テクニカル表示は入出力をすべて表示します。',
       translucencyTitle: 'ウィンドウの透過',
       translucencyDesc: 'ウィンドウ全体を透過させてデスクトップを表示します。macOS と Windows のみ。',
+      performanceModeTitle: 'オーブのパフォーマンスモード',
+      performanceModeDesc: '背景を半分の解像度・半分のフレームレートで描画します。低スペックのグラフィックカードでの動作が改善されます。オーブ本体は常に最高品質のままです。',
       product: 'プロダクト',
       productDesc: '読みやすいツール活動と簡潔な要約を表示します。',
       technical: 'テクニカル',

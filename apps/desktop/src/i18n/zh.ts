@@ -19,6 +19,7 @@ export const zh: Translations = {
     toolActivity: '工具活动',
     menu: {
       open: '打开 Jarvis 菜单',
+      label: '菜单',
       navigation: '导航',
       advanced: '高级',
       newSession: '新建会话',
@@ -391,6 +392,8 @@ export const zh: Translations = {
       toolViewDesc: '产品模式隐藏原始工具数据；技术模式显示完整输入/输出。',
       translucencyTitle: '窗口透明',
       translucencyDesc: '让整个窗口透出桌面。仅支持 macOS 和 Windows。',
+      performanceModeTitle: '球体性能模式',
+      performanceModeDesc: '以一半分辨率、一半帧率渲染宇宙背景，可提升低性能显卡上的表现;球体本身始终保持全画质。',
       product: '产品',
       productDesc: '易读的工具活动与简洁摘要。',
       technical: '技术',

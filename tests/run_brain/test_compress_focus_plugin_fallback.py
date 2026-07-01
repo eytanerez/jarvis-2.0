@@ -19,14 +19,14 @@ def _make_agent_with_engine(engine):
     agent.session_id = "sess-1"
     agent.model = "test-model"
     agent.platform = "cli"
-    brain.logs_dir = MagicMock()
+    agent.logs_dir = MagicMock()
     agent.quiet_mode = True
     agent._todo_store = MagicMock()
     agent._todo_store.format_for_injection.return_value = ""
     agent._memory_manager = None
     agent._session_db = None
     agent._cached_system_prompt = None
-    brain.log_prefix = ""
+    agent.log_prefix = ""
     agent._vprint = lambda *a, **kw: None
     agent._last_flushed_db_idx = 0
     # Stub the few AIBrain methods _compress_context uses.

@@ -34,6 +34,7 @@ export interface Translations {
     toolActivity: string
     menu: {
       open: string
+      label: string
       navigation: string
       advanced: string
       newSession: string
@@ -296,6 +297,8 @@ export interface Translations {
       toolViewDesc: string
       translucencyTitle: string
       translucencyDesc: string
+      performanceModeTitle: string
+      performanceModeDesc: string
       product: string
       productDesc: string
       technical: string

@@ -305,8 +305,8 @@ def init_agent(
     agent.load_soul_identity = load_soul_identity
     agent.pass_session_id = pass_session_id
     agent._credential_pool = credential_pool
-    brain.log_prefix_chars = log_prefix_chars
-    brain.log_prefix = f"{log_prefix} " if log_prefix else ""
+    agent.log_prefix_chars = log_prefix_chars
+    agent.log_prefix = f"{log_prefix} " if log_prefix else ""
     # Store effective base URL for feature detection (prompt caching, reasoning, etc.)
     agent.base_url = base_url or ""
     provider_name = provider.strip().lower() if isinstance(provider, str) and provider.strip() else None
@@ -1050,8 +1050,8 @@ def init_agent(
 
     # Session logs go into ~/.jarvis/sessions/ alongside gateway sessions
     jarvis_home = get_jarvis_home()
-    brain.logs_dir = jarvis_home / "sessions"
-    brain.logs_dir.mkdir(parents=True, exist_ok=True)
+    agent.logs_dir = jarvis_home / "sessions"
+    agent.logs_dir.mkdir(parents=True, exist_ok=True)
     # Per-session JSON snapshot writer (~/.jarvis/sessions/session_{sid}.json)
     # is opt-in via sessions.write_json_snapshots (default False).  state.db
     # is canonical — the snapshot is only useful for external tooling that

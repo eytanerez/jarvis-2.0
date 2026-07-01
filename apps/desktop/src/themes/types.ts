@@ -50,6 +50,8 @@ export interface DesktopThemeColors {
 export interface DesktopThemeTypography {
   fontSans: string
   fontMono: string
+  /** Nav links, button labels, small caps captions. Falls back to `fontMono` when omitted. */
+  fontLabel?: string
   /** Google/Bunny/self-hosted font stylesheet URL. */
   fontUrl?: string
 }

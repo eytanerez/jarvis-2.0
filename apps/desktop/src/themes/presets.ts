@@ -274,7 +274,64 @@ export const slateTheme: DesktopTheme = {
   }
 }
 
+const SIGNAL_BLUE = '#0053FD'
+const SIGNAL_BG = '#050811'
+const SIGNAL_PANEL = '#0A0F1C'
+const SIGNAL_TEXT = '#DBE6FF'
+const SIGNAL_MUTED = '#93A8D6'
+
+const signalmanColors = {
+  background: SIGNAL_BG,
+  foreground: SIGNAL_TEXT,
+  card: SIGNAL_PANEL,
+  cardForeground: SIGNAL_TEXT,
+  muted: '#0D1424',
+  mutedForeground: SIGNAL_MUTED,
+  popover: '#0B1220',
+  popoverForeground: SIGNAL_TEXT,
+  primary: SIGNAL_BLUE,
+  primaryForeground: '#F2F8FF',
+  secondary: '#0F1830',
+  secondaryForeground: '#CBDBFF',
+  accent: '#0C1F3D',
+  accentForeground: '#E8F2FF',
+  border: '#1B2A47',
+  input: '#23407A',
+  ring: SIGNAL_BLUE,
+  midground: '#3CA0FF',
+  composerRing: '#5FA8FF',
+  destructive: '#FF4D6A',
+  destructiveForeground: '#FFFFFF',
+  sidebarBackground: '#04070E',
+  sidebarBorder: '#16233D',
+  userBubble: '#071224',
+  userBubbleBorder: '#1B3A63'
+}
+
+/**
+ * Signalman — chamfered HUD chrome with electric-blue signal accents. The
+ * default desktop identity: `primary`/`ring` deliberately reuse the same hex
+ * as the static `--theme-jarvis-blue`/`--theme-orb-glow` tokens (see
+ * styles.css) so the swappable chrome accent and the orb's own blue read as
+ * one color instead of two competing blues, and `background` reuses
+ * `--theme-jarvis-bg` so the cockpit screen doesn't visibly shift tone.
+ */
+export const signalmanTheme: DesktopTheme = {
+  name: 'signalman',
+  label: 'Signalman',
+  description: 'Chamfered HUD chrome with electric-blue signal accents',
+  colors: signalmanColors,
+  darkColors: signalmanColors,
+  typography: {
+    fontSans: `"Space Grotesk", ${SYSTEM_SANS}`,
+    fontMono: `"JetBrains Mono", ${SYSTEM_MONO}`,
+    fontLabel: `"Commit Mono", ${SYSTEM_MONO}`,
+    fontUrl: 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap'
+  }
+}
+
 export const BUILTIN_THEMES: Record<string, DesktopTheme> = {
+  signalman: signalmanTheme,
   nous: nousTheme,
   midnight: midnightTheme,
   ember: emberTheme,
@@ -286,4 +343,4 @@ export const BUILTIN_THEMES: Record<string, DesktopTheme> = {
 export const BUILTIN_THEME_LIST = Object.values(BUILTIN_THEMES)
 
 /** Skin used when nothing is persisted or the persisted name is retired. */
-export const DEFAULT_SKIN_NAME = 'nous'
+export const DEFAULT_SKIN_NAME = 'signalman'

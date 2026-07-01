@@ -13,6 +13,8 @@ import { useLocation } from 'react-router-dom'
 import { JarvisCockpit } from '@/app/jarvis/cockpit'
 import { Thread } from '@/components/assistant-ui/thread'
 import { Backdrop } from '@/components/Backdrop'
+import { BeveledButton } from '@/components/chrome/beveled-button'
+import { BeveledFrame } from '@/components/chrome/beveled-frame'
 import { PromptOverlays } from '@/components/prompt-overlays'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
@@ -459,113 +461,114 @@ export function ChatView({
   const { dragKind, dropHandlers } = useFileDropZone({ enabled: showChatBar, onDropFiles, onDropSession })
 
   return (
-    <div
-      className={cn(
-        'relative isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)',
-        className
-      )}
-    >
-      <Backdrop />
-      <ChatHeader
-        activeSessionId={activeSessionId}
-        isRoutedSessionView={isRoutedSessionView}
-        onDeleteSelectedSession={onDeleteSelectedSession}
-        onToggleSelectedPin={onToggleSelectedPin}
-        selectedSessionId={selectedSessionId}
-      />
-
-      <PromptOverlays />
-
+    <BeveledFrame chamfer={28} className="h-full min-h-0">
       <div
-        className="relative min-h-0 max-w-full flex-1 overflow-hidden bg-(--ui-chat-surface-background) contain-[layout_paint]"
-        {...dropHandlers}
+        className={cn(
+          'relative isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)',
+          className
+        )}
       >
-        <ChatRuntimeBoundary
-          busy={busy}
-          onCancel={onCancel}
-          onEdit={onEdit}
-          onReload={onReload}
-          onThreadMessagesChange={onThreadMessagesChange}
-          suppressMessages={routeSessionMismatch}
+        <Backdrop />
+        <ChatHeader
+          activeSessionId={activeSessionId}
+          isRoutedSessionView={isRoutedSessionView}
+          onDeleteSelectedSession={onDeleteSelectedSession}
+          onToggleSelectedPin={onToggleSelectedPin}
+          selectedSessionId={selectedSessionId}
+        />
+
+        <PromptOverlays />
+
+        <div
+          className="relative min-h-0 max-w-full flex-1 overflow-hidden bg-(--ui-chat-surface-background) contain-[layout_paint]"
+          {...dropHandlers}
         >
-          {showCockpit ? (
-            <JarvisCockpit onCancel={onCancel} onDismissError={onDismissError} />
-          ) : (
-            <Thread
-              clampToComposer={showChatBar}
-              cwd={currentCwd}
-              gateway={gateway}
-              intro={showIntro ? { personality: introPersonality, seed: introSeed } : undefined}
-              loading={threadLoading}
-              onBranchInNewChat={onBranchInNewChat}
-              onCancel={onCancel}
-              onDismissError={onDismissError}
-              onRestoreToMessage={onRestoreToMessage}
-              sessionId={activeSessionId}
-              sessionKey={threadKey}
-            />
-          )}
-          {showChatBar && (
-            <Suspense fallback={<ChatBarFallback />}>
-              <ChatBar
-                busy={busy}
-                cwd={currentCwd}
-                disabled={!gatewayOpen}
-                focusKey={activeSessionId}
-                gateway={gateway}
-                maxRecordingSeconds={maxVoiceRecordingSeconds}
-                onAddContextRef={onAddContextRef}
-                onAddUrl={onAddUrl}
-                onAttachDroppedItems={onAttachDroppedItems}
-                onAttachImageBlob={onAttachImageBlob}
-                onCancel={onCancel}
-                onPasteClipboardImage={onPasteClipboardImage}
-                onPickFiles={onPickFiles}
-                onPickFolders={onPickFolders}
-                onPickImages={onPickImages}
-                onRemoveAttachment={onRemoveAttachment}
-                onSteer={onSteer}
-                onSubmit={submitFromChatBar}
-                onTranscribeAudio={onTranscribeAudio}
-                queueSessionKey={selectedSessionId}
-                sessionId={activeSessionId}
-                state={chatBarState}
-              />
-            </Suspense>
-          )}
-        </ChatRuntimeBoundary>
-        {resumeExhausted && routedSessionId && (
-          <div className="absolute inset-0 z-10 grid place-items-center bg-(--ui-chat-surface-background) px-8 py-10">
-            <ErrorState
-              className="max-w-sm"
-              description={t.desktop.resumeStrandedBody}
-              title={t.desktop.resumeStrandedTitle}
-            >
-              <div className="grid justify-items-center">
-                <Button onClick={() => onRetryResume(routedSessionId)} size="sm" variant="outline">
-                  {t.desktop.resumeRetry}
-                </Button>
-              </div>
-            </ErrorState>
-          </div>
-        )}
-        {cockpitMode === 'classic' && showChatBar && (
-          <Button
-            className="absolute right-3 top-2 z-20 gap-1.5 [-webkit-app-region:no-drag]"
-            onClick={() => setCockpitMode('orb')}
-            size="xs"
-            title={t.jarvis.orbHint}
-            type="button"
-            variant="jarvisCommand"
+          <ChatRuntimeBoundary
+            busy={busy}
+            onCancel={onCancel}
+            onEdit={onEdit}
+            onReload={onReload}
+            onThreadMessagesChange={onThreadMessagesChange}
+            suppressMessages={routeSessionMismatch}
           >
-            <Codicon name="circle-large-filled" size="0.8125rem" />
-            {t.jarvis.orbMode}
-          </Button>
-        )}
-        {showChatBar && <ScrollToBottomButton />}
-        <ChatDropOverlay kind={dragKind} />
-        <ChatSwapOverlay profile={gatewaySwapTarget} />
+            {showCockpit ? (
+              <JarvisCockpit onCancel={onCancel} onDismissError={onDismissError} />
+            ) : (
+              <Thread
+                clampToComposer={showChatBar}
+                cwd={currentCwd}
+                gateway={gateway}
+                intro={showIntro ? { personality: introPersonality, seed: introSeed } : undefined}
+                loading={threadLoading}
+                onBranchInNewChat={onBranchInNewChat}
+                onCancel={onCancel}
+                onDismissError={onDismissError}
+                onRestoreToMessage={onRestoreToMessage}
+                sessionId={activeSessionId}
+                sessionKey={threadKey}
+              />
+            )}
+            {showChatBar && (
+              <Suspense fallback={<ChatBarFallback />}>
+                <ChatBar
+                  busy={busy}
+                  cwd={currentCwd}
+                  disabled={!gatewayOpen}
+                  focusKey={activeSessionId}
+                  gateway={gateway}
+                  maxRecordingSeconds={maxVoiceRecordingSeconds}
+                  onAddContextRef={onAddContextRef}
+                  onAddUrl={onAddUrl}
+                  onAttachDroppedItems={onAttachDroppedItems}
+                  onAttachImageBlob={onAttachImageBlob}
+                  onCancel={onCancel}
+                  onPasteClipboardImage={onPasteClipboardImage}
+                  onPickFiles={onPickFiles}
+                  onPickFolders={onPickFolders}
+                  onPickImages={onPickImages}
+                  onRemoveAttachment={onRemoveAttachment}
+                  onSteer={onSteer}
+                  onSubmit={submitFromChatBar}
+                  onTranscribeAudio={onTranscribeAudio}
+                  queueSessionKey={selectedSessionId}
+                  sessionId={activeSessionId}
+                  state={chatBarState}
+                />
+              </Suspense>
+            )}
+          </ChatRuntimeBoundary>
+          {resumeExhausted && routedSessionId && (
+            <div className="absolute inset-0 z-10 grid place-items-center bg-(--ui-chat-surface-background) px-8 py-10">
+              <ErrorState
+                className="max-w-sm"
+                description={t.desktop.resumeStrandedBody}
+                title={t.desktop.resumeStrandedTitle}
+              >
+                <div className="grid justify-items-center">
+                  <BeveledButton onClick={() => onRetryResume(routedSessionId)} size="sm">
+                    {t.desktop.resumeRetry}
+                  </BeveledButton>
+                </div>
+              </ErrorState>
+            </div>
+          )}
+          {cockpitMode === 'classic' && showChatBar && (
+            <BeveledButton
+              className="absolute right-3 top-2 z-20 [-webkit-app-region:no-drag]"
+              onClick={() => setCockpitMode('orb')}
+              size="xs"
+              title={t.jarvis.orbHint}
+              type="button"
+              variant="solid"
+            >
+              {t.jarvis.orbMode}
+            </BeveledButton>
+          )}
+          {showChatBar && <ScrollToBottomButton />}
+          <ChatDropOverlay kind={dragKind} />
+          <ChatSwapOverlay profile={gatewaySwapTarget} />
+        </div>
       </div>
-    </div>
+    </BeveledFrame>
   )
 }

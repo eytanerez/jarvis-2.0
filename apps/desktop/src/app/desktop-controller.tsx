@@ -133,6 +133,7 @@ const AgentsView = lazy(async () => ({ default: (await import('./agents')).Agent
 const ArtifactsView = lazy(async () => ({ default: (await import('./artifacts')).ArtifactsView }))
 const CommandCenterView = lazy(async () => ({ default: (await import('./command-center')).CommandCenterView }))
 const CronView = lazy(async () => ({ default: (await import('./cron')).CronView }))
+const MenuOverlay = lazy(async () => ({ default: (await import('./menu/menu-overlay')).MenuOverlay }))
 const MessagingView = lazy(async () => ({ default: (await import('./messaging')).MessagingView }))
 const ProfilesView = lazy(async () => ({ default: (await import('./profiles')).ProfilesView }))
 const SettingsView = lazy(async () => ({ default: (await import('./settings')).SettingsView }))
@@ -230,6 +231,7 @@ export function DesktopController() {
     commandCenterOpen,
     cronOpen,
     currentView,
+    menuOpen,
     openAgents,
     openCommandCenterSection,
     profilesOpen,
@@ -1030,6 +1032,12 @@ export function DesktopController() {
           <ProfilesView onClose={closeOverlayToPreviousRoute} />
         </Suspense>
       )}
+
+      {menuOpen && (
+        <Suspense fallback={null}>
+          <MenuOverlay onClose={closeOverlayToPreviousRoute} />
+        </Suspense>
+      )}
     </>
   )
 
@@ -1190,6 +1198,7 @@ export function DesktopController() {
           <Route element={null} path="settings" />
           <Route element={null} path="command-center" />
           <Route element={null} path="agents" />
+          <Route element={null} path="menu" />
           <Route element={<Navigate replace to={NEW_CHAT_ROUTE} />} path="new" />
           <Route element={<LegacySessionRedirect />} path="sessions/:sessionId" />
           <Route element={<Navigate replace to={NEW_CHAT_ROUTE} />} path="*" />

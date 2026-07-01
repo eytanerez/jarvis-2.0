@@ -19,6 +19,7 @@ export const en: Translations = {
     toolActivity: 'Tool activity',
     menu: {
       open: 'Open Jarvis menu',
+      label: 'Menu',
       navigation: 'Navigation',
       advanced: 'Advanced',
       newSession: 'New session',
@@ -397,6 +398,8 @@ export const en: Translations = {
       toolViewDesc: 'Product hides raw tool payloads; Technical shows full input/output.',
       translucencyTitle: 'Window Translucency',
       translucencyDesc: 'See your desktop through the whole window. macOS and Windows only.',
+      performanceModeTitle: 'Orb Performance Mode',
+      performanceModeDesc: 'Renders the cosmic background at half resolution and half the frame rate. Improves performance on slower graphics cards; the orb itself stays full quality.',
       product: 'Product',
       productDesc: 'Human-friendly tool activity with concise summaries.',
       technical: 'Technical',

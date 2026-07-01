@@ -865,7 +865,7 @@ def try_recover_primary_transport(
 
         wait_time = min(3 + retry_count, 8)
         agent._vprint(
-            f"{brain.log_prefix}🔁 Transient {error_type} on {agent.provider} — "
+            f"{agent.log_prefix}🔁 Transient {error_type} on {agent.provider} — "
             f"rebuilt client, waiting {wait_time}s before one last primary attempt.",
             force=True,
         )
@@ -1216,7 +1216,7 @@ def dump_api_request_debug(
             dump_payload["error"] = error_info
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        dump_file = brain.logs_dir / f"request_dump_{agent.session_id}_{timestamp}.json"
+        dump_file = agent.logs_dir / f"request_dump_{agent.session_id}_{timestamp}.json"
 
         # Redact secrets before persisting/printing. This dump captures the
         # full request body (system prompt, tool defs, context-embedded
@@ -1230,7 +1230,7 @@ def dump_api_request_debug(
         _redacted_payload = json.loads(redact_sensitive_text(_serialized, force=True))
         atomic_json_write(dump_file, _redacted_payload, default=str)
 
-        agent._vprint(f"{brain.log_prefix}🧾 Request debug dump written to: {dump_file}")
+        agent._vprint(f"{agent.log_prefix}🧾 Request debug dump written to: {dump_file}")
 
         if env_var_enabled("JARVIS_DUMP_REQUEST_STDOUT"):
             print(json.dumps(_redacted_payload, ensure_ascii=False, indent=2, default=str))

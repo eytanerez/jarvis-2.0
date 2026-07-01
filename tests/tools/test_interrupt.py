@@ -91,7 +91,7 @@ class TestPreToolCheck:
         # Create a minimal mock agent with _interrupt_requested = True
         agent = MagicMock()
         agent._interrupt_requested = True
-        brain.log_prefix = ""
+        agent.log_prefix = ""
         agent._persist_session = MagicMock()
 
         # Import and call the method

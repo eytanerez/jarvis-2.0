@@ -251,7 +251,7 @@ def execute_tool_calls_concurrent(agent, assistant_message, messages: list, effe
 
     # ── Pre-flight: interrupt check ──────────────────────────────────
     if agent._interrupt_requested:
-        print(f"{brain.log_prefix}⚡ Interrupt: skipping {num_tools} tool call(s)")
+        print(f"{agent.log_prefix}⚡ Interrupt: skipping {num_tools} tool call(s)")
         for tc in tool_calls:
             messages.append(make_tool_result_message(
                 tc.function.name,
@@ -425,7 +425,7 @@ def execute_tool_calls_concurrent(agent, assistant_message, messages: list, effe
                 print(f"  📞 Tool {i}: {name}({list(args.keys())})")
                 print(agent._wrap_verbose("Args: ", json.dumps(args, indent=2, ensure_ascii=False)))
             else:
-                args_preview = args_str[:brain.log_prefix_chars] + "..." if len(args_str) > brain.log_prefix_chars else args_str
+                args_preview = args_str[:agent.log_prefix_chars] + "..." if len(args_str) > agent.log_prefix_chars else args_str
                 print(f"  📞 Tool {i}: {name}({list(args.keys())}) - {args_preview}")
 
     for tc, name, args, middleware_trace, block_result, blocked_by_guardrail in parsed_calls:
@@ -592,7 +592,7 @@ def execute_tool_calls_concurrent(agent, assistant_message, messages: list, effe
                         if not _interrupt_logged:
                             _interrupt_logged = True
                             agent._vprint(
-                                f"{brain.log_prefix}⚡ Interrupt: cancelling "
+                                f"{agent.log_prefix}⚡ Interrupt: cancelling "
                                 f"{len(not_done)} pending concurrent tool(s)",
                                 force=True,
                             )
@@ -708,7 +708,7 @@ def execute_tool_calls_concurrent(agent, assistant_message, messages: list, effe
                 print(f"  ✅ Tool {i+1} completed in {tool_duration:.2f}s")
                 print(agent._wrap_verbose("Result: ", _preview_str))
             else:
-                response_preview = _preview_str[:brain.log_prefix_chars] + "..." if len(_preview_str) > brain.log_prefix_chars else _preview_str
+                response_preview = _preview_str[:agent.log_prefix_chars] + "..." if len(_preview_str) > agent.log_prefix_chars else _preview_str
                 print(f"  ✅ Tool {i+1} completed in {tool_duration:.2f}s - {response_preview}")
 
         agent._current_tool = None
@@ -776,7 +776,7 @@ def execute_tool_calls_sequential(agent, assistant_message, messages: list, effe
         if agent._interrupt_requested:
             remaining_calls = assistant_message.tool_calls[i-1:]
             if remaining_calls:
-                agent._vprint(f"{brain.log_prefix}⚡ Interrupt: skipping {len(remaining_calls)} tool call(s)", force=True)
+                agent._vprint(f"{agent.log_prefix}⚡ Interrupt: skipping {len(remaining_calls)} tool call(s)", force=True)
             for skipped_tc in remaining_calls:
                 skipped_name = skipped_tc.function.name
                 skip_msg = {
@@ -872,7 +872,7 @@ def execute_tool_calls_sequential(agent, assistant_message, messages: list, effe
                 print(f"  📞 Tool {i}: {function_name}({list(function_args.keys())})")
                 print(agent._wrap_verbose("Args: ", json.dumps(function_args, indent=2, ensure_ascii=False)))
             else:
-                args_preview = args_str[:brain.log_prefix_chars] + "..." if len(args_str) > brain.log_prefix_chars else args_str
+                args_preview = args_str[:agent.log_prefix_chars] + "..." if len(args_str) > agent.log_prefix_chars else args_str
                 print(f"  📞 Tool {i}: {function_name}({list(function_args.keys())}) - {args_preview}")
 
         if not _execution_blocked:
@@ -1404,12 +1404,12 @@ def execute_tool_calls_sequential(agent, assistant_message, messages: list, effe
                 print(agent._wrap_verbose("Result: ", function_result))
             else:
                 _fr_str = function_result if isinstance(function_result, str) else str(function_result)
-                response_preview = _fr_str[:brain.log_prefix_chars] + "..." if len(_fr_str) > brain.log_prefix_chars else _fr_str
+                response_preview = _fr_str[:agent.log_prefix_chars] + "..." if len(_fr_str) > agent.log_prefix_chars else _fr_str
                 print(f"  ✅ Tool {i} completed in {tool_duration:.2f}s - {response_preview}")
 
         if agent._interrupt_requested and i < len(assistant_message.tool_calls):
             remaining = len(assistant_message.tool_calls) - i
-            agent._vprint(f"{brain.log_prefix}⚡ Interrupt: skipping {remaining} remaining tool call(s)", force=True)
+            agent._vprint(f"{agent.log_prefix}⚡ Interrupt: skipping {remaining} remaining tool call(s)", force=True)
             for skipped_tc in assistant_message.tool_calls[i:]:
                 skipped_name = skipped_tc.function.name
                 messages.append(make_tool_result_message(

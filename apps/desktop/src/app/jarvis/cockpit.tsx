@@ -2,37 +2,17 @@ import { useStore } from '@nanostores/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import {
-  AGENTS_ROUTE,
-  ARTIFACTS_ROUTE,
-  COMMAND_CENTER_ROUTE,
-  CRON_ROUTE,
-  MESSAGING_ROUTE,
-  NEW_CHAT_ROUTE,
-  PROFILES_ROUTE,
-  SETTINGS_ROUTE,
-  SKILLS_ROUTE
-} from '@/app/routes'
+import { NEW_CHAT_ROUTE } from '@/app/routes'
 import { buildToolView, type ToolPart } from '@/components/assistant-ui/tool-fallback-model'
+import { BeveledButton } from '@/components/chrome/beveled-button'
 import { JarvisOrbScene, type OrbState } from '@/components/jarvis-orb/JarvisOrbScene'
-import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
 import { useI18n } from '@/i18n'
-import type { Translations } from '@/i18n/types'
 import type { ChatMessagePart } from '@/lib/chat-messages'
 import { chatMessageText } from '@/lib/chat-messages'
 import { sessionTitle } from '@/lib/chat-runtime'
 import { cn } from '@/lib/utils'
 import { sampleSpeakingLevel } from '@/lib/voice-analyser'
-import { openCommandPalette } from '@/store/command-palette'
 import {
   $micActive,
   $micLevel,
@@ -53,8 +33,7 @@ import {
   $gatewayState,
   $messages,
   $selectedStoredSessionId,
-  $sessions,
-  setSessionPickerOpen
+  $sessions
 } from '@/store/session'
 import { getToolDiff } from '@/store/tool-diffs'
 import { $voicePlayback } from '@/store/voice-playback'
@@ -95,79 +74,6 @@ const TONE_DOT: Record<ConnectionTone, string> = {
   connecting: 'bg-(--ui-yellow)',
   offline: 'bg-(--ui-red)',
   online: 'bg-(--ui-green)'
-}
-
-interface JarvisMenuRoute {
-  icon: string
-  key: keyof Translations['jarvis']['menu']
-  path: string
-}
-
-const PRIMARY_MENU_ROUTES: readonly JarvisMenuRoute[] = [
-  { icon: 'settings-gear', key: 'settings', path: SETTINGS_ROUTE },
-  { icon: 'account', key: 'profiles', path: PROFILES_ROUTE },
-  { icon: 'robot', key: 'agents', path: AGENTS_ROUTE },
-  { icon: 'symbol-misc', key: 'skills', path: SKILLS_ROUTE }
-]
-
-const ADVANCED_MENU_ROUTES: readonly JarvisMenuRoute[] = [
-  { icon: 'comment', key: 'messaging', path: MESSAGING_ROUTE },
-  { icon: 'files', key: 'artifacts', path: ARTIFACTS_ROUTE },
-  { icon: 'zap', key: 'cron', path: CRON_ROUTE },
-  { icon: 'compass', key: 'commandCenter', path: COMMAND_CENTER_ROUTE }
-]
-
-function CockpitCommandMenu() {
-  const { t } = useI18n()
-  const navigate = useNavigate()
-
-  const go = (path: string) => {
-    navigate(path)
-  }
-
-  const goSettingsTab = (tab: string) => {
-    navigate({ pathname: SETTINGS_ROUTE, search: `?tab=${tab}` })
-  }
-
-  const renderRoute = ({ icon, key, path }: JarvisMenuRoute) => (
-    <DropdownMenuItem key={path} onSelect={() => go(path)}>
-      <Codicon name={icon} size="0.875rem" />
-      {t.jarvis.menu[key]}
-    </DropdownMenuItem>
-  )
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button aria-label={t.jarvis.menu.open} size="icon-xs" title={t.jarvis.menu.open} type="button" variant="ghost">
-          <Codicon name="menu" size="0.875rem" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={8}>
-        <DropdownMenuLabel>{t.jarvis.menu.navigation}</DropdownMenuLabel>
-        <DropdownMenuItem onSelect={() => go(NEW_CHAT_ROUTE)}>
-          <Codicon name="add" size="0.875rem" />
-          {t.jarvis.menu.newSession}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setSessionPickerOpen(true)}>
-          <Codicon name="history" size="0.875rem" />
-          {t.jarvis.menu.sessions}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={openCommandPalette}>
-          <Codicon name="symbol-keyword" size="0.875rem" />
-          {t.jarvis.menu.slashCommands}
-        </DropdownMenuItem>
-        {PRIMARY_MENU_ROUTES.map(renderRoute)}
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>{t.jarvis.menu.advanced}</DropdownMenuLabel>
-        {ADVANCED_MENU_ROUTES.map(renderRoute)}
-        <DropdownMenuItem onSelect={() => goSettingsTab('about')}>
-          <Codicon name="info" size="0.875rem" />
-          {t.jarvis.menu.about}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
 }
 
 // Slim identity/telemetry strip above the orb. Low-frequency subscriptions only.
@@ -217,16 +123,13 @@ function CockpitTopStrip({ onCancel }: { onCancel: () => Promise<void> | void })
           {t.jarvis.session}: <span className="text-(--theme-jarvis-text-tech)">{title}</span>
         </span>
         {running && (
-          <Button onClick={() => void onCancel()} size="xs" type="button" variant="jarvisCommand">
-            <Codicon name="debug-stop" size="0.75rem" />
+          <BeveledButton onClick={() => void onCancel()} size="xs" type="button" variant="solid">
             {t.jarvis.interrupt}
-          </Button>
+          </BeveledButton>
         )}
-        <Button onClick={() => navigate(NEW_CHAT_ROUTE)} size="xs" type="button" variant="jarvisGhost">
-          <Codicon name="add" size="0.75rem" />
+        <BeveledButton onClick={() => navigate(NEW_CHAT_ROUTE)} size="xs" type="button">
           {t.jarvis.newSession}
-        </Button>
-        <CockpitCommandMenu />
+        </BeveledButton>
       </span>
     </div>
   )

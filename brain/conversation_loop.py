@@ -175,7 +175,7 @@ def _print_nous_entitlement_guidance(agent, capability: str) -> bool:
     if not message:
         return False
     for line in message.splitlines():
-        agent._vprint(f"{brain.log_prefix}   💡 {line}", force=True)
+        agent._vprint(f"{agent.log_prefix}   💡 {line}", force=True)
     return True
 
 
@@ -232,7 +232,7 @@ def _print_billing_or_entitlement_guidance(
     if not message:
         return False
     for line in message.splitlines():
-        agent._vprint(f"{brain.log_prefix}   💡 {line}", force=True)
+        agent._vprint(f"{agent.log_prefix}   💡 {line}", force=True)
     return True
 
 
@@ -881,9 +881,9 @@ def run_conversation(
         thinking_spinner = None
         
         if not agent.quiet_mode:
-            agent._vprint(f"\n{brain.log_prefix}🔄 Making API call #{api_call_count}/{agent.max_iterations}...")
-            agent._vprint(f"{brain.log_prefix}   📊 Request size: {len(api_messages)} messages, ~{approx_tokens:,} tokens (~{total_chars:,} chars)")
-            agent._vprint(f"{brain.log_prefix}   🔧 Available tools: {len(agent.tools) if agent.tools else 0}")
+            agent._vprint(f"\n{agent.log_prefix}🔄 Making API call #{api_call_count}/{agent.max_iterations}...")
+            agent._vprint(f"{agent.log_prefix}   📊 Request size: {len(api_messages)} messages, ~{approx_tokens:,} tokens (~{total_chars:,} chars)")
+            agent._vprint(f"{agent.log_prefix}   🔧 Available tools: {len(agent.tools) if agent.tools else 0}")
         else:
             # Animated thinking spinner in quiet mode
             face = random.choice(KawaiiSpinner.get_thinking_faces())
@@ -1144,7 +1144,7 @@ def run_conversation(
                     agent.thinking_callback("")
                 
                 if not agent.quiet_mode:
-                    agent._vprint(f"{brain.log_prefix}⏱️  API call completed in {api_duration:.2f}s")
+                    agent._vprint(f"{agent.log_prefix}⏱️  API call completed in {api_duration:.2f}s")
                 
                 if agent.verbose_logging:
                     # Log response with provider info if available
@@ -1343,7 +1343,7 @@ def run_conversation(
                         # Terminal — flush buffered retry trace so user sees what happened.
                         agent._flush_status_buffer()
                         agent._emit_status(f"❌ Max retries ({max_retries}) exceeded for invalid responses. Giving up.")
-                        logger.error(f"{brain.log_prefix}Invalid API response after {max_retries} retries.")
+                        logger.error(f"{agent.log_prefix}Invalid API response after {max_retries} retries.")
                         agent._persist_session(messages, conversation_history)
                         return {
                             "messages": messages,
@@ -1363,7 +1363,7 @@ def run_conversation(
                     _backoff_touch_counter = 0
                     while time.time() < sleep_end:
                         if agent._interrupt_requested:
-                            agent._vprint(f"{brain.log_prefix}⚡ Interrupt detected during retry wait, aborting.", force=True)
+                            agent._vprint(f"{agent.log_prefix}⚡ Interrupt detected during retry wait, aborting.", force=True)
                             agent._persist_session(messages, conversation_history)
                             agent.clear_interrupt()
                             return {
@@ -1416,7 +1416,7 @@ def run_conversation(
                         messages,
                     ):
                         agent._vprint(
-                            f"{brain.log_prefix}⚠️  Treating suspicious Ollama/GLM stop response as truncated",
+                            f"{agent.log_prefix}⚠️  Treating suspicious Ollama/GLM stop response as truncated",
                             force=True,
                         )
                         finish_reason = "length"
@@ -1493,7 +1493,7 @@ def run_conversation(
                     logger.warning(
                         "%sModel declined to respond (finish_reason=content_filter). "
                         "model=%s provider=%s refusal=%s",
-                        brain.log_prefix, agent.model, agent.provider,
+                        agent.log_prefix, agent.model, agent.provider,
                         _refusal_log or "(no text)",
                     )
                     agent._emit_status(
@@ -1524,13 +1524,13 @@ def run_conversation(
                 if finish_reason == "length":
                     if getattr(response, "id", "") == PARTIAL_STREAM_STUB_ID:
                         agent._vprint(
-                            f"{brain.log_prefix}⚠️  Stream interrupted by network error "
+                            f"{agent.log_prefix}⚠️  Stream interrupted by network error "
                             f"(finish_reason='length' on partial-stream-stub)",
                             force=True,
                         )
                     else:
                         agent._vprint(
-                            f"{brain.log_prefix}⚠️  Response truncated "
+                            f"{agent.log_prefix}⚠️  Response truncated "
                             f"(finish_reason='length') - model hit max output tokens",
                             force=True,
                         )
@@ -1590,7 +1590,7 @@ def run_conversation(
                             "increasing max_tokens."
                         )
                         agent._vprint(
-                            f"{brain.log_prefix}💭 Reasoning exhausted the output token budget — "
+                            f"{agent.log_prefix}💭 Reasoning exhausted the output token budget — "
                             f"no visible response was produced.",
                             force=True,
                         )
@@ -1636,20 +1636,20 @@ def run_conversation(
                                 if _is_partial_stream_stub and _dropped_tools:
                                     _tool_list = ", ".join(_dropped_tools[:3])
                                     agent._vprint(
-                                        f"{brain.log_prefix}↻ Stream interrupted mid "
+                                        f"{agent.log_prefix}↻ Stream interrupted mid "
                                         f"tool-call ({_tool_list}) — requesting "
                                         f"chunked retry "
                                         f"({length_continue_retries}/3)..."
                                     )
                                 elif _is_partial_stream_stub:
                                     agent._vprint(
-                                        f"{brain.log_prefix}↻ Stream interrupted — "
+                                        f"{agent.log_prefix}↻ Stream interrupted — "
                                         f"requesting continuation "
                                         f"({length_continue_retries}/3)..."
                                     )
                                 else:
                                     agent._vprint(
-                                        f"{brain.log_prefix}↻ Requesting continuation "
+                                        f"{agent.log_prefix}↻ Requesting continuation "
                                         f"({length_continue_retries}/3)..."
                                     )
 
@@ -1718,12 +1718,12 @@ def run_conversation(
                             agent._flush_status_buffer()
                             if _is_stub_stall:
                                 agent._vprint(
-                                    f"{brain.log_prefix}⚠️  Stream kept dropping mid tool-call after 3 retries — the action was not executed.",
+                                    f"{agent.log_prefix}⚠️  Stream kept dropping mid tool-call after 3 retries — the action was not executed.",
                                     force=True,
                                 )
                             else:
                                 agent._vprint(
-                                    f"{brain.log_prefix}⚠️  Truncated tool call response detected again — refusing to execute incomplete tool arguments.",
+                                    f"{agent.log_prefix}⚠️  Truncated tool call response detected again — refusing to execute incomplete tool arguments.",
                                     force=True,
                                 )
                             agent._cleanup_task_resources(effective_task_id)
@@ -1744,7 +1744,7 @@ def run_conversation(
 
                     # If we have prior messages, roll back to last complete state
                     if len(messages) > 1:
-                        agent._vprint(f"{brain.log_prefix}   ⏪ Rolling back to last complete assistant turn")
+                        agent._vprint(f"{agent.log_prefix}   ⏪ Rolling back to last complete assistant turn")
                         rolled_back_messages = agent._get_messages_up_to_last_assistant(messages)
 
                         agent._cleanup_task_resources(effective_task_id)
@@ -1761,7 +1761,7 @@ def run_conversation(
                     else:
                         # First message was truncated - mark as failed
                         agent._flush_status_buffer()
-                        agent._vprint(f"{brain.log_prefix}❌ First response truncated - cannot recover", force=True)
+                        agent._vprint(f"{agent.log_prefix}❌ First response truncated - cannot recover", force=True)
                         agent._persist_session(messages, conversation_history)
                         return {
                             "final_response": None,
@@ -1805,7 +1805,7 @@ def run_conversation(
                         ctx = agent.context_compressor.context_length
                         if getattr(agent.context_compressor, "_context_probe_persistable", False):
                             save_context_length(agent.model, agent.base_url, ctx)
-                            agent._safe_print(f"{brain.log_prefix}💾 Cached context length: {ctx:,} tokens for {agent.model}")
+                            agent._safe_print(f"{agent.log_prefix}💾 Cached context length: {ctx:,} tokens for {agent.model}")
                         agent.context_compressor._context_probed = False
                         agent.context_compressor._context_probe_persistable = False
 
@@ -1906,7 +1906,7 @@ def run_conversation(
                     if (cached or written) and not agent.quiet_mode:
                         hit_pct = (cached / prompt * 100) if prompt > 0 else 0
                         agent._vprint(
-                            f"{brain.log_prefix}   💾 Cache: "
+                            f"{agent.log_prefix}   💾 Cache: "
                             f"{cached:,}/{prompt:,} tokens "
                             f"({hit_pct:.0f}% hit, {written:,} written)"
                         )
@@ -1936,7 +1936,7 @@ def run_conversation(
                 if agent.thinking_callback:
                     agent.thinking_callback("")
                 api_elapsed = time.time() - api_start_time
-                agent._vprint(f"{brain.log_prefix}⚡ Interrupted during API call.", force=True)
+                agent._vprint(f"{agent.log_prefix}⚡ Interrupted during API call.", force=True)
                 agent._persist_session(messages, conversation_history)
                 interrupted = True
                 final_response = f"{INTERRUPT_WAITING_FOR_MODEL_PREFIX}{api_elapsed:.1f}s elapsed)."
@@ -2082,7 +2082,7 @@ def run_conversation(
                                     agent.client.api_key = _clean_key
                                 _credential_sanitized = True
                                 agent._vprint(
-                                    f"{brain.log_prefix}⚠️  API key contained non-ASCII characters "
+                                    f"{agent.log_prefix}⚠️  API key contained non-ASCII characters "
                                     f"(bad copy-paste?) — stripped them. If auth fails, "
                                     f"re-copy the key from your provider's dashboard.",
                                     force=True,
@@ -2107,12 +2107,12 @@ def run_conversation(
                         )
                         if _any_sanitized:
                             agent._vprint(
-                                f"{brain.log_prefix}⚠️  System encoding is ASCII — stripped non-ASCII characters from request payload. Retrying...",
+                                f"{agent.log_prefix}⚠️  System encoding is ASCII — stripped non-ASCII characters from request payload. Retrying...",
                                 force=True,
                             )
                         else:
                             agent._vprint(
-                                f"{brain.log_prefix}⚠️  System encoding is ASCII — enabling full-payload sanitization for retry...",
+                                f"{agent.log_prefix}⚠️  System encoding is ASCII — enabling full-payload sanitization for retry...",
                                 force=True,
                             )
                         continue
@@ -2192,7 +2192,7 @@ def run_conversation(
                     if isinstance(api_messages, list):
                         _strip_images_from_messages(api_messages)
                     agent._vprint(
-                        f"{brain.log_prefix}⚠️  Server rejected image content — "
+                        f"{agent.log_prefix}⚠️  Server rejected image content — "
                         f"switching to text-only mode for this session"
                         + (". Stripped images from history and retrying." if _imgs_removed else "."),
                         force=True,
@@ -2246,7 +2246,7 @@ def run_conversation(
                     _retry.nous_paid_entitlement_refresh_attempted = True
                     if _try_refresh_nous_paid_entitlement_credentials(agent):
                         agent._vprint(
-                            f"{brain.log_prefix}🔐 Nous paid access verified — "
+                            f"{agent.log_prefix}🔐 Nous paid access verified — "
                             "refreshed runtime credentials and retrying request...",
                             force=True,
                         )
@@ -2278,7 +2278,7 @@ def run_conversation(
                         max_dimension=image_max_dimension,
                     ):
                         agent._vprint(
-                            f"{brain.log_prefix}📐 Image(s) exceeded provider size limit — "
+                            f"{agent.log_prefix}📐 Image(s) exceeded provider size limit — "
                             f"shrank and retrying...",
                             force=True,
                         )
@@ -2303,7 +2303,7 @@ def run_conversation(
                     _retry.multimodal_tool_content_retry_attempted = True
                     if agent._try_strip_image_parts_from_tool_messages(api_messages):
                         agent._vprint(
-                            f"{brain.log_prefix}📐 Provider rejected list-type tool content — "
+                            f"{agent.log_prefix}📐 Provider rejected list-type tool content — "
                             f"downgraded screenshots to text and retrying...",
                             force=True,
                         )
@@ -2338,7 +2338,7 @@ def run_conversation(
                             pass
                         agent._rebuild_anthropic_client()
                         agent._vprint(
-                            f"{brain.log_prefix}🔕 OAuth subscription doesn't support "
+                            f"{agent.log_prefix}🔕 OAuth subscription doesn't support "
                             f"the 1M-context beta — disabled for this session and retrying...",
                             force=True,
                         )
@@ -2363,7 +2363,7 @@ def run_conversation(
                 ):
                     _retry.nous_auth_retry_attempted = True
                     if agent._try_refresh_nous_client_credentials(force=True):
-                        print(f"{brain.log_prefix}🔐 Nous agent key refreshed after 401. Retrying request...")
+                        print(f"{agent.log_prefix}🔐 Nous agent key refreshed after 401. Retrying request...")
                         continue
                     # Credential refresh didn't help — show diagnostic info.
                     # Most common causes: Portal OAuth expired/revoked,
@@ -2377,16 +2377,16 @@ def run_conversation(
                             _body_text = str(_body)[:200]
                     except Exception:
                         pass
-                    print(f"{brain.log_prefix}🔐 Nous 401 — Portal authentication failed.")
+                    print(f"{agent.log_prefix}🔐 Nous 401 — Portal authentication failed.")
                     if _body_text:
-                        print(f"{brain.log_prefix}   Response: {_body_text}")
+                        print(f"{agent.log_prefix}   Response: {_body_text}")
                     if not _print_nous_entitlement_guidance(agent, "Nous model access"):
-                        print(f"{brain.log_prefix}   Most likely: Portal OAuth expired, account out of credits, or agent key revoked.")
-                    print(f"{brain.log_prefix}   Troubleshooting:")
-                    print(f"{brain.log_prefix}     • Re-authenticate: jarvis auth add nous")
-                    print(f"{brain.log_prefix}     • Check credits / billing: https://portal.nousresearch.com")
-                    print(f"{brain.log_prefix}     • Verify stored credentials: {_dhh}/auth.json")
-                    print(f"{brain.log_prefix}     • Switch providers temporarily: /model <model> --provider openrouter")
+                        print(f"{agent.log_prefix}   Most likely: Portal OAuth expired, account out of credits, or agent key revoked.")
+                    print(f"{agent.log_prefix}   Troubleshooting:")
+                    print(f"{agent.log_prefix}     • Re-authenticate: jarvis auth add nous")
+                    print(f"{agent.log_prefix}     • Check credits / billing: https://portal.nousresearch.com")
+                    print(f"{agent.log_prefix}     • Verify stored credentials: {_dhh}/auth.json")
+                    print(f"{agent.log_prefix}     • Switch providers temporarily: /model <model> --provider openrouter")
                 if (
                     agent.provider == "copilot"
                     and status_code == 401
@@ -2406,33 +2406,33 @@ def run_conversation(
                     from brain.anthropic_adapter import _is_oauth_token
                     from brain.azure_identity_adapter import is_token_provider
                     if agent._try_refresh_anthropic_client_credentials():
-                        print(f"{brain.log_prefix}🔐 Anthropic credentials refreshed after 401. Retrying request...")
+                        print(f"{agent.log_prefix}🔐 Anthropic credentials refreshed after 401. Retrying request...")
                         continue
                     # Credential refresh didn't help — show diagnostic info
                     key = agent._anthropic_api_key
-                    print(f"{brain.log_prefix}🔐 Anthropic 401 — authentication failed.")
+                    print(f"{agent.log_prefix}🔐 Anthropic 401 — authentication failed.")
                     if is_token_provider(key):
                         # Azure Foundry Entra ID — the bearer token is
                         # minted per-request by an httpx event hook on a
                         # custom http_client passed to the SDK. The 401
                         # means Azure rejected the JWT (RBAC role missing,
                         # az login expired, IMDS unreachable, etc.).
-                        print(f"{brain.log_prefix}   Auth method: Microsoft Entra ID (httpx event hook)")
-                        print(f"{brain.log_prefix}   Run `jarvis doctor` for credential-chain diagnostics, or")
-                        print(f"{brain.log_prefix}   `az login` if your developer session expired.")
+                        print(f"{agent.log_prefix}   Auth method: Microsoft Entra ID (httpx event hook)")
+                        print(f"{agent.log_prefix}   Run `jarvis doctor` for credential-chain diagnostics, or")
+                        print(f"{agent.log_prefix}   `az login` if your developer session expired.")
                     else:
                         auth_method = "Bearer (OAuth/setup-token)" if _is_oauth_token(key) else "x-api-key (API key)"
-                        print(f"{brain.log_prefix}   Auth method: {auth_method}")
-                        print(f"{brain.log_prefix}   Token prefix: {key[:12]}..." if isinstance(key, str) and len(key) > 12 else f"{brain.log_prefix}   Token: (empty or short)")
-                    print(f"{brain.log_prefix}   Troubleshooting:")
+                        print(f"{agent.log_prefix}   Auth method: {auth_method}")
+                        print(f"{agent.log_prefix}   Token prefix: {key[:12]}..." if isinstance(key, str) and len(key) > 12 else f"{agent.log_prefix}   Token: (empty or short)")
+                    print(f"{agent.log_prefix}   Troubleshooting:")
                     from jarvis_constants import display_jarvis_home as _dhh_fn
                     _dhh = _dhh_fn()
-                    print(f"{brain.log_prefix}     • Check ANTHROPIC_TOKEN in {_dhh}/.env for Jarvis-managed OAuth/setup tokens")
-                    print(f"{brain.log_prefix}     • Check ANTHROPIC_API_KEY in {_dhh}/.env for API keys or legacy token values")
-                    print(f"{brain.log_prefix}     • For API keys: verify at https://platform.claude.com/settings/keys")
-                    print(f"{brain.log_prefix}     • For Claude Code: run 'claude /login' to refresh, then retry")
-                    print(f"{brain.log_prefix}     • Legacy cleanup: jarvis config set ANTHROPIC_TOKEN \"\"")
-                    print(f"{brain.log_prefix}     • Clear stale keys: jarvis config set ANTHROPIC_API_KEY \"\"")
+                    print(f"{agent.log_prefix}     • Check ANTHROPIC_TOKEN in {_dhh}/.env for Jarvis-managed OAuth/setup tokens")
+                    print(f"{agent.log_prefix}     • Check ANTHROPIC_API_KEY in {_dhh}/.env for API keys or legacy token values")
+                    print(f"{agent.log_prefix}     • For API keys: verify at https://platform.claude.com/settings/keys")
+                    print(f"{agent.log_prefix}     • For Claude Code: run 'claude /login' to refresh, then retry")
+                    print(f"{agent.log_prefix}     • Legacy cleanup: jarvis config set ANTHROPIC_TOKEN \"\"")
+                    print(f"{agent.log_prefix}     • Clear stale keys: jarvis config set ANTHROPIC_API_KEY \"\"")
 
                 # Thinking block signature recovery.
                 #
@@ -2473,7 +2473,7 @@ def run_conversation(
                             _m.pop("reasoning_details", None)
                             _api_stripped += 1
                     agent._vprint(
-                        f"{brain.log_prefix}⚠️  Thinking block signature invalid, "
+                        f"{agent.log_prefix}⚠️  Thinking block signature invalid, "
                         f"stripped reasoning_details from api_messages for retry...",
                         force=True,
                     )
@@ -2481,7 +2481,7 @@ def run_conversation(
                         "%sThinking block signature recovery: stripped "
                         "reasoning_details from %d api_messages "
                         "(canonical messages unchanged)",
-                        brain.log_prefix, _api_stripped,
+                        agent.log_prefix, _api_stripped,
                     )
                     continue
 
@@ -2515,14 +2515,14 @@ def run_conversation(
                     _retry.invalid_encrypted_content_retry_attempted = True
                     replay_stats = agent._disable_codex_reasoning_replay(messages)
                     agent._vprint(
-                        f"{brain.log_prefix}⚠️  Encrypted reasoning replay was rejected by the provider — "
+                        f"{agent.log_prefix}⚠️  Encrypted reasoning replay was rejected by the provider — "
                         f"disabled replay and stripped {replay_stats['items']} item(s) from "
                         f"{replay_stats['messages']} message(s), retrying...",
                         force=True,
                     )
                     logger.warning(
                         "%sInvalid encrypted reasoning recovery: disabled replay and stripped %d items from %d messages",
-                        brain.log_prefix,
+                        agent.log_prefix,
                         replay_stats["items"],
                         replay_stats["messages"],
                     )
@@ -2548,19 +2548,19 @@ def run_conversation(
                     except Exception as _strip_exc:  # pragma: no cover — defensive
                         logger.warning(
                             "%sllama.cpp grammar recovery: strip helper failed: %s",
-                            brain.log_prefix, _strip_exc,
+                            agent.log_prefix, _strip_exc,
                         )
                         _stripped = 0
                     if _stripped:
                         agent._vprint(
-                            f"{brain.log_prefix}⚠️  llama.cpp rejected tool schema grammar — "
+                            f"{agent.log_prefix}⚠️  llama.cpp rejected tool schema grammar — "
                             f"stripped {_stripped} pattern/format keyword(s), retrying...",
                             force=True,
                         )
                         logger.warning(
                             "%sllama.cpp grammar recovery: stripped %d "
                             "pattern/format keyword(s) from tool schemas",
-                            brain.log_prefix, _stripped,
+                            agent.log_prefix, _stripped,
                         )
                         continue
                     # No keywords found to strip — fall through to normal
@@ -2568,7 +2568,7 @@ def run_conversation(
                     logger.warning(
                         "%sllama.cpp grammar error but no pattern/format "
                         "keywords to strip — falling through to normal retry",
-                        brain.log_prefix,
+                        agent.log_prefix,
                     )
 
                 retry_count += 1
@@ -2628,7 +2628,7 @@ def run_conversation(
 
                 # Check for interrupt before deciding to retry
                 if agent._interrupt_requested:
-                    agent._vprint(f"{brain.log_prefix}⚡ Interrupt detected during error handling, aborting retries.", force=True)
+                    agent._vprint(f"{agent.log_prefix}⚡ Interrupt detected during error handling, aborting retries.", force=True)
                     agent._persist_session(messages, conversation_history)
                     agent.clear_interrupt()
                     return {
@@ -2671,17 +2671,17 @@ def run_conversation(
                 ):
                     agent._flush_status_buffer()
                     agent._vprint(
-                        f"{brain.log_prefix}❌ Context overflow, but auto-compaction is disabled "
+                        f"{agent.log_prefix}❌ Context overflow, but auto-compaction is disabled "
                         f"(compression.enabled: false).",
                         force=True,
                     )
                     agent._vprint(
-                        f"{brain.log_prefix}   💡 Run /compress to compact manually, /new to start fresh, "
+                        f"{agent.log_prefix}   💡 Run /compress to compact manually, /new to start fresh, "
                         f"switch to a larger-context model, or reduce attachments.",
                         force=True,
                     )
                     logger.error(
-                        f"{brain.log_prefix}Context overflow ({classified.reason.value}) with "
+                        f"{agent.log_prefix}Context overflow ({classified.reason.value}) with "
                         f"auto-compaction disabled — not compressing."
                     )
                     agent._persist_session(messages, conversation_history)
@@ -2873,23 +2873,23 @@ def run_conversation(
                     and "models.inference.ai.azure.com" in agent.base_url
                 ):
                     agent._vprint(
-                        f"{brain.log_prefix}   💡 GitHub Models free tier (models.inference.ai.azure.com) caps every",
+                        f"{agent.log_prefix}   💡 GitHub Models free tier (models.inference.ai.azure.com) caps every",
                         force=True,
                     )
                     agent._vprint(
-                        f"{brain.log_prefix}      request at ~8K tokens. Jarvis' system prompt + tool schemas baseline",
+                        f"{agent.log_prefix}      request at ~8K tokens. Jarvis' system prompt + tool schemas baseline",
                         force=True,
                     )
                     agent._vprint(
-                        f"{brain.log_prefix}      exceeds that floor, so this endpoint cannot run an agentic loop.",
+                        f"{agent.log_prefix}      exceeds that floor, so this endpoint cannot run an agentic loop.",
                         force=True,
                     )
                     agent._vprint(
-                        f"{brain.log_prefix}      Use the `copilot` provider with a Copilot subscription token (`jarvis",
+                        f"{agent.log_prefix}      Use the `copilot` provider with a Copilot subscription token (`jarvis",
                         force=True,
                     )
                     agent._vprint(
-                        f"{brain.log_prefix}      setup` → GitHub Copilot), or pick any other provider.",
+                        f"{agent.log_prefix}      setup` → GitHub Copilot), or pick any other provider.",
                         force=True,
                     )
 
@@ -2898,9 +2898,9 @@ def run_conversation(
                     if compression_attempts > max_compression_attempts:
                         # Terminal — surface the buffered retry trace.
                         agent._flush_status_buffer()
-                        agent._vprint(f"{brain.log_prefix}❌ Max compression attempts ({max_compression_attempts}) reached for payload-too-large error.", force=True)
-                        agent._vprint(f"{brain.log_prefix}   💡 Try /new to start a fresh conversation, or /compress to retry compression.", force=True)
-                        logger.error(f"{brain.log_prefix}413 compression failed after {max_compression_attempts} attempts.")
+                        agent._vprint(f"{agent.log_prefix}❌ Max compression attempts ({max_compression_attempts}) reached for payload-too-large error.", force=True)
+                        agent._vprint(f"{agent.log_prefix}   💡 Try /new to start a fresh conversation, or /compress to retry compression.", force=True)
+                        logger.error(f"{agent.log_prefix}413 compression failed after {max_compression_attempts} attempts.")
                         agent._persist_session(messages, conversation_history)
                         return {
                             "messages": messages,
@@ -2932,9 +2932,9 @@ def run_conversation(
                         # Terminal — surface buffered context so the user
                         # sees what compression attempts were made.
                         agent._flush_status_buffer()
-                        agent._vprint(f"{brain.log_prefix}❌ Payload too large and cannot compress further.", force=True)
-                        agent._vprint(f"{brain.log_prefix}   💡 Try /new to start a fresh conversation, or /compress to retry compression.", force=True)
-                        logger.error(f"{brain.log_prefix}413 payload too large. Cannot compress further.")
+                        agent._vprint(f"{agent.log_prefix}❌ Payload too large and cannot compress further.", force=True)
+                        agent._vprint(f"{agent.log_prefix}   💡 Try /new to start a fresh conversation, or /compress to retry compression.", force=True)
+                        logger.error(f"{agent.log_prefix}413 payload too large. Cannot compress further.")
                         agent._persist_session(messages, conversation_history)
                         return {
                             "messages": messages,
@@ -2985,9 +2985,9 @@ def run_conversation(
                         compression_attempts += 1
                         if compression_attempts > max_compression_attempts:
                             agent._flush_status_buffer()
-                            agent._vprint(f"{brain.log_prefix}❌ Max compression attempts ({max_compression_attempts}) reached.", force=True)
-                            agent._vprint(f"{brain.log_prefix}   💡 Try /new to start a fresh conversation, or /compress to retry compression.", force=True)
-                            logger.error(f"{brain.log_prefix}Context compression failed after {max_compression_attempts} attempts.")
+                            agent._vprint(f"{agent.log_prefix}❌ Max compression attempts ({max_compression_attempts}) reached.", force=True)
+                            agent._vprint(f"{agent.log_prefix}   💡 Try /new to start a fresh conversation, or /compress to retry compression.", force=True)
+                            logger.error(f"{agent.log_prefix}Context compression failed after {max_compression_attempts} attempts.")
                             agent._persist_session(messages, conversation_history)
                             return {
                                 "messages": messages,
@@ -3054,9 +3054,9 @@ def run_conversation(
                     compression_attempts += 1
                     if compression_attempts > max_compression_attempts:
                         agent._flush_status_buffer()
-                        agent._vprint(f"{brain.log_prefix}❌ Max compression attempts ({max_compression_attempts}) reached.", force=True)
-                        agent._vprint(f"{brain.log_prefix}   💡 Try /new to start a fresh conversation, or /compress to retry compression.", force=True)
-                        logger.error(f"{brain.log_prefix}Context compression failed after {max_compression_attempts} attempts.")
+                        agent._vprint(f"{agent.log_prefix}❌ Max compression attempts ({max_compression_attempts}) reached.", force=True)
+                        agent._vprint(f"{agent.log_prefix}   💡 Try /new to start a fresh conversation, or /compress to retry compression.", force=True)
+                        logger.error(f"{agent.log_prefix}Context compression failed after {max_compression_attempts} attempts.")
                         agent._persist_session(messages, conversation_history)
                         return {
                             "messages": messages,
@@ -3088,9 +3088,9 @@ def run_conversation(
                     else:
                         # Can't compress further and already at minimum tier
                         agent._flush_status_buffer()
-                        agent._vprint(f"{brain.log_prefix}❌ Context length exceeded and cannot compress further.", force=True)
-                        agent._vprint(f"{brain.log_prefix}   💡 The conversation has accumulated too much content. Try /new to start fresh, or /compress to manually trigger compression.", force=True)
-                        logger.error(f"{brain.log_prefix}Context length exceeded: {approx_tokens:,} tokens. Cannot compress further.")
+                        agent._vprint(f"{agent.log_prefix}❌ Context length exceeded and cannot compress further.", force=True)
+                        agent._vprint(f"{agent.log_prefix}   💡 The conversation has accumulated too much content. Try /new to start fresh, or /compress to manually trigger compression.", force=True)
+                        logger.error(f"{agent.log_prefix}Context length exceeded: {approx_tokens:,} tokens. Cannot compress further.")
                         agent._persist_session(messages, conversation_history)
                         return {
                             "messages": messages,
@@ -3214,9 +3214,9 @@ def run_conversation(
                             f"❌ Non-retryable error (HTTP {status_code}): "
                             f"{_nonretryable_summary}"
                         )
-                    agent._vprint(f"{brain.log_prefix}❌ Non-retryable client error (HTTP {status_code}). Aborting.", force=True)
-                    agent._vprint(f"{brain.log_prefix}   🔌 Provider: {_provider}  Model: {_model}", force=True)
-                    agent._vprint(f"{brain.log_prefix}   🌐 Endpoint: {_base}", force=True)
+                    agent._vprint(f"{agent.log_prefix}❌ Non-retryable client error (HTTP {status_code}). Aborting.", force=True)
+                    agent._vprint(f"{agent.log_prefix}   🔌 Provider: {_provider}  Model: {_model}", force=True)
+                    agent._vprint(f"{agent.log_prefix}   🌐 Endpoint: {_base}", force=True)
                     # Actionable guidance for common auth errors
                     if classified.is_auth or classified.reason == FailoverReason.billing:
                         if classified.reason == FailoverReason.billing and _print_billing_or_entitlement_guidance(
@@ -3234,32 +3234,32 @@ def run_conversation(
                             pass
                         elif _provider in {"openai-codex", "xai-oauth", "nous"} and status_code == 401:
                             if _provider == "openai-codex":
-                                agent._vprint(f"{brain.log_prefix}   💡 Codex OAuth token was rejected (HTTP 401). Your token may have been", force=True)
-                                agent._vprint(f"{brain.log_prefix}      refreshed by another client (Codex CLI, VS Code). To fix:", force=True)
-                                agent._vprint(f"{brain.log_prefix}      1. Run `codex` in your terminal to generate fresh tokens.", force=True)
-                                agent._vprint(f"{brain.log_prefix}      2. Then run `jarvis auth` to re-authenticate.", force=True)
+                                agent._vprint(f"{agent.log_prefix}   💡 Codex OAuth token was rejected (HTTP 401). Your token may have been", force=True)
+                                agent._vprint(f"{agent.log_prefix}      refreshed by another client (Codex CLI, VS Code). To fix:", force=True)
+                                agent._vprint(f"{agent.log_prefix}      1. Run `codex` in your terminal to generate fresh tokens.", force=True)
+                                agent._vprint(f"{agent.log_prefix}      2. Then run `jarvis auth` to re-authenticate.", force=True)
                             elif _provider == "xai-oauth":
-                                agent._vprint(f"{brain.log_prefix}   💡 xAI OAuth token was rejected (HTTP 401). To fix:", force=True)
-                                agent._vprint(f"{brain.log_prefix}      re-authenticate with xAI Grok OAuth (SuperGrok / Premium+) from `jarvis model`.", force=True)
+                                agent._vprint(f"{agent.log_prefix}   💡 xAI OAuth token was rejected (HTTP 401). To fix:", force=True)
+                                agent._vprint(f"{agent.log_prefix}      re-authenticate with xAI Grok OAuth (SuperGrok / Premium+) from `jarvis model`.", force=True)
                             else:  # nous
-                                agent._vprint(f"{brain.log_prefix}   💡 Nous Portal OAuth token was rejected (HTTP 401). Your token may be", force=True)
-                                agent._vprint(f"{brain.log_prefix}      expired, revoked, or your account may be out of credits. To fix:", force=True)
-                                agent._vprint(f"{brain.log_prefix}      1. Re-authenticate: jarvis portal", force=True)
-                                agent._vprint(f"{brain.log_prefix}      2. Check your portal account: https://portal.nousresearch.com", force=True)
+                                agent._vprint(f"{agent.log_prefix}   💡 Nous Portal OAuth token was rejected (HTTP 401). Your token may be", force=True)
+                                agent._vprint(f"{agent.log_prefix}      expired, revoked, or your account may be out of credits. To fix:", force=True)
+                                agent._vprint(f"{agent.log_prefix}      1. Re-authenticate: jarvis portal", force=True)
+                                agent._vprint(f"{agent.log_prefix}      2. Check your portal account: https://portal.nousresearch.com", force=True)
                                 # ``:free`` is OpenRouter slug syntax; Nous Portal will reject
                                 # the model name even after a successful re-auth.
                                 if isinstance(_model, str) and _model.endswith(":free"):
-                                    agent._vprint(f"{brain.log_prefix}      ⚠️  Note: `{_model}` looks like an OpenRouter slug (`:free` suffix).", force=True)
-                                    agent._vprint(f"{brain.log_prefix}         Nous Portal won't recognize that model name. Either switch to a", force=True)
-                                    agent._vprint(f"{brain.log_prefix}         Nous catalog model, or run `/model openrouter:{_model}` to use OpenRouter.", force=True)
+                                    agent._vprint(f"{agent.log_prefix}      ⚠️  Note: `{_model}` looks like an OpenRouter slug (`:free` suffix).", force=True)
+                                    agent._vprint(f"{agent.log_prefix}         Nous Portal won't recognize that model name. Either switch to a", force=True)
+                                    agent._vprint(f"{agent.log_prefix}         Nous catalog model, or run `/model openrouter:{_model}` to use OpenRouter.", force=True)
                         else:
-                            agent._vprint(f"{brain.log_prefix}   💡 Your API key was rejected by the provider. Check:", force=True)
-                            agent._vprint(f"{brain.log_prefix}      • Is the key valid? Run: jarvis setup", force=True)
-                            agent._vprint(f"{brain.log_prefix}      • Does your account have access to {_model}?", force=True)
+                            agent._vprint(f"{agent.log_prefix}   💡 Your API key was rejected by the provider. Check:", force=True)
+                            agent._vprint(f"{agent.log_prefix}      • Is the key valid? Run: jarvis setup", force=True)
+                            agent._vprint(f"{agent.log_prefix}      • Does your account have access to {_model}?", force=True)
                             if base_url_host_matches(str(_base), "openrouter.ai"):
-                                agent._vprint(f"{brain.log_prefix}      • Check credits: https://openrouter.ai/settings/credits", force=True)
+                                agent._vprint(f"{agent.log_prefix}      • Check credits: https://openrouter.ai/settings/credits", force=True)
                     else:
-                        agent._vprint(f"{brain.log_prefix}   💡 This type of error won't be fixed by retrying.", force=True)
+                        agent._vprint(f"{agent.log_prefix}   💡 This type of error won't be fixed by retrying.", force=True)
                     # Content-policy blocks deserve their own actionable
                     # guidance — neither "fix your API key" nor "retry won't
                     # help" tells the user what to actually do. The provider
@@ -3267,22 +3267,22 @@ def run_conversation(
                     # either a rephrase or routing to a different model.
                     if classified.reason == FailoverReason.content_policy_blocked:
                         agent._vprint(
-                            f"{brain.log_prefix}   💡 The provider's safety filter rejected this specific prompt.",
+                            f"{agent.log_prefix}   💡 The provider's safety filter rejected this specific prompt.",
                             force=True,
                         )
                         agent._vprint(
-                            f"{brain.log_prefix}      • Try rephrasing the request, narrowing the context, or splitting into smaller steps.",
+                            f"{agent.log_prefix}      • Try rephrasing the request, narrowing the context, or splitting into smaller steps.",
                             force=True,
                         )
                         agent._vprint(
-                            f"{brain.log_prefix}      • Configure a fallback provider so future blocks route automatically:",
+                            f"{agent.log_prefix}      • Configure a fallback provider so future blocks route automatically:",
                             force=True,
                         )
                         agent._vprint(
-                            f"{brain.log_prefix}        jarvis fallback add   (interactive picker — same as `jarvis model`)",
+                            f"{agent.log_prefix}        jarvis fallback add   (interactive picker — same as `jarvis model`)",
                             force=True,
                         )
-                    logger.error(f"{brain.log_prefix}Non-retryable client error: {api_error}")
+                    logger.error(f"{agent.log_prefix}Non-retryable client error: {api_error}")
                     # Skip session persistence when the error is likely
                     # context-overflow related (status 400 + large session).
                     # Persisting the failed user message would make the
@@ -3290,7 +3290,7 @@ def run_conversation(
                     # next attempt. (#1630)
                     if status_code == 400 and (approx_tokens > 50000 or len(api_messages) > 80):
                         agent._vprint(
-                            f"{brain.log_prefix}⚠️  Skipping session persistence "
+                            f"{agent.log_prefix}⚠️  Skipping session persistence "
                             f"for large failed session to prevent growth loop.",
                             force=True,
                         )
@@ -3360,7 +3360,7 @@ def run_conversation(
                         agent._emit_status(f"❌ Rate limited after {max_retries} retries — {_final_summary}")
                     else:
                         agent._emit_status(f"❌ API failed after {max_retries} retries — {_final_summary}")
-                    agent._vprint(f"{brain.log_prefix}   💀 Final error: {_final_summary}", force=True)
+                    agent._vprint(f"{agent.log_prefix}   💀 Final error: {_final_summary}", force=True)
 
                     # Detect SSE stream-drop pattern (e.g. "Network
                     # connection lost") and surface actionable guidance.
@@ -3377,14 +3377,14 @@ def run_conversation(
                     )
                     if _is_stream_drop:
                         agent._vprint(
-                            f"{brain.log_prefix}   💡 The provider's stream "
+                            f"{agent.log_prefix}   💡 The provider's stream "
                             f"connection keeps dropping. This often happens "
                             f"when the model tries to write a very large "
                             f"file in a single tool call.",
                             force=True,
                         )
                         agent._vprint(
-                            f"{brain.log_prefix}      Try asking the model "
+                            f"{agent.log_prefix}      Try asking the model "
                             f"to use execute_code with Python's open() for "
                             f"large files, or to write the file in smaller "
                             f"sections.",
@@ -3393,7 +3393,7 @@ def run_conversation(
 
                     logger.error(
                         "%sAPI call failed after %s retries. %s | provider=%s model=%s msgs=%s tokens=~%s",
-                        brain.log_prefix, max_retries, _final_summary,
+                        agent.log_prefix, max_retries, _final_summary,
                         _provider, _model, len(api_messages), f"{approx_tokens:,}",
                     )
                     if api_kwargs is not None:
@@ -3461,7 +3461,7 @@ def run_conversation(
                 _backoff_touch_counter = 0
                 while time.time() < sleep_end:
                     if agent._interrupt_requested:
-                        agent._vprint(f"{brain.log_prefix}⚡ Interrupt detected during retry wait, aborting.", force=True)
+                        agent._vprint(f"{agent.log_prefix}⚡ Interrupt detected during retry wait, aborting.", force=True)
                         agent._persist_session(messages, conversation_history)
                         agent.clear_interrupt()
                         return {
@@ -3517,7 +3517,7 @@ def run_conversation(
         # the `response` variable is still None. Break out cleanly.
         if response is None:
             _turn_exit_reason = "all_retries_exhausted_no_response"
-            print(f"{brain.log_prefix}❌ All API retries exhausted with no successful response.")
+            print(f"{agent.log_prefix}❌ All API retries exhausted with no successful response.")
             agent._persist_session(messages, conversation_history)
             break
 
@@ -3596,9 +3596,9 @@ def run_conversation(
             # Handle assistant response
             if assistant_message.content and not agent.quiet_mode:
                 if agent.verbose_logging:
-                    agent._vprint(f"{brain.log_prefix}🤖 Assistant: {assistant_message.content}")
+                    agent._vprint(f"{agent.log_prefix}🤖 Assistant: {assistant_message.content}")
                 else:
-                    agent._vprint(f"{brain.log_prefix}🤖 Assistant: {assistant_message.content[:100]}{'...' if len(assistant_message.content) > 100 else ''}")
+                    agent._vprint(f"{agent.log_prefix}🤖 Assistant: {assistant_message.content[:100]}{'...' if len(assistant_message.content) > 100 else ''}")
 
             # Notify progress callback of model's thinking (used by subagent
             # delegation to relay the child's reasoning to the parent display).
@@ -3636,7 +3636,7 @@ def run_conversation(
                 else:
                     # Max retries - discard this turn and save as partial
                     agent._flush_status_buffer()
-                    agent._vprint(f"{brain.log_prefix}❌ Max retries (2) for incomplete scratchpad. Saving as partial.", force=True)
+                    agent._vprint(f"{agent.log_prefix}❌ Max retries (2) for incomplete scratchpad. Saving as partial.", force=True)
                     agent._incomplete_scratchpad_retries = 0
                     
                     rolled_back_messages = agent._get_messages_up_to_last_assistant(messages)
@@ -3697,7 +3697,7 @@ def run_conversation(
 
                 if agent._codex_incomplete_retries < 3:
                     if not agent.quiet_mode:
-                        agent._vprint(f"{brain.log_prefix}↻ Codex response incomplete; continuing turn ({agent._codex_incomplete_retries}/3)")
+                        agent._vprint(f"{agent.log_prefix}↻ Codex response incomplete; continuing turn ({agent._codex_incomplete_retries}/3)")
                     agent._session_messages = messages
                     continue
 
@@ -3717,7 +3717,7 @@ def run_conversation(
             # Check for tool calls
             if assistant_message.tool_calls:
                 if not agent.quiet_mode:
-                    agent._vprint(f"{brain.log_prefix}🔧 Processing {len(assistant_message.tool_calls)} tool call(s)...")
+                    agent._vprint(f"{agent.log_prefix}🔧 Processing {len(assistant_message.tool_calls)} tool call(s)...")
                 
                 if agent.verbose_logging:
                     for tc in assistant_message.tool_calls:
@@ -3729,7 +3729,7 @@ def run_conversation(
                     if tc.function.name not in agent.valid_tool_names:
                         repaired = agent._repair_tool_call(tc.function.name)
                         if repaired:
-                            print(f"{brain.log_prefix}🔧 Auto-repaired tool name: '{tc.function.name}' -> '{repaired}'")
+                            print(f"{agent.log_prefix}🔧 Auto-repaired tool name: '{tc.function.name}' -> '{repaired}'")
                             tc.function.name = repaired
                 invalid_tool_calls = [
                     tc.function.name for tc in assistant_message.tool_calls
@@ -3747,7 +3747,7 @@ def run_conversation(
 
                     if agent._invalid_tool_retries >= 3:
                         agent._flush_status_buffer()
-                        agent._vprint(f"{brain.log_prefix}❌ Max retries (3) for invalid tool calls exceeded. Stopping as partial.", force=True)
+                        agent._vprint(f"{agent.log_prefix}❌ Max retries (3) for invalid tool calls exceeded. Stopping as partial.", force=True)
                         agent._invalid_tool_retries = 0
                         agent._persist_session(messages, conversation_history)
                         return {
@@ -3832,7 +3832,7 @@ def run_conversation(
                     )
                     if _truncated:
                         agent._vprint(
-                            f"{brain.log_prefix}⚠️  Truncated tool call arguments detected "
+                            f"{agent.log_prefix}⚠️  Truncated tool call arguments detected "
                             f"(finish_reason={finish_reason!r}) — refusing to execute.",
                             force=True,
                         )

@@ -2,6 +2,7 @@ import { useStore } from '@nanostores/react'
 import type { ComponentProps, ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
+import { BeveledButton } from '@/components/chrome/beveled-button'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { useI18n } from '@/i18n'
@@ -18,7 +19,7 @@ import {
   toggleSidebarOpen
 } from '@/store/layout'
 
-import { appViewForPath, isOverlayView } from '../routes'
+import { appViewForPath, isOverlayView, MENU_ROUTE } from '../routes'
 
 import { titlebarButtonClass } from './titlebar'
 
@@ -191,6 +192,21 @@ export function TitlebarControls({ leftTools = [], tools = [], onOpenSettings }:
         ))}
         {settingsTool && <TitlebarToolButton navigate={navigate} tool={settingsTool} />}
         <TitlebarToolButton navigate={navigate} tool={rightSidebarTool} />
+        <BeveledButton
+          aria-label={t.jarvis.menu.open}
+          className="[-webkit-app-region:no-drag]"
+          onClick={() => {
+            triggerHaptic('open')
+            navigate(MENU_ROUTE)
+          }}
+          onPointerDown={event => event.stopPropagation()}
+          size="xs"
+          title={t.jarvis.menu.open}
+          type="button"
+          variant="solid"
+        >
+          {t.jarvis.menu.label}
+        </BeveledButton>
       </div>
     </>
   )

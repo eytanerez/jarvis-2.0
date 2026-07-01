@@ -1881,7 +1881,7 @@ def test_dump_api_request_debug_uses_responses_url(monkeypatch, tmp_path):
     import json
     agent = _build_agent(monkeypatch)
     agent.base_url = "http://127.0.0.1:9208/v1"
-    brain.logs_dir = tmp_path
+    agent.logs_dir = tmp_path
 
     dump_file = agent._dump_api_request_debug(_codex_request_kwargs(), reason="preflight")
 
@@ -1902,7 +1902,7 @@ def test_dump_api_request_debug_uses_chat_completions_url(monkeypatch, tmp_path)
         skip_context_files=True,
         skip_memory=True,
     )
-    brain.logs_dir = tmp_path
+    agent.logs_dir = tmp_path
 
     dump_file = agent._dump_api_request_debug(
         {"model": "gpt-4o", "messages": [{"role": "user", "content": "hi"}]},
@@ -1928,7 +1928,7 @@ def test_dump_api_request_debug_redacts_request_and_error_secrets(monkeypatch, t
         skip_context_files=True,
         skip_memory=True,
     )
-    brain.logs_dir = tmp_path
+    agent.logs_dir = tmp_path
 
     notion_token = "ntn_abc123def456ghi789jkl"
     error_secret = "sk-ant-errorsecret1234567890"

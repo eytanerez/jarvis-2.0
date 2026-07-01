@@ -19,6 +19,7 @@ export const zhHant = defineLocale({
     toolActivity: '工具活動',
     menu: {
       open: '開啟 Jarvis 選單',
+      label: '選單',
       navigation: '導覽',
       advanced: '進階',
       newSession: '新增工作階段',
@@ -303,6 +304,8 @@ export const zhHant = defineLocale({
       toolViewDesc: '產品模式會隱藏原始工具 payload；技術模式會顯示完整輸入/輸出。',
       translucencyTitle: '視窗透明',
       translucencyDesc: '讓整個視窗透出桌面。僅支援 macOS 與 Windows。',
+      performanceModeTitle: '球體效能模式',
+      performanceModeDesc: '以一半解析度、一半影格率算繪宇宙背景，可改善低效能顯示卡的表現;球體本身會維持全畫質。',
       product: '產品',
       productDesc: '易讀的工具活動與精簡摘要。',
       technical: '技術',

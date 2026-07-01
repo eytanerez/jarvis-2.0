@@ -169,7 +169,7 @@ class TestPoolRotationCycle:
         pool.mark_exhausted_and_rotate = MagicMock(side_effect=rotate)
         agent._credential_pool = pool
         agent._swap_credential = MagicMock()
-        brain.log_prefix = ""
+        agent.log_prefix = ""
 
         return agent, pool, entries
 

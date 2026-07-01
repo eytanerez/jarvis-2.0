@@ -285,7 +285,7 @@ class TestContextNotHalvedOnOutputCapError:
         agent.reasoning_config = None
         agent._is_anthropic_oauth = False
         agent._ephemeral_max_output_tokens = None
-        brain.log_prefix = ""
+        agent.log_prefix = ""
         agent.quiet_mode = True
         agent.verbose_logging = False
 

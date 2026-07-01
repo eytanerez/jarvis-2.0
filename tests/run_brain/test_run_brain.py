@@ -603,7 +603,7 @@ class TestSessionJsonSnapshotOptIn:
         # When disabled, calling the method must not write any file even
         # if logs_dir is writable and messages are non-empty.
         agent._session_json_enabled = False
-        brain.logs_dir = tmp_path
+        agent.logs_dir = tmp_path
         agent._session_messages = [{"role": "user", "content": "hello"}]
         agent._save_session_log()
         # No session_*.json must appear under logs_dir.
@@ -613,7 +613,7 @@ class TestSessionJsonSnapshotOptIn:
         # Opt-in path: with the flag on and a session_id, the writer must
         # produce ``session_{sid}.json`` under logs_dir.
         agent._session_json_enabled = True
-        brain.logs_dir = tmp_path
+        agent.logs_dir = tmp_path
         messages = [{"role": "user", "content": "hello"}]
         agent._save_session_log(messages)
         expected = tmp_path / f"session_{agent.session_id}.json"
@@ -643,7 +643,7 @@ class TestSaveSessionLogRedactsSecrets:
 
     def test_redacts_api_key_in_tool_content(self, agent, tmp_path):
         agent._session_json_enabled = True
-        brain.logs_dir = tmp_path
+        agent.logs_dir = tmp_path
         messages = [
             {"role": "user", "content": "Hello"},
             {
@@ -658,7 +658,7 @@ class TestSaveSessionLogRedactsSecrets:
 
     def test_redacts_api_key_in_user_message(self, agent, tmp_path):
         agent._session_json_enabled = True
-        brain.logs_dir = tmp_path
+        agent.logs_dir = tmp_path
         messages = [
             {"role": "user", "content": "My key is sk-ant-api03-abc123def456ghi789jkl012mno please use it"},
         ]
@@ -669,7 +669,7 @@ class TestSaveSessionLogRedactsSecrets:
 
     def test_redacts_system_prompt_credentials(self, agent, tmp_path):
         agent._session_json_enabled = True
-        brain.logs_dir = tmp_path
+        agent.logs_dir = tmp_path
         agent._cached_system_prompt = "Use key sk-proj-realkey1234567890123456 for API calls"
         agent._save_session_log([{"role": "user", "content": "test"}])
 
@@ -679,7 +679,7 @@ class TestSaveSessionLogRedactsSecrets:
     def test_redacts_list_type_multimodal_content(self, agent, tmp_path):
         """OpenAI/Anthropic multimodal shape: content = list of {type, text|image_url} parts."""
         agent._session_json_enabled = True
-        brain.logs_dir = tmp_path
+        agent.logs_dir = tmp_path
         messages = [
             {
                 "role": "user",
@@ -6653,10 +6653,10 @@ class TestMemoryNudgeCounterPersistence:
         # iteration_budget. Anchor exactly on
         # ``agent.iteration_budget = IterationBudget`` so an unrelated
         # identifier ending in ``iteration_budget`` can't match the boundary.
-        preamble_end = src.index("brain.iteration_budget = IterationBudget")
+        preamble_end = src.index("agent.iteration_budget = IterationBudget")
         preamble = src[:preamble_end]
-        assert "brain._turns_since_memory = 0" not in preamble
-        assert "brain._iters_since_skill = 0" not in preamble
+        assert "agent._turns_since_memory = 0" not in preamble
+        assert "agent._iters_since_skill = 0" not in preamble
 
 
 class TestDeadRetryCode:

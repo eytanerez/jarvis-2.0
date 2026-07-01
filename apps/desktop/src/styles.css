@@ -41,6 +41,24 @@
   src: url('./fonts/JetBrainsMono-Italic.woff2') format('woff2');
 }
 
+/* Commit Mono — bundled label font (SIL OFL-1.1) for uppercase-tracked nav
+   links, button labels, and small caption text. Kept separate from JetBrains
+   Mono, which stays reserved for actual code/terminal output. */
+@font-face {
+  font-family: 'Commit Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/CommitMono-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Commit Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/CommitMono-Bold.woff2') format('woff2');
+}
+
 @theme inline {
   --color-background: var(--dt-background);
   --color-foreground: var(--dt-foreground);
@@ -67,6 +85,7 @@
 
   --font-sans: var(--dt-font-sans);
   --font-mono: var(--dt-font-mono);
+  --font-label: var(--dt-font-label);
 
   --spacing-mul: var(--dt-spacing-mul, 1);
 

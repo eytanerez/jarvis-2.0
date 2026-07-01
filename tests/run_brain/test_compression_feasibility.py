@@ -40,7 +40,7 @@ def _make_agent(
     agent.api_key = "sk-test"
     agent.api_mode = "chat_completions"
     agent.quiet_mode = True
-    brain.log_prefix = ""
+    agent.log_prefix = ""
     agent.compression_enabled = compression_enabled
     agent._print_fn = None
     agent.suppress_status_output = False

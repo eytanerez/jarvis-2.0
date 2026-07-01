@@ -17,7 +17,7 @@ def _make_bare_agent():
     buffered-status helpers, which are pure-Python and depend only on a
     handful of attributes."""
     agent = object.__new__(AIBrain)
-    brain.log_prefix = ""
+    agent.log_prefix = ""
     agent.status_callback = None
     agent.suppress_status_output = False
     agent._mute_post_response = False
@@ -71,7 +71,7 @@ def test_clear_drops_buffered_messages_silently():
 
 def test_buffer_vprint_replays_via_vprint_with_log_prefix():
     agent = _make_bare_agent()
-    brain.log_prefix = "[abc] "
+    agent.log_prefix = "[abc] "
     seen = []
     agent._vprint = lambda msg, force=False, **kw: seen.append((msg, force))
 
@@ -114,7 +114,7 @@ def test_re_buffer_after_flush_works():
 
 def test_mixed_kinds_replay_through_correct_channels():
     agent = _make_bare_agent()
-    brain.log_prefix = ""
+    agent.log_prefix = ""
     statuses = []
     vprints = []
     warns = []
