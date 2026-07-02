@@ -18,6 +18,7 @@ const assert = require('node:assert/strict')
 const {
   normalizeUpdateSha,
   resolveClientUpdateBase,
+  resolveJarvisCliInvocation,
   shouldRetryRebuild,
   runRebuildWithRetry
 } = require('./update-rebuild.cjs')
@@ -58,6 +59,38 @@ test('dev client update checks fall back to the source checkout sha', () => {
 
   assert.equal(base.currentSha, '45314dbba883cfd7df0e5692a6c1d712b34bf54a')
   assert.equal(base.fromInstallStamp, false)
+})
+
+test('Jarvis CLI invocation prefers repo venv Python over a console shim', () => {
+  const root = '/repo/jarvis'
+  const existing = new Set(['/repo/jarvis/.venv/bin/python', '/repo/jarvis/.venv/bin/jarvis'])
+  const invocation = resolveJarvisCliInvocation({
+    updateRoot: root,
+    fileExists: file => existing.has(file),
+    findOnPath: () => '/usr/local/bin/jarvis'
+  })
+
+  assert.deepEqual(invocation, {
+    args: ['-m', 'jarvis_cli.main'],
+    command: '/repo/jarvis/.venv/bin/python',
+    pythonPath: root,
+    source: 'venv-python'
+  })
+})
+
+test('Jarvis CLI invocation falls back to PATH when no repo Python exists', () => {
+  const invocation = resolveJarvisCliInvocation({
+    updateRoot: '/repo/jarvis',
+    fileExists: () => false,
+    findOnPath: name => (name === 'jarvis' ? '/usr/local/bin/jarvis' : null)
+  })
+
+  assert.deepEqual(invocation, {
+    args: [],
+    command: '/usr/local/bin/jarvis',
+    pythonPath: null,
+    source: 'path'
+  })
 })
 
 test('a clean first rebuild runs once and does not retry', async () => {

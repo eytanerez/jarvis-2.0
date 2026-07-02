@@ -1590,7 +1590,9 @@ export const zh: Translations = {
       prepare: '准备中…',
       fetch: '下载中…',
       pull: '马上完成…',
+      update: '正在更新 Jarvis…',
       pydeps: '收尾中…',
+      rebuild: '正在重建应用…',
       restart: '正在重启 Jarvis…',
       manual: '从终端更新',
       error: '更新已暂停'
@@ -1618,7 +1620,7 @@ export const zh: Translations = {
     copy: '复制',
     copied: '已复制',
     done: '完成',
-    applyingBody: 'Jarvis 更新器会在自己的窗口中接管，并在完成后重新打开 Jarvis。',
+    applyingBody: 'Jarvis 正在拉取更新、重建应用，并会在完成后自动重新打开。',
     applyingBodyBackend: '远程后端正在应用更新并将重启。恢复后 Jarvis 会自动重新连接。',
     applyingClose: 'Jarvis 将关闭以应用更新。',
     errorTitle: '更新未完成',

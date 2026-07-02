@@ -1485,7 +1485,9 @@ export const zhHant = defineLocale({
       prepare: '準備中…',
       fetch: '下載中…',
       pull: '快完成了…',
+      update: '正在更新 Jarvis…',
       pydeps: '收尾中…',
+      rebuild: '正在重新建置應用程式…',
       restart: '正在重新啟動 Jarvis…',
       manual: '從終端機更新',
       error: '更新已暫停'
@@ -1513,7 +1515,7 @@ export const zhHant = defineLocale({
     copy: '複製',
     copied: '已複製',
     done: '完成',
-    applyingBody: 'Jarvis 更新程式會在自己的視窗中接管，並在完成後重新開啟 Jarvis。',
+    applyingBody: 'Jarvis 正在拉取更新、重新建置應用程式，並會在完成後自動重新開啟。',
     applyingBodyBackend: '遠端後端正在套用更新並將重新啟動。恢復後 Jarvis 會自動重新連線。',
     applyingClose: 'Jarvis 將關閉以套用更新。',
     errorTitle: '更新未完成',

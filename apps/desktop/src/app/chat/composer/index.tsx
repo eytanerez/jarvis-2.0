@@ -24,6 +24,7 @@ import { SLASH_COMMAND_RE } from '@/lib/chat-runtime'
 import { desktopSlashCommandTakesArgs } from '@/lib/desktop-slash-commands'
 import { DATA_IMAGE_URL_RE } from '@/lib/embedded-images'
 import { triggerHaptic } from '@/lib/haptics'
+import { $notchCommand, type NotchTranscriptTurn, publishNotchStatus, publishNotchTranscript } from '@/lib/notch-link'
 import { cn } from '@/lib/utils'
 import {
   $composerAttachments,
@@ -1720,6 +1721,97 @@ export function ChatBar({
     pendingResponse,
     subscribeToResponse
   })
+
+  // --- Native notch bridge --------------------------------------------------
+  // The notch's orb click arrives as a command; it drives the exact same
+  // start/end handlers as the composer's own voice controls so the two entry
+  // points can never drift. Status + transcript flow back out so the notch
+  // renders the conversation live. All of it no-ops when the notch bridge is
+  // absent (non-mac, notch disabled).
+  const notchCommand = useStore($notchCommand)
+
+  useEffect(() => {
+    if (!notchCommand) {
+      return
+    }
+
+    if (notchCommand === 'start') {
+      $notchCommand.set(null)
+
+      if (!voiceConversationActive) {
+        // Same as the voice button: voice IS the orb cockpit.
+        setCockpitMode('orb')
+        setVoiceConversationActive(true)
+      }
+    } else if (notchCommand === 'end') {
+      $notchCommand.set(null)
+
+      if (voiceConversationActive) {
+        setVoiceConversationActive(false)
+        void conversation.end()
+      }
+    }
+  }, [notchCommand, voiceConversationActive, conversation])
+
+  useEffect(() => {
+    publishNotchStatus(voiceConversationActive ? conversation.status : 'idle')
+  }, [voiceConversationActive, conversation.status])
+
+  useEffect(() => {
+    if (!voiceConversationActive) {
+      return
+    }
+
+    // $messages flushes per streamed token; trail the forwarding slightly so
+    // the notch gets readable updates without an IPC message per token.
+    let timer: number | null = null
+
+    const forward = () => {
+      timer = null
+      const turns: NotchTranscriptTurn[] = []
+      const messages = $messages.get()
+
+      for (let i = Math.max(0, messages.length - 12); i < messages.length; i++) {
+        const message = messages[i]
+
+        if (message.hidden || (message.role !== 'user' && message.role !== 'assistant')) {
+          continue
+        }
+
+        const text = chatMessageText(message).trim()
+
+        if (!text) {
+          continue
+        }
+
+        turns.push({
+          final: !message.pending,
+          id: message.id,
+          role: message.role === 'user' ? 'user' : 'jarvis',
+          text
+        })
+      }
+
+      publishNotchTranscript(turns.slice(-8))
+    }
+
+    const schedule = () => {
+      if (timer === null) {
+        timer = window.setTimeout(forward, 120)
+      }
+    }
+
+    forward()
+    const unsubscribe = $messages.listen(schedule)
+
+    return () => {
+      unsubscribe()
+
+      if (timer !== null) {
+        window.clearTimeout(timer)
+      }
+    }
+  }, [voiceConversationActive])
 
   const contextMenu = (
     <ContextMenu

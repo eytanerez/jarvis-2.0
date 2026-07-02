@@ -121,8 +121,31 @@ declare global {
         // returns the most-installed themes.
         searchMarketplace: (query: string) => Promise<DesktopMarketplaceSearchItem[]>
       }
+      // Bridge to the native notch companion app (macOS only; absent on other
+      // platforms / older preloads). See electron/notch.cjs for the protocol.
+      notch?: {
+        getSettings: () => Promise<DesktopNotchSettingsSnapshot>
+        requestPermission: (id: string) => Promise<{ ok: boolean; error?: string | null }>
+        publish: (payload: { type: string; [key: string]: unknown }) => void
+        setSetting: (key: string, value: unknown) => Promise<{ ok: boolean; error?: string | null }>
+        onCommand: (callback: (message: { type: string }) => void) => () => void
+        onSettings: (callback: (snapshot: DesktopNotchSettingsSnapshot) => void) => () => void
+      }
     }
   }
+}
+
+export interface DesktopNotchPermission {
+  id: string
+  label: string
+  status: 'granted' | 'denied' | 'unknown'
+  description?: string
+}
+
+export interface DesktopNotchSettingsSnapshot {
+  connected: boolean
+  values: Record<string, unknown>
+  permissions: DesktopNotchPermission[]
 }
 
 export interface DesktopMarketplaceSearchItem {
@@ -234,7 +257,17 @@ export interface DesktopUpdateApplyResult {
   jarvisRoot?: string
 }
 
-export type DesktopUpdateStage = 'idle' | 'prepare' | 'fetch' | 'pull' | 'pydeps' | 'restart' | 'manual' | 'error'
+export type DesktopUpdateStage =
+  | 'idle'
+  | 'prepare'
+  | 'fetch'
+  | 'pull'
+  | 'update'
+  | 'pydeps'
+  | 'rebuild'
+  | 'restart'
+  | 'manual'
+  | 'error'
 
 export interface DesktopUpdateProgress {
   stage: DesktopUpdateStage

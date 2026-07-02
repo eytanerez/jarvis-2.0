@@ -9,6 +9,7 @@ from jarvis_cli.models import (
     check_nous_free_tier, _FREE_TIER_CACHE_TTL,
     union_with_portal_free_recommendations,
     union_with_portal_paid_recommendations,
+    _PROVIDER_MODELS,
 )
 import jarvis_cli.models as _models_mod
 
@@ -55,6 +56,23 @@ class TestOpenRouterModels:
             mid, desc = entry
             assert isinstance(mid, str) and len(mid) > 0
             assert isinstance(desc, str)
+
+    def test_nemotron_ultra_is_added_without_replacing_super(self):
+        ids = [mid for mid, _ in OPENROUTER_MODELS]
+        assert "nvidia/nemotron-3-super-120b-a12b" in ids
+        assert "nvidia/nemotron-3-ultra-550b-a55b" in ids
+
+
+class TestProviderModels:
+    def test_nvidia_nemotron_ultra_is_added_without_replacing_super(self):
+        nvidia = _PROVIDER_MODELS["nvidia"]
+        assert "nvidia/nemotron-3-super-120b-a12b" in nvidia
+        assert "nvidia/nemotron-3-ultra-550b-a55b" in nvidia
+
+    def test_nous_nemotron_ultra_is_added_without_replacing_super(self):
+        nous = _PROVIDER_MODELS["nous"]
+        assert "nvidia/nemotron-3-super-120b-a12b" in nous
+        assert "nvidia/nemotron-3-ultra-550b-a55b" in nous
 
 
 class TestFetchOpenRouterModels:

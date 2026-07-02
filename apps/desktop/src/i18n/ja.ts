@@ -1531,7 +1531,9 @@ export const ja = defineLocale({
       prepare: '準備中…',
       fetch: 'ダウンロード中…',
       pull: 'もうすぐ完了…',
+      update: 'Jarvis を更新中…',
       pydeps: '仕上げ中…',
+      rebuild: 'アプリを再ビルド中…',
       restart: 'Jarvis を再起動中…',
       manual: 'ターミナルから更新',
       error: '更新が一時停止中'
@@ -1561,7 +1563,7 @@ export const ja = defineLocale({
     copy: 'コピー',
     copied: 'コピーしました',
     done: '完了',
-    applyingBody: 'Jarvis アップデーターが独自のウィンドウで引き継ぎ、完了後に Jarvis を再度開きます。',
+    applyingBody: 'Jarvis が更新を取得してアプリを再ビルドし、完了後に自動で再起動します。',
     applyingBodyBackend: 'リモートバックエンドが更新を適用して再起動します。復帰すると Jarvis が自動的に再接続します。',
     applyingClose: 'Jarvis は更新を適用するために閉じます。',
     errorTitle: '更新が完了しませんでした',

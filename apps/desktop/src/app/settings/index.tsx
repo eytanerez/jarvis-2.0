@@ -5,7 +5,7 @@ import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { getJarvisConfigDefaults, getJarvisConfigRecord, saveJarvisConfig } from '@/jarvis'
 import { triggerHaptic } from '@/lib/haptics'
-import { Archive, Bell, Globe, Info, KeyRound, Settings2, Sparkles, Wrench, Zap } from '@/lib/icons'
+import { Archive, Bell, Globe, Info, KeyRound, PanelBottom, Settings2, Sparkles, Wrench, Zap } from '@/lib/icons'
 import { notifyError } from '@/store/notifications'
 
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
@@ -20,6 +20,7 @@ import { SECTIONS } from './constants'
 import { GatewaySettings } from './gateway-settings'
 import { KEYS_VIEWS, KeysSettings, type KeysView } from './keys-settings'
 import { McpSettings } from './mcp-settings'
+import { NotchSettings } from './notch-settings'
 import { NotificationsSettings } from './notifications-settings'
 import { PROVIDER_VIEWS, ProvidersSettings, type ProviderView } from './providers-settings'
 import { SessionsSettings } from './sessions-settings'
@@ -32,6 +33,7 @@ const SETTINGS_VIEWS: readonly SettingsViewId[] = [
   'keys',
   'mcp',
   'notifications',
+  'notch',
   'sessions',
   'about'
 ]
@@ -108,6 +110,12 @@ export function SettingsView({ gateway, onClose, onConfigSaved, onMainModelChang
             icon={Bell}
             label={t.settings.nav.notifications}
             onClick={() => setActiveView('notifications')}
+          />
+          <OverlayNavItem
+            active={activeView === 'notch'}
+            icon={PanelBottom}
+            label="The Notch"
+            onClick={() => setActiveView('notch')}
           />
           <div className="my-2 h-px bg-border/30" />
           <OverlayNavItem
@@ -235,6 +243,8 @@ export function SettingsView({ gateway, onClose, onConfigSaved, onMainModelChang
             <McpSettings gateway={gateway} onConfigSaved={onConfigSaved} />
           ) : activeView === 'notifications' ? (
             <NotificationsSettings />
+          ) : activeView === 'notch' ? (
+            <NotchSettings />
           ) : (
             <SessionsSettings />
           )}

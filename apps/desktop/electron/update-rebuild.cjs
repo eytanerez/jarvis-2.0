@@ -1,5 +1,7 @@
 'use strict'
 
+const path = require('node:path')
+
 /**
  * Retry-once policy for the desktop `--build-only` rebuild during self-update.
  *
@@ -33,6 +35,38 @@ function resolveClientUpdateBase({ installStamp, isPackaged = false, sourceSha }
   }
 }
 
+function resolveJarvisCliInvocation({ updateRoot, isWindows = false, fileExists = () => false, findOnPath = () => null } = {}) {
+  if (!updateRoot) {
+    return null
+  }
+
+  const scriptsDir = isWindows ? 'Scripts' : 'bin'
+  const pythonName = isWindows ? 'python.exe' : 'python'
+  const pythonCandidates = ['.venv', 'venv'].map(name => path.join(updateRoot, name, scriptsDir, pythonName))
+  const python = pythonCandidates.find(fileExists)
+
+  if (python) {
+    return {
+      args: ['-m', 'jarvis_cli.main'],
+      command: python,
+      pythonPath: updateRoot,
+      source: 'venv-python'
+    }
+  }
+
+  const jarvis = findOnPath('jarvis')
+  if (!jarvis) {
+    return null
+  }
+
+  return {
+    args: [],
+    command: jarvis,
+    pythonPath: null,
+    source: 'path'
+  }
+}
+
 /**
  * Run `rebuild()` (async, resolves `{ code, ... }`), retrying once on failure.
  * Returns the final result.
@@ -45,4 +79,10 @@ async function runRebuildWithRetry(rebuild) {
   return result
 }
 
-module.exports = { normalizeUpdateSha, resolveClientUpdateBase, shouldRetryRebuild, runRebuildWithRetry }
+module.exports = {
+  normalizeUpdateSha,
+  resolveClientUpdateBase,
+  resolveJarvisCliInvocation,
+  shouldRetryRebuild,
+  runRebuildWithRetry
+}

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-06-16T18:04:33Z",
+  "updated_at": "2026-07-02T07:03:22Z",
   "metadata": {
     "source": "jarvis-agent repo",
     "docs": "https://jarvis-agent.nousresearch.com/docs/reference/model-catalog"
@@ -110,6 +110,10 @@
         },
         {
           "id": "nvidia/nemotron-3-super-120b-a12b",
+          "description": ""
+        },
+        {
+          "id": "nvidia/nemotron-3-ultra-550b-a55b",
           "description": ""
         },
         {
@@ -223,6 +227,9 @@
         },
         {
           "id": "nvidia/nemotron-3-super-120b-a12b"
+        },
+        {
+          "id": "nvidia/nemotron-3-ultra-550b-a55b"
         }
       ]
     }

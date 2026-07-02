@@ -14,6 +14,7 @@ import { useSkinCommand } from '@/themes/use-skin-command'
 import { formatRefValue } from '../components/assistant-ui/directive-text'
 import { getCronJobs, getSessionMessages, listAllProfileSessions, type SessionInfo, triggerCronJob } from '../jarvis'
 import { type ChatMessage, chatMessageText, preserveLocalAssistantErrors, toChatMessages } from '../lib/chat-messages'
+import { $notchCommand } from '../lib/notch-link'
 import { storedSessionIdForNotification } from '../lib/session-ids'
 import {
   isMessagingSource,
@@ -55,8 +56,8 @@ import {
   $gatewayState,
   $messages,
   $messagingSessions,
-  $resumeFailedSessionId,
   $resumeExhaustedSessionId,
+  $resumeFailedSessionId,
   $selectedStoredSessionId,
   $sessions,
   $workingSessionIds,
@@ -716,6 +717,16 @@ export function DesktopController() {
   // swap (background sockets persist), so the open→open effect won't re-run.
   const activeGatewayProfile = useStore($activeGatewayProfile)
   const lastGatewayProfileRef = useRef(activeGatewayProfile)
+  const notchCommand = useStore($notchCommand)
+
+  useEffect(() => {
+    if (notchCommand !== 'openSettings') {
+      return
+    }
+
+    $notchCommand.set(null)
+    navigate(`${SETTINGS_ROUTE}?tab=notch`)
+  }, [navigate, notchCommand])
 
   useEffect(() => {
     if (activeGatewayProfile === lastGatewayProfileRef.current) {

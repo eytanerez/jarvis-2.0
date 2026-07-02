@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Jarvis uses Apple Music to fetch animated artwork for the lock screen wallpaper.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Jarvis needs audio capture permission to display the real-time music waveform visualizer.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Jarvis needs microphone access so you can speak commands with Option-Space.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Jarvis needs screen recording permission to capture screenshots for context and assistant features.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Jarvis uses speech recognition to transcribe your voice.</string>
+	<key>SUEnableDownloaderService</key>
+	<true/>
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>JarvisUpdateFeedBase</key>
+	<string>https://raw.githubusercontent.com/eytanerez/Jarvis/main/Updates</string>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/eytanerez/Jarvis/main/Updates/dev/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>oo/tH9gA37NVBwZpxbELs02ytOOFTxVwxn8uocgIjAk=</string>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict/>
+	</array>
+</dict>
+</plist>

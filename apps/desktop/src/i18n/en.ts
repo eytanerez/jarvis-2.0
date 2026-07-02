@@ -1403,7 +1403,9 @@ export const en: Translations = {
       prepare: 'Getting ready…',
       fetch: 'Downloading…',
       pull: 'Almost there…',
+      update: 'Updating Jarvis…',
       pydeps: 'Finishing up…',
+      rebuild: 'Rebuilding the app…',
       restart: 'Restarting Jarvis…',
       manual: 'Update from your terminal',
       error: 'Update paused'
@@ -1431,7 +1433,7 @@ export const en: Translations = {
     copy: 'Copy',
     copied: 'Copied',
     done: 'Done',
-    applyingBody: 'The Jarvis updater will take over in its own window and reopen Jarvis when it’s done.',
+    applyingBody: 'Jarvis is pulling the update, rebuilding the app, and will reopen itself when it’s done.',
     applyingBodyBackend:
       'The remote backend is applying the update and will restart. Jarvis reconnects automatically when it’s back.',
     applyingClose: 'Jarvis will close to apply the update.',

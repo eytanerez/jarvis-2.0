@@ -38,13 +38,18 @@ const { adoptServedDashboardToken } = require('./dashboard-token.cjs')
 const { waitForDashboardPort } = require('./backend-ready.cjs')
 const { serializeJsonBody, setJsonRequestHeaders } = require('./oauth-net-request.cjs')
 const { fetchMarketplaceThemes, searchMarketplaceThemes } = require('./vscode-marketplace.cjs')
+const { createNotchLink } = require('./notch.cjs')
 const { buildDesktopBackendEnv, normalizeJarvisHomeRoot } = require('./backend-env.cjs')
 const { readWindowsUserEnvVar } = require('./windows-user-env.cjs')
 const { readDirForIpc } = require('./fs-read-dir.cjs')
 const { gitRootForIpc } = require('./git-root.cjs')
 const { worktreesForIpc } = require('./git-worktrees.cjs')
 const { OFFICIAL_REPO_HTTPS_URL, isOfficialSshRemote } = require('./update-remote.cjs')
-const { resolveClientUpdateBase, runRebuildWithRetry } = require('./update-rebuild.cjs')
+const {
+  resolveClientUpdateBase,
+  resolveJarvisCliInvocation,
+  runRebuildWithRetry
+} = require('./update-rebuild.cjs')
 const {
   buildPosixCleanupScript,
   buildWindowsCleanupScript,
@@ -660,6 +665,8 @@ function registerMediaProtocol() {
 }
 
 let mainWindow = null
+// Link to the native notch companion app (macOS only; see electron/notch.cjs).
+let notchLink = null
 let jarvisProcess = null
 let connectionPromise = null
 // Additional per-profile backends, keyed by profile name. The PRIMARY backend
@@ -1925,14 +1932,6 @@ async function handOffWindowsBootstrapRecovery(reason) {
   return true
 }
 
-// Resolve the jarvis CLI to drive an in-app update: prefer the venv shim in
-// the install we're updating, fall back to `jarvis` on PATH.
-function resolveJarvisCliBinary(updateRoot) {
-  const venvJarvis = path.join(updateRoot, 'venv', 'bin', 'jarvis')
-  if (fileExists(venvJarvis)) return venvJarvis
-  return findOnPath('jarvis') || null
-}
-
 // Spawn a command and stream each output line to the update progress channel.
 function runStreamedUpdate(command, args, { cwd, env, stage } = {}) {
   return new Promise(resolve => {
@@ -1983,20 +1982,26 @@ function shellQuote(value) {
 // restart to load the new GUI" if the swap can't be performed.
 async function applyUpdatesPosixInApp() {
   const updateRoot = resolveUpdateRoot()
-  const jarvis = resolveJarvisCliBinary(updateRoot)
+  const jarvis = resolveJarvisCliInvocation({ updateRoot, isWindows: IS_WINDOWS, fileExists, findOnPath })
   if (!jarvis) {
-    emitUpdateProgress({ stage: 'manual', message: 'jarvis update', percent: null })
-    return { ok: true, manual: true, command: 'jarvis update', jarvisRoot: updateRoot }
+    const message = `Could not find a runnable Jarvis updater for ${updateRoot}.`
+    emitUpdateProgress({ stage: 'error', message, error: 'cli-unavailable', percent: null })
+    return { ok: false, error: 'cli-unavailable', message, jarvisRoot: updateRoot }
   }
 
   // Put the Jarvis-managed Node and the venv on PATH so `jarvis desktop`'s
   // npm build can find them on a machine with no system Node.
-  const extraPath = [path.join(JARVIS_HOME, 'node', 'bin'), path.join(updateRoot, 'venv', 'bin')]
+  const venvBin = path.join(updateRoot, 'venv', IS_WINDOWS ? 'Scripts' : 'bin')
+  const dotVenvBin = path.join(updateRoot, '.venv', IS_WINDOWS ? 'Scripts' : 'bin')
+  const extraPath = [path.join(JARVIS_HOME, 'node', 'bin'), dotVenvBin, venvBin]
     .filter(Boolean)
     .join(path.delimiter)
   const env = {
     JARVIS_HOME,
-    PATH: [extraPath, process.env.PATH].filter(Boolean).join(path.delimiter)
+    PATH: [extraPath, process.env.PATH].filter(Boolean).join(path.delimiter),
+    ...(jarvis.pythonPath
+      ? { PYTHONPATH: [jarvis.pythonPath, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter) }
+      : {})
   }
 
   // `jarvis update` reaps stale `jarvis dashboard` backends (a code update
@@ -2036,18 +2041,44 @@ async function applyUpdatesPosixInApp() {
     // best effort
   }
 
-  emitUpdateProgress({ stage: 'update', message: 'Updating Jarvis (git + dependencies)…', percent: 10 })
-  const updated = await runStreamedUpdate(jarvis, ['update', '--yes', ...branchArgs], {
-    cwd: updateRoot,
-    env,
-    stage: 'update'
-  })
-  if (updated.code !== 0) {
-    emitUpdateProgress({ stage: 'error', message: 'jarvis update failed.', error: updated.error || 'update-failed' })
-    return { ok: false, error: 'jarvis update failed' }
+  let sourceAlreadyCurrent = false
+  try {
+    const status = await checkUpdates()
+    sourceAlreadyCurrent = Boolean(
+      status?.sourceSha && status?.targetSha && status.sourceSha === status.targetSha
+    )
+  } catch {
+    // If the preflight check cannot run, fall back to the regular update path.
+  }
+
+  if (sourceAlreadyCurrent) {
+    emitUpdateProgress({
+      stage: 'update',
+      message: 'Source checkout is current; refreshing the desktop app…',
+      percent: 20
+    })
+  } else {
+    emitUpdateProgress({ stage: 'update', message: 'Updating Jarvis (git + dependencies)…', percent: 10 })
+    const updated = await runStreamedUpdate(jarvis.command, [...jarvis.args, 'update', '--yes', ...branchArgs], {
+      cwd: updateRoot,
+      env,
+      stage: 'update'
+    })
+    if (updated.code !== 0) {
+      emitUpdateProgress({ stage: 'error', message: 'Jarvis update failed.', error: updated.error || 'update-failed' })
+      return { ok: false, error: 'jarvis update failed' }
+    }
   }
 
   emitUpdateProgress({ stage: 'rebuild', message: 'Rebuilding the desktop app…', percent: 60 })
+  const desktopArgs = [
+    ...jarvis.args,
+    'desktop',
+    '--build-only',
+    '--force-build',
+    '--jarvis-root',
+    updateRoot
+  ]
   // Retry-once: a first rebuild can fail on a still-settling tree or a
   // self-healed (network-blocked) Electron download; a second run builds clean
   // off the healed dist so we reach the swap+relaunch below instead of bailing.
@@ -2055,7 +2086,7 @@ async function applyUpdatesPosixInApp() {
     if (attempt > 0) {
       emitUpdateProgress({ stage: 'rebuild', message: 'Retrying the desktop rebuild…', percent: 60 })
     }
-    return runStreamedUpdate(jarvis, ['desktop', '--build-only'], { cwd: updateRoot, env, stage: 'rebuild' })
+    return runStreamedUpdate(jarvis.command, desktopArgs, { cwd: updateRoot, env, stage: 'rebuild' })
   })
   if (rebuilt.code !== 0) {
     emitUpdateProgress({
@@ -6520,6 +6551,89 @@ app.on('open-url', (event, url) => {
   handleDeepLink(url)
 })
 
+// --- Jarvis Notch companion -------------------------------------------------
+// The native notch app (apps/notch) is a limb of this app: spawned on startup,
+// killed on quit, and fed conversation state over a loopback WebSocket. All
+// voice/AI work happens in the renderer — the notch only displays it and sends
+// back user intents (orb click = start/end talking, Open Jarvis, settings).
+
+function forwardNotchCommandToRenderer(message) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send('jarvis:notch:command', message)
+}
+
+function forwardNotchSettingsToRenderer(snapshot) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send('jarvis:notch:settings', snapshot)
+}
+
+function offlineNotchSettingsSnapshot() {
+  return { connected: false, permissions: [], values: {} }
+}
+
+async function startNotchLink() {
+  if (notchLink || process.platform !== 'darwin' || process.env.JARVIS_NOTCH_DISABLE === '1') {
+    return
+  }
+
+  notchLink = createNotchLink({
+    devServerUrl: DEV_SERVER || null,
+    isPackaged: IS_PACKAGED,
+    log: rememberLog,
+    onCommand: message => {
+      switch (message.type) {
+        case 'startConversation':
+        case 'endConversation':
+          forwardNotchCommandToRenderer(message)
+          break
+        case 'openMainWindow':
+        case 'openSettings':
+          // Surface the window first; the renderer decides what to show.
+          if (!mainWindow || mainWindow.isDestroyed()) {
+            createWindow()
+          } else {
+            focusWindow(mainWindow)
+          }
+          forwardNotchCommandToRenderer(message)
+          break
+        default:
+          break
+      }
+    },
+    onSettings: snapshot => {
+      forwardNotchSettingsToRenderer(snapshot)
+    },
+    resourcesPath: process.resourcesPath
+  })
+
+  try {
+    await notchLink.start()
+  } catch (error) {
+    rememberLog(`[notch] link failed to start: ${error.message}`)
+    notchLink = null
+  }
+}
+
+ipcMain.on('jarvis:notch:publish', (_event, payload) => {
+  notchLink?.publish(payload)
+})
+
+ipcMain.handle('jarvis:notch:settings:get', () => notchLink?.getSettingsSnapshot() ?? offlineNotchSettingsSnapshot())
+
+ipcMain.handle('jarvis:notch:settings:set', (_event, payload) => {
+  if (!payload || typeof payload !== 'object') {
+    return { ok: false, error: 'invalid-payload' }
+  }
+
+  const ok = Boolean(notchLink?.setSetting(payload.key, payload.value))
+  return { ok, error: ok ? null : 'notch-offline' }
+})
+
+ipcMain.handle('jarvis:notch:permission:request', (_event, id) => {
+  const ok = Boolean(notchLink?.requestPermission(id))
+  return { ok, error: ok ? null : 'notch-offline' }
+})
+
 app.whenReady().then(() => {
   if (IS_MAC) {
     Menu.setApplicationMenu(buildApplicationMenu())
@@ -6533,6 +6647,7 @@ app.whenReady().then(() => {
   configureSpellChecker()
   registerPowerResumeListeners()
   createWindow()
+  startNotchLink().catch(error => rememberLog(`[notch] start failed: ${error.message}`))
 
   // Win/Linux cold start: the launching jarvis:// URL is in our own argv.
   const _coldStartLink = _extractDeepLink(process.argv)
@@ -6598,6 +6713,10 @@ app.on('before-quit', () => {
 
   if (jarvisProcess && !jarvisProcess.killed) {
     jarvisProcess.kill('SIGTERM')
+  }
+  if (notchLink) {
+    notchLink.stop()
+    notchLink = null
   }
   stopAllPoolBackends()
 })

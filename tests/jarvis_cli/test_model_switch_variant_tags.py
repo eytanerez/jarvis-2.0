@@ -42,6 +42,7 @@ class TestVariantTagPreservation:
 
     @pytest.mark.parametrize("model,expected", [
         ("nvidia/nemotron-3-super-120b-a12b:free", "nvidia/nemotron-3-super-120b-a12b:free"),
+        ("nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-ultra-550b-a55b:free"),
         ("anthropic/claude-sonnet-4.6:extended", "anthropic/claude-sonnet-4.6:extended"),
         ("meta-llama/llama-4-maverick:fast", "meta-llama/llama-4-maverick:fast"),
     ])
@@ -53,6 +54,11 @@ class TestVariantTagPreservation:
         """Legacy vendor:model (no slash) should still be converted to vendor/model."""
         result = _run_switch("nvidia:nemotron-3-super-120b-a12b")
         assert result == "nvidia/nemotron-3-super-120b-a12b"
+
+    def test_legacy_colon_format_converts_ultra_to_slash(self):
+        """Legacy vendor:model (no slash) should work for Nemotron Ultra too."""
+        result = _run_switch("nvidia:nemotron-3-ultra-550b-a55b")
+        assert result == "nvidia/nemotron-3-ultra-550b-a55b"
 
     def test_legacy_colon_format_with_tag_converts_first_colon_only(self):
         """vendor:model:free (no slash) → vendor/model:free — first colon becomes slash."""

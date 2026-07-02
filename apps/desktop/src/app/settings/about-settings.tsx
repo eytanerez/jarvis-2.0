@@ -1,13 +1,11 @@
 import { useStore } from '@nanostores/react'
 import { useEffect, useState } from 'react'
 
-import { runInTerminal } from '@/app/right-sidebar/store'
 import { BrandMark } from '@/components/brand-mark'
 import { Button } from '@/components/ui/button'
 import { type Translations, useI18n } from '@/i18n'
-import { CheckCircle2, ExternalLink, Loader2, RefreshCw, Sparkles, Terminal } from '@/lib/icons'
+import { CheckCircle2, ExternalLink, Loader2, RefreshCw, Sparkles } from '@/lib/icons'
 import { cn } from '@/lib/utils'
-import { notify } from '@/store/notifications'
 import {
   $desktopVersion,
   $updateApply,
@@ -22,9 +20,6 @@ import { ListRow, SectionHeading, SettingsContent } from './primitives'
 import { UninstallSection } from './uninstall-section'
 
 const RELEASE_NOTES_URL = 'https://github.com/eytanerez/jarvis-2.0/releases'
-const UPDATE_COMMAND = 'jarvis update'
-
-const canRunInTerminal = () => typeof window !== 'undefined' && Boolean(window.jarvisDesktop?.terminal)
 
 function relativeTime(ms: number | undefined, a: Translations['settings']['about']) {
   if (!ms) {
@@ -48,7 +43,7 @@ function relativeTime(ms: number | undefined, a: Translations['settings']['about
   return a.daysAgo(Math.round(diff / 86_400_000))
 }
 
-export function AboutSettings({ onClose }: { onClose?: () => void }) {
+export function AboutSettings(_props: { onClose?: () => void }) {
   const { t } = useI18n()
   const a = t.settings.about
   const version = useStore($desktopVersion)
@@ -68,18 +63,11 @@ export function AboutSettings({ onClose }: { onClose?: () => void }) {
   const behind = status?.behind ?? 0
   const supported = status?.supported !== false
   const applying = apply.applying || apply.stage === 'restart'
-  const terminalAvailable = canRunInTerminal()
 
   const handleCheck = async () => {
     setJustChecked(false)
     const next = await checkUpdates()
     setJustChecked(Boolean(next))
-  }
-
-  const handleRunUpdateCommand = () => {
-    onClose?.()
-    runInTerminal(UPDATE_COMMAND)
-    notify({ kind: 'info', message: a.runJarvisUpdateToast, title: a.terminalUpdate })
   }
 
   let statusLine: string
@@ -182,25 +170,6 @@ export function AboutSettings({ onClose }: { onClose?: () => void }) {
           description={a.automaticUpdatesDesc}
           hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}
           title={a.automaticUpdates}
-        />
-
-        <ListRow
-          action={
-            <Button
-              disabled={!terminalAvailable}
-              onClick={handleRunUpdateCommand}
-              size="sm"
-              title={terminalAvailable ? a.runJarvisUpdate : a.terminalUnavailable}
-              type="button"
-              variant="secondary"
-            >
-              <Terminal className="size-3" />
-              {terminalAvailable ? a.runJarvisUpdate : a.terminalUnavailable}
-            </Button>
-          }
-          description={a.terminalUpdateDesc}
-          hint={UPDATE_COMMAND}
-          title={a.terminalUpdate}
         />
 
         <UninstallSection />
