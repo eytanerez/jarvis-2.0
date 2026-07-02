@@ -6,6 +6,7 @@ starts; these helpers must only ever load models for the *local* providers
 must never hit a paid API or raise for a missing optional package.
 """
 
+import asyncio
 from unittest.mock import MagicMock, patch
 
 import tools.transcription_tools as transcription_tools
@@ -127,3 +128,16 @@ class TestWarmUpTts:
         assert result["warmed"] is True
         assert result["reason"] == "already loaded"
         kokoro_cls.assert_not_called()
+
+
+class TestDesktopWarmUpEndpoint:
+    def test_reports_already_running_without_scheduling_duplicate(self):
+        from jarvis_cli import web_server
+
+        assert web_server._voice_warmup_lock.acquire(blocking=False)
+        try:
+            result = asyncio.run(web_server.warmup_voice_models())
+        finally:
+            web_server._voice_warmup_lock.release()
+
+        assert result == {"ok": True, "started": False, "reason": "already_running"}

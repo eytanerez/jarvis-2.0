@@ -2063,6 +2063,7 @@ def _recover_tasks_from_json_string(
 
 
 def delegate_task(
+    action: Optional[str] = None,
     goal: Optional[str] = None,
     context: Optional[str] = None,
     toolsets: Optional[List[str]] = None,
@@ -2072,6 +2073,7 @@ def delegate_task(
     acp_args: Optional[List[str]] = None,
     role: Optional[str] = None,
     background: Optional[bool] = None,
+    notify_on_success: Optional[bool] = None,
     parent_agent=None,
 ) -> str:
     """
@@ -2090,6 +2092,64 @@ def delegate_task(
     """
     if parent_agent is None:
         return tool_error("delegate_task requires a parent agent context.")
+
+    action = str(action or "spawn").strip().lower()
+    if action in {"list", "list_background", "status"}:
+        try:
+            from tools.async_delegation import list_async_delegations
+            return json.dumps(
+                {
+                    "status": "ok",
+                    "action": action,
+                    "delegations": list_async_delegations(),
+                },
+                ensure_ascii=False,
+            )
+        except Exception as exc:
+            return tool_error(f"Could not list background delegations: {exc}")
+    if action in {"cancel_latest", "cancel"}:
+        try:
+            from tools.async_delegation import interrupt_latest
+            cancelled = interrupt_latest(reason="delegate_task cancel_latest")
+            return json.dumps(
+                {
+                    "status": "ok",
+                    "action": "cancel_latest",
+                    "cancelled": cancelled,
+                    "message": (
+                        "Cancelled the latest running background delegation."
+                        if cancelled
+                        else "No running background delegation to cancel."
+                    ),
+                },
+                ensure_ascii=False,
+            )
+        except Exception as exc:
+            return tool_error(f"Could not cancel latest background delegation: {exc}")
+    if action == "cancel_all":
+        try:
+            from tools.async_delegation import interrupt_all
+            cancelled = interrupt_all(reason="delegate_task cancel_all")
+            return json.dumps(
+                {
+                    "status": "ok",
+                    "action": "cancel_all",
+                    "cancelled": cancelled,
+                    "message": (
+                        f"Cancelled {cancelled} running background delegation(s)."
+                        if cancelled
+                        else "No running background delegations to cancel."
+                    ),
+                },
+                ensure_ascii=False,
+            )
+        except Exception as exc:
+            return tool_error(f"Could not cancel background delegations: {exc}")
+    if action not in {"spawn", "create", "run"}:
+        return tool_error(
+            "Unknown delegate_task action. Use 'spawn', 'list_background', "
+            "'cancel_latest', or 'cancel_all'."
+        )
 
     # Operator-controlled kill switch — lets the TUI freeze new fan-out
     # when a runaway tree is detected, without interrupting already-running
@@ -2312,21 +2372,37 @@ def delegate_task(
                 runner=_async_runner,
                 interrupt_fn=_async_interrupt,
                 max_async_children=_get_max_async_children(),
+                notify_on_success=(
+                    True
+                    if notify_on_success is None
+                    else is_truthy_value(notify_on_success, default=True)
+                ),
             )
 
             if dispatch.get("status") == "dispatched":
+                notify_success = bool(dispatch.get("notify_on_success", True))
+                if notify_success:
+                    completion_note = (
+                        "The full task source and result will re-enter "
+                        "the conversation as a new message when it finishes. "
+                    )
+                else:
+                    completion_note = (
+                        "Successful completion will stay quiet; failures, "
+                        "interruptions, and errors will re-enter the conversation. "
+                    )
                 return json.dumps(
                     {
                         "status": "dispatched",
                         "delegation_id": dispatch["delegation_id"],
                         "goal": _t["goal"],
                         "mode": "background",
+                        "notify_on_success": notify_success,
                         "note": (
                             "Subagent is running in the background. You and the "
-                            "user can keep working; the full task source and "
-                            "result will re-enter the conversation as a new "
-                            "message when it finishes. Do not wait or poll — "
-                            "just continue."
+                            "user can keep working. "
+                            + completion_note
+                            + "Do not wait or poll - just continue."
                         ),
                     },
                     ensure_ascii=False,
@@ -2841,7 +2917,14 @@ def _build_top_level_description() -> str:
         "Each subagent gets its own conversation, terminal session, and toolset. "
         "Only the final summary is returned -- intermediate tool results "
         "never enter your context window.\n\n"
-        "TWO MODES (one of 'goal' or 'tasks' is required):\n"
+        "ACTIONS:\n"
+        "- action='spawn' (default): start delegated work. One of 'goal' or "
+        "'tasks' is required.\n"
+        "- action='cancel_latest': stop the most recently dispatched running "
+        "background subagent (use when the user says 'cancel that').\n"
+        "- action='cancel_all': stop all running background subagents.\n"
+        "- action='list_background': list running/recent background subagents.\n\n"
+        "SPAWN MODES (one of 'goal' or 'tasks' is required):\n"
         "1. Single task: provide 'goal' (+ optional context, toolsets)\n"
         f"2. Batch (parallel): provide 'tasks' array with up to {max_children} "
         f"items concurrently for this user (configured via "
@@ -2851,17 +2934,26 @@ def _build_top_level_description() -> str:
         "- Reasoning-heavy subtasks (debugging, code review, research synthesis)\n"
         "- Tasks that would flood your context with intermediate data\n"
         "- Parallel independent workstreams (research A and B simultaneously)\n\n"
+        "BACKGROUND MODE:\n"
+        "- For an independent do-this-for-me task the user does not need to "
+        "watch step by step, pass background=true on a single-task spawn. "
+        "You get a delegation_id immediately; reply with a short acknowledgment "
+        "and keep going.\n"
+        "- For small low-risk tasks, pass notify_on_success=false so successful "
+        "completion stays quiet. Failures, errors, and cancellations still "
+        "re-enter the conversation.\n"
+        "- For big tasks, reportable artifacts, or anything the user will "
+        "expect to inspect, leave notify_on_success=true so the result "
+        "re-enters the conversation when finished.\n"
+        "- Background delegation is best-effort in this running Jarvis process; "
+        "it is not a scheduled/durable job across process restarts.\n\n"
         "WHEN NOT TO USE (use these instead):\n"
         "- Mechanical multi-step work with no reasoning needed -> use execute_code\n"
         "- Single tool call -> just call the tool directly\n"
         "- Tasks needing user interaction -> subagents cannot use clarify\n"
-        "- Durable long-running work that must outlive the current turn -> "
-        "use cronjob (action='create') or terminal(background=True, "
-        "notify_on_complete=True) instead. delegate_task runs SYNCHRONOUSLY "
-        "inside the parent turn: if the parent is interrupted (user sends a "
-        "new message, /stop, /new) the child is cancelled with status="
-        "'interrupted' and its work is discarded. Children cannot continue "
-        "in the background.\n\n"
+        "- Scheduled or restart-durable work -> use cronjob(action='create')\n"
+        "- Long-running shell commands/servers/watchers -> use "
+        "terminal(background=True, notify_on_complete=True)\n\n"
         "IMPORTANT:\n"
         "- Subagents have NO memory of your conversation. Pass all relevant "
         "info (file paths, error messages, constraints) via the 'context' field.\n"
@@ -2886,7 +2978,8 @@ def _build_top_level_description() -> str:
         f"user and can be disabled globally via "
         "delegation.orchestrator_enabled=false.\n"
         "- Each subagent gets its own terminal session (separate working directory and state).\n"
-        "- Results are always returned as an array, one entry per task."
+        "- Synchronous spawn returns a results array, one entry per task. "
+        "Background spawn returns a delegation_id handle immediately."
     )
 
 
@@ -2981,6 +3074,17 @@ DELEGATE_TASK_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
+            "action": {
+                "type": "string",
+                "enum": ["spawn", "list_background", "cancel_latest", "cancel_all"],
+                "description": (
+                    "Operation to perform. Omit or use 'spawn' to start work. "
+                    "Use 'cancel_latest' when the user says 'cancel that' or "
+                    "similar; use 'cancel_all' when they ask to stop all "
+                    "background delegated work; use 'list_background' to inspect "
+                    "running/recent background subagents."
+                ),
+            },
             "goal": {
                 "type": "string",
                 "description": (
@@ -3061,16 +3165,27 @@ DELEGATE_TASK_SCHEMA = {
                     "Run the subagent asynchronously in the BACKGROUND "
                     "instead of blocking this turn. When true, delegate_task "
                     "returns immediately with a delegation_id; you and the "
-                    "user keep working while the subagent runs, and its full "
-                    "result re-enters the conversation as a new message when "
-                    "it finishes (similar to terminal background=true + "
-                    "notify_on_complete). The re-injected message includes the "
+                    "user keep working while the subagent runs. By default its "
+                    "full result re-enters the conversation when it finishes; "
+                    "set notify_on_success=false for small low-risk tasks where "
+                    "successful completion should stay quiet. Failures/errors "
+                    "always come back. The re-injected message includes the "
                     "original goal/context so you can act on it even after "
                     "moving on. Single-task only — cannot be combined with the "
-                    "'tasks' batch array. Use for long-running independent work "
-                    "the user shouldn't have to wait on (research, builds, "
-                    "multi-step investigations). Do NOT poll or wait after "
-                    "dispatching — just continue; the result will come to you."
+                    "'tasks' batch array. Use for independent work the user "
+                    "shouldn't have to wait on. Do NOT poll or wait after "
+                    "dispatching — just continue."
+                ),
+            },
+            "notify_on_success": {
+                "type": "boolean",
+                "description": (
+                    "Only used with background=true. Default true preserves the "
+                    "historical behavior: successful completion re-enters the "
+                    "conversation. Set false for small, low-risk do-this-for-me "
+                    "tasks where a brief acknowledgment is enough; successful "
+                    "completion stays quiet, but failures, errors, and "
+                    "cancellations still re-enter the conversation."
                 ),
             },
             "acp_command": {
@@ -3109,6 +3224,7 @@ registry.register(
     toolset="delegation",
     schema=DELEGATE_TASK_SCHEMA,
     handler=lambda args, **kw: delegate_task(
+        action=args.get("action"),
         goal=args.get("goal"),
         context=args.get("context"),
         toolsets=args.get("toolsets"),
@@ -3118,6 +3234,7 @@ registry.register(
         acp_args=args.get("acp_args"),
         role=args.get("role"),
         background=args.get("background"),
+        notify_on_success=args.get("notify_on_success"),
         parent_agent=kw.get("parent_agent"),
     ),
     check_fn=check_delegate_requirements,

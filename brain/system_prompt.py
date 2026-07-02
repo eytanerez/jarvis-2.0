@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional
 
 from brain.prompt_builder import (
     DEFAULT_AGENT_IDENTITY,
+    BACKGROUND_TASK_GUIDANCE,
     GOOGLE_MODEL_OPERATIONAL_GUIDANCE,
     JARVIS_AGENT_HELP_GUIDANCE,
     KANBAN_GUIDANCE,
@@ -183,6 +184,15 @@ def build_system_prompt_parts(agent: Any, system_message: Optional[str] = None) 
     # (default True) and only injected when tools are actually loaded.
     if getattr(agent, "_parallel_tool_call_guidance", True) and agent.valid_tool_names:
         stable_parts.append(PARALLEL_TOOL_CALL_GUIDANCE)
+
+    # Fast perceived-response guidance for independent do-this-for-me tasks.
+    # Tool-gated so chat-only/tool-light sessions never receive instructions
+    # for a capability they do not have.
+    if (
+        getattr(agent, "_background_task_guidance", True)
+        and "delegate_task" in agent.valid_tool_names
+    ):
+        stable_parts.append(BACKGROUND_TASK_GUIDANCE)
 
     # Tool-aware behavioral guidance: only inject when the tools are loaded
     tool_guidance = []

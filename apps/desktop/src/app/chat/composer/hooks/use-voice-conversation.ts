@@ -13,6 +13,7 @@ import { useMicRecorder } from './use-mic-recorder'
 export type ConversationStatus = 'idle' | 'listening' | 'transcribing' | 'thinking' | 'speaking'
 
 const MAX_SILENT_TURNS = 3
+const VOICE_WARMUP_COOLDOWN_MS = 30_000
 
 interface PendingVoiceResponse {
   id: string
@@ -42,6 +43,45 @@ interface VoiceConversationOptions {
   subscribeToResponse?: (onChange: () => void) => () => void
 }
 
+interface BrowserSpeechRecognitionAlternative {
+  transcript: string
+}
+
+interface BrowserSpeechRecognitionResult {
+  readonly length: number
+  readonly isFinal: boolean
+  [index: number]: BrowserSpeechRecognitionAlternative | undefined
+}
+
+interface BrowserSpeechRecognitionEvent extends Event {
+  readonly results: {
+    readonly length: number
+    [index: number]: BrowserSpeechRecognitionResult | undefined
+  }
+}
+
+interface BrowserSpeechRecognition extends EventTarget {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onend: (() => void) | null
+  onerror: (() => void) | null
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null
+  start: () => void
+  stop: () => void
+}
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition
+
+function speechRecognitionConstructor(): BrowserSpeechRecognitionConstructor | null {
+  const speechWindow = window as Window & {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor
+  }
+
+  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null
+}
+
 export function useVoiceConversation({
   busy,
   enabled,
@@ -58,6 +98,7 @@ export function useVoiceConversation({
   const { handle, level } = useMicRecorder(voiceCopy)
   const [status, setStatus] = useState<ConversationStatus>('idle')
   const [muted, setMuted] = useState(false)
+  const [liveTranscript, setLiveTranscript] = useState('')
   // Bumped on every response-stream change so the pump effect re-runs the
   // moment new text arrives (see `subscribeToResponse`).
   const [responseTick, setResponseTick] = useState(0)
@@ -76,6 +117,9 @@ export function useVoiceConversation({
   const silentTurnCountRef = useRef(0)
   const spokenSourceLengthRef = useRef(0)
   const speechBufferRef = useRef('')
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null)
+  const warmupInFlightRef = useRef(false)
+  const warmupStartedAtRef = useRef(0)
   const enabledRef = useRef(enabled)
   const mutedRef = useRef(muted)
   const busyRef = useRef(busy)
@@ -119,6 +163,91 @@ export function useVoiceConversation({
       turnTimeoutRef.current = null
     }
   }
+
+  const requestWarmup = useCallback((reason: string) => {
+    const now = Date.now()
+    const lastStartedAt = warmupStartedAtRef.current
+
+    if (warmupInFlightRef.current || (lastStartedAt > 0 && now - lastStartedAt < VOICE_WARMUP_COOLDOWN_MS)) {
+      return
+    }
+
+    warmupInFlightRef.current = true
+    warmupStartedAtRef.current = now
+    markVoiceLatency('warmup-requested', reason)
+
+    warmupVoiceModels()
+      .then(result => {
+        markVoiceLatency('warmup-response', result.started ? 'queued' : (result.reason ?? 'already warm/running'))
+      })
+      .catch(() => {})
+      .finally(() => {
+        warmupInFlightRef.current = false
+      })
+  }, [])
+
+  const stopLiveTranscript = useCallback((clear = false) => {
+    const recognition = recognitionRef.current
+    recognitionRef.current = null
+
+    if (recognition) {
+      recognition.onend = null
+      recognition.onerror = null
+      recognition.onresult = null
+
+      try {
+        recognition.stop()
+      } catch {
+        // Best-effort UI transcript only.
+      }
+    }
+
+    if (clear) {
+      setLiveTranscript('')
+    }
+  }, [])
+
+  const startLiveTranscript = useCallback(() => {
+    stopLiveTranscript(true)
+
+    const Recognition = speechRecognitionConstructor()
+
+    if (!Recognition) {
+      return
+    }
+
+    try {
+      const recognition = new Recognition()
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.lang = navigator.language || 'en-US'
+
+      recognition.onresult = event => {
+        let transcript = ''
+
+        for (let i = 0; i < event.results.length; i += 1) {
+          transcript = `${transcript}${event.results[i]?.[0]?.transcript ?? ''}`
+        }
+
+        setLiveTranscript(transcript.replace(/\s+/g, ' ').trim())
+      }
+
+      recognition.onerror = () => {
+        recognitionRef.current = null
+      }
+
+      recognition.onend = () => {
+        if (recognitionRef.current === recognition) {
+          recognitionRef.current = null
+        }
+      }
+
+      recognitionRef.current = recognition
+      recognition.start()
+    } catch {
+      recognitionRef.current = null
+    }
+  }, [stopLiveTranscript])
 
   const resetSpeechBuffer = () => {
     responseIdRef.current = null
@@ -212,6 +341,8 @@ export function useVoiceConversation({
 
       turnClosingRef.current = true
       clearTurnTimeout()
+      stopLiveTranscript()
+      requestWarmup('transcribing')
       setStatus('transcribing')
 
       try {
@@ -240,10 +371,12 @@ export function useVoiceConversation({
 
         try {
           const transcript = (await onTranscribeAudio(result.audio)).trim()
+          setLiveTranscript(transcript)
           markVoiceLatency('transcript-received', `${transcript.length} chars`)
 
           if (!transcript) {
             cancelVoiceLatencyTurn()
+            setLiveTranscript('')
 
             const shouldContinue = noteSilentTurn()
 
@@ -272,6 +405,7 @@ export function useVoiceConversation({
               }
 
               cancelVoiceLatencyTurn()
+              setLiveTranscript('')
               pendingStartRef.current = false
               setStatus('idle')
               onSignoff?.()
@@ -300,7 +434,16 @@ export function useVoiceConversation({
         turnClosingRef.current = false
       }
     },
-    [handle, noteSilentTurn, onSignoff, onSubmit, onTranscribeAudio, voiceCopy.transcriptionFailed]
+    [
+      handle,
+      noteSilentTurn,
+      onSignoff,
+      onSubmit,
+      onTranscribeAudio,
+      requestWarmup,
+      stopLiveTranscript,
+      voiceCopy.transcriptionFailed
+    ]
   )
 
   const startListening = useCallback(async () => {
@@ -315,6 +458,7 @@ export function useVoiceConversation({
     }
 
     try {
+      requestWarmup('listening')
       // VAD tuning mirrors `tools.voice_mode` defaults so the browser loop matches the CLI.
       // Layered end-of-turn wait: once ~1.2s of real speech has accumulated
       // (a confident, substantial utterance - not a false start), only a
@@ -338,6 +482,7 @@ export function useVoiceConversation({
           void handleTurn()
         }
       })
+      startLiveTranscript()
       setStatus('listening')
       turnTimeoutRef.current = window.setTimeout(() => {
         beginVoiceLatencyTurn(0)
@@ -349,7 +494,15 @@ export function useVoiceConversation({
       setStatus('idle')
       onFatalError?.()
     }
-  }, [handle, handleTurn, onFatalError, voiceCopy.couldNotStartSession, voiceCopy.microphoneFailed])
+  }, [
+    handle,
+    handleTurn,
+    onFatalError,
+    requestWarmup,
+    startLiveTranscript,
+    voiceCopy.couldNotStartSession,
+    voiceCopy.microphoneFailed
+  ])
 
   const speak = useCallback(
     async (text: string) => {
@@ -386,13 +539,14 @@ export function useVoiceConversation({
     // Fire-and-forget: pre-load local STT/TTS models server-side so the
     // session's first turn doesn't pay their cold model-load cost. Failures
     // are harmless - the first transcribe/speak call loads them anyway.
-    warmupVoiceModels().catch(() => {})
+    requestWarmup('conversation-start')
 
     setMuted(false)
     silentTurnCountRef.current = 0
     submittedTurnCountRef.current = 0
     awaitingSpokenResponseRef.current = false
     resetSpeechBuffer()
+    stopLiveTranscript(true)
     consumePendingResponse()
     pendingStartRef.current = true
     await startListening()
@@ -400,7 +554,9 @@ export function useVoiceConversation({
     consumePendingResponse,
     onFatalError,
     onTranscribeAudio,
+    requestWarmup,
     startListening,
+    stopLiveTranscript,
     voiceCopy.configureSpeechToText,
     voiceCopy.unavailable
   ])
@@ -411,6 +567,7 @@ export function useVoiceConversation({
     clearTurnTimeout()
     stopVoicePlayback()
     handle.cancel()
+    stopLiveTranscript(true)
     turnClosingRef.current = false
     silentTurnCountRef.current = 0
     submittedTurnCountRef.current = 0
@@ -419,7 +576,7 @@ export function useVoiceConversation({
     consumePendingResponse()
     setMuted(false)
     setStatus('idle')
-  }, [consumePendingResponse, handle])
+  }, [consumePendingResponse, handle, stopLiveTranscript])
 
   const stopTurn = useCallback(() => {
     if (statusRef.current === 'listening') {
@@ -460,6 +617,7 @@ export function useVoiceConversation({
       if (next) {
         clearTurnTimeout()
         handle.cancel()
+        stopLiveTranscript(true)
         setStatus('idle')
       } else if (enabledRef.current && !busyRef.current && statusRef.current === 'idle') {
         pendingStartRef.current = true
@@ -467,7 +625,7 @@ export function useVoiceConversation({
 
       return next
     })
-  }, [handle])
+  }, [handle, stopLiveTranscript])
 
   useEffect(() => {
     if (!enabled) {
@@ -587,5 +745,5 @@ export function useVoiceConversation({
     wasEnabledRef.current = enabled
   }, [enabled, end, start])
 
-  return { end, interruptSpeech, level, muted, start, status, stopTurn, toggleMute }
+  return { end, interruptSpeech, level, liveTranscript, muted, start, status, stopTurn, toggleMute }
 }

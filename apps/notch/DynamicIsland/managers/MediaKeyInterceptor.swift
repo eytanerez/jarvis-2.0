@@ -87,9 +87,6 @@ final class MediaKeyInterceptor {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var isTapEnabled = false
-#if canImport(ApplicationServices)
-    private var didRequestAccessibilityPrompt = false
-#endif
     private let systemDefinedEventType = CGEventType(rawValue: NX_SYSDEFINED_EVENT_TYPE)
     private let eventTapLocations: [CGEventTapLocation] = [.cghidEventTap, .cgSessionEventTap]
 
@@ -101,10 +98,6 @@ final class MediaKeyInterceptor {
             updateTapState()
             return true
         }
-
-#if canImport(ApplicationServices)
-        requestAccessibilityPermissionIfNeeded()
-#endif
 
         guard let systemDefinedType = systemDefinedEventType else {
             NSLog("❌ Unable to resolve system-defined event type")
@@ -251,15 +244,3 @@ final class MediaKeyInterceptor {
         return .standard
     }
 }
-
-#if canImport(ApplicationServices)
-extension MediaKeyInterceptor {
-    private func requestAccessibilityPermissionIfNeeded() {
-        guard !AXIsProcessTrusted(), !didRequestAccessibilityPrompt else { return }
-        let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-        let options: CFDictionary = [promptKey: true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
-        didRequestAccessibilityPrompt = true
-    }
-}
-#endif

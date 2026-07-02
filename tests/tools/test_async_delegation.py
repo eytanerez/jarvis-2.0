@@ -5,6 +5,7 @@ onto the shared process_registry.completion_queue, the rich re-injection block
 formatting, capacity rejection, and crash handling.
 """
 
+import json
 import queue
 import threading
 import time
@@ -12,6 +13,7 @@ import time
 import pytest
 
 from tools import async_delegation as ad
+from tools import delegate_tool as dt
 from tools.process_registry import process_registry, format_process_notification
 
 
@@ -109,6 +111,132 @@ def test_completion_event_lands_on_shared_queue_with_session_key():
     assert evt["summary"] == "the result"
     assert evt["session_key"] == "agent:main:cli:dm:local"
     assert evt["delegation_id"] == res["delegation_id"]
+
+
+def test_success_notification_can_be_suppressed():
+    def runner():
+        return {"status": "completed", "summary": "quiet success"}
+
+    res = ad.dispatch_async_delegation(
+        goal="small side effect",
+        context=None,
+        toolsets=None,
+        role="leaf",
+        model="m",
+        session_key="",
+        runner=runner,
+        max_async_children=3,
+        notify_on_success=False,
+    )
+    assert res["status"] == "dispatched"
+    assert res["notify_on_success"] is False
+
+    deadline = time.monotonic() + 2
+    while time.monotonic() < deadline:
+        rows = ad.list_async_delegations()
+        if rows and rows[0]["status"] == "completed":
+            break
+        time.sleep(0.02)
+
+    assert ad.list_async_delegations()[0]["status"] == "completed"
+    assert _drain_one(timeout=0.2) is None
+
+
+def test_errors_still_notify_when_success_notification_is_suppressed():
+    def runner():
+        return {"status": "error", "summary": "partial", "error": "boom"}
+
+    ad.dispatch_async_delegation(
+        goal="small side effect",
+        context=None,
+        toolsets=None,
+        role="leaf",
+        model="m",
+        session_key="",
+        runner=runner,
+        max_async_children=3,
+        notify_on_success=False,
+    )
+
+    evt = _drain_one()
+    assert evt is not None
+    assert evt["type"] == "async_delegation"
+    assert evt["status"] == "error"
+    assert evt["error"] == "boom"
+
+
+def test_interrupt_latest_targets_most_recent_running_delegation():
+    first_gate = threading.Event()
+    latest_gate = threading.Event()
+    interrupted = []
+
+    def first_runner():
+        first_gate.wait(timeout=5)
+        return {"status": "completed", "summary": "first"}
+
+    def latest_runner():
+        latest_gate.wait(timeout=5)
+        return {"status": "completed", "summary": "latest"}
+
+    ad.dispatch_async_delegation(
+        goal="first",
+        context=None,
+        toolsets=None,
+        role="leaf",
+        model="m",
+        session_key="",
+        runner=first_runner,
+        interrupt_fn=lambda: interrupted.append("first"),
+        max_async_children=3,
+    )
+    time.sleep(0.02)
+    ad.dispatch_async_delegation(
+        goal="latest",
+        context=None,
+        toolsets=None,
+        role="leaf",
+        model="m",
+        session_key="",
+        runner=latest_runner,
+        interrupt_fn=lambda: (interrupted.append("latest"), latest_gate.set()),
+        max_async_children=3,
+    )
+
+    assert ad.interrupt_latest(reason="test") == 1
+    assert interrupted == ["latest"]
+
+    first_gate.set()
+    latest_gate.set()
+    assert _drain_one() is not None
+    assert _drain_one() is not None
+
+
+def test_delegate_tool_description_advertises_background_mode():
+    text = dt._build_top_level_description()
+    assert "BACKGROUND MODE" in text
+    assert "background=true" in text
+    assert "notify_on_success=false" in text
+    assert "Children cannot continue in the background" not in text
+    assert "delegate_task runs SYNCHRONOUSLY" not in text
+
+
+def test_delegate_task_cancel_latest_action_uses_async_registry(monkeypatch):
+    calls = []
+
+    def fake_interrupt_latest(reason=""):
+        calls.append(reason)
+        return 1
+
+    monkeypatch.setattr(ad, "interrupt_latest", fake_interrupt_latest)
+
+    payload = json.loads(
+        dt.delegate_task(action="cancel_latest", parent_agent=object())
+    )
+
+    assert payload["status"] == "ok"
+    assert payload["action"] == "cancel_latest"
+    assert payload["cancelled"] == 1
+    assert calls == ["delegate_task cancel_latest"]
 
 
 def test_rich_reinjection_block_is_self_contained():
@@ -469,5 +597,3 @@ def test_gateway_cli_origin_event_left_unrouted():
     evt = _make_async_evt(session_key="")
     runner._enrich_async_delegation_routing(evt)
     assert "platform" not in evt
-
-

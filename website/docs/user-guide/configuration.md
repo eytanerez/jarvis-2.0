@@ -1239,7 +1239,7 @@ agent:
 
 | Value | Behavior |
 |-------|----------|
-| `"auto"` (default) | Enabled for models matching: `gpt`, `codex`, `gemini`, `gemma`, `grok`. Disabled for all others (Claude, DeepSeek, Qwen, etc.). |
+| `"auto"` (default) | Enabled for models matching: `gpt`, `codex`, `gemini`, `gemma`, `grok`, `glm`, `qwen`, and `deepseek`. Disabled for other models, including Claude. |
 | `true` | Always enabled, regardless of model. Useful if you notice your current model describing actions instead of performing them. |
 | `false` | Always disabled, regardless of model. |
 | `["gpt", "codex", "qwen", "llama"]` | Enabled only when the model name contains one of the listed substrings (case-insensitive). |
@@ -1264,6 +1264,17 @@ If you're using a model not in the default auto list and notice it frequently de
 agent:
   tool_use_enforcement: ["gpt", "codex", "gemini", "grok", "my-custom-model"]
 ```
+
+## Background Task Handoff
+
+When `background_task_guidance` is enabled and `delegate_task` is available, Jarvis is steered to handle independent "do this for me" requests in the background: dispatch the work with `delegate_task(background=true)`, acknowledge briefly, and keep small successful completions quiet while still reporting failures, cancellations, and larger results.
+
+```yaml
+agent:
+  background_task_guidance: true
+```
+
+Set it to `false` if you prefer most delegated work to stay visible in the foreground.
 
 ## TTS Configuration
 

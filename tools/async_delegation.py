@@ -7,11 +7,12 @@ subagent that runs on a module-level daemon executor and returns a handle
 immediately, so the user and the model can keep working while the child runs.
 
 When the child finishes, a completion event is pushed onto the SHARED
-``process_registry.completion_queue`` with ``type="async_delegation"``. The
-CLI (``cli.py`` process_loop) and gateway (``_run_process_watcher`` /
-``completion_queue`` drain) already poll that queue while the agent is idle
-and forge a fresh user/internal turn from each event. We deliberately reuse
-that rail rather than reaching into a running agent loop:
+``process_registry.completion_queue`` with ``type="async_delegation"`` unless
+successful completion was explicitly suppressed with ``notify_on_success=False``.
+The CLI (``cli.py`` process_loop) and gateway (``_run_process_watcher`` /
+``completion_queue`` drain) already poll that queue while the agent is idle and
+forge a fresh user/internal turn from each event. We deliberately reuse that
+rail rather than reaching into a running agent loop:
 
   - completions surface as a NEW turn when the agent is idle, never spliced
     between a tool result and an assistant message. That keeps strict
@@ -160,6 +161,7 @@ def dispatch_async_delegation(
     runner: Callable[[], Dict[str, Any]],
     interrupt_fn: Optional[Callable[[], None]] = None,
     max_async_children: int = _DEFAULT_MAX_ASYNC_CHILDREN,
+    notify_on_success: bool = True,
 ) -> Dict[str, Any]:
     """Spawn ``runner`` on the daemon executor and return a handle immediately.
 
@@ -183,6 +185,9 @@ def dispatch_async_delegation(
         Concurrency cap. When at capacity the dispatch is REJECTED (the caller
         should fall back to sync or tell the user) rather than queued, so a
         runaway model can't pile up unbounded background work.
+    notify_on_success
+        When False, successful completion is recorded but not re-injected into
+        chat. Failures, timeouts, and interruptions are still reported.
 
     Returns
     -------
@@ -204,6 +209,7 @@ def dispatch_async_delegation(
         "dispatched_at": dispatched_at,
         "completed_at": None,
         "interrupt_fn": interrupt_fn,
+        "notify_on_success": bool(notify_on_success),
     }
     # Capacity check and record insert under ONE lock hold — checking
     # active_count() separately would let two concurrent dispatches (e.g.
@@ -217,8 +223,7 @@ def dispatch_async_delegation(
                 "status": "rejected",
                 "error": (
                     f"Async delegation capacity reached ({max_async_children} "
-                    f"running). Wait for one to finish (its result will re-enter "
-                    f"the chat), or run this task synchronously "
+                    f"running). Wait for one to finish, or run this task synchronously "
                     f"(background=false). Raise delegation.max_async_children in "
                     f"config.yaml to allow more concurrent background subagents."
                 ),
@@ -260,7 +265,11 @@ def dispatch_async_delegation(
         "Dispatched async delegation %s (session_key=%s): %s",
         delegation_id, session_key or "<cli>", (goal or "")[:80],
     )
-    return {"status": "dispatched", "delegation_id": delegation_id}
+    return {
+        "status": "dispatched",
+        "delegation_id": delegation_id,
+        "notify_on_success": bool(notify_on_success),
+    }
 
 
 def _finalize(delegation_id: str, result: Dict[str, Any], status: str) -> None:
@@ -287,6 +296,14 @@ def _push_completion_event(
     Best-effort: a failure here must not crash the worker, but it WOULD mean a
     silently-lost result, so we log loudly.
     """
+    status_key = str(status or "").lower()
+    if status_key in {"completed", "success"} and not record.get("notify_on_success", True):
+        logger.info(
+            "Async delegation %s completed successfully; success notification suppressed",
+            record.get("delegation_id"),
+        )
+        return
+
     try:
         from tools.process_registry import process_registry
     except Exception as exc:  # pragma: no cover
@@ -314,6 +331,7 @@ def _push_completion_event(
         "role": record.get("role"),
         "model": result.get("model") or record.get("model"),
         "status": status,
+        "notify_on_success": record.get("notify_on_success", True),
         "summary": summary,
         "error": error,
         "api_calls": result.get("api_calls", 0),
@@ -332,6 +350,32 @@ def _push_completion_event(
             "result lost: %s",
             record.get("delegation_id"), exc,
         )
+
+
+def interrupt_latest(reason: str = "cancel_latest") -> int:
+    """Signal the most recently dispatched running async delegation to stop."""
+    with _records_lock:
+        running = [
+            r for r in _records.values() if r.get("status") == "running"
+        ]
+        if not running:
+            return 0
+        target = max(running, key=lambda r: r.get("dispatched_at") or 0)
+    fn = target.get("interrupt_fn")
+    if callable(fn):
+        try:
+            fn()
+            logger.info(
+                "Interrupted async delegation %s (%s)",
+                target.get("delegation_id"), reason,
+            )
+            return 1
+        except Exception as exc:
+            logger.debug(
+                "interrupt_latest: %s interrupt failed: %s",
+                target.get("delegation_id"), exc,
+            )
+    return 0
 
 
 def list_async_delegations() -> List[Dict[str, Any]]:

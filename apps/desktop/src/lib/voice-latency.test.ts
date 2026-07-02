@@ -48,6 +48,22 @@ describe('voice-latency', () => {
     expect(markVoiceLatency('tts-audio-received')).toBeNull()
   })
 
+  it('end logs a full stage breakdown with the dominant gap', () => {
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => {})
+
+    beginVoiceLatencyTurn(600)
+    markVoiceLatency('recorder-stopped')
+    markVoiceLatency('transcript-received')
+    markVoiceLatency('first-response-text')
+    endVoiceLatencyTurn('first-audio')
+
+    const breakdown = debug.mock.calls.find(call => String(call[0]).includes('[voice-latency] breakdown'))
+
+    expect(breakdown?.[0]).toContain('stop-talking->recorder-stopped')
+    expect(breakdown?.[0]).toContain('transcript-received->first-response-text')
+    expect(breakdown?.[0]).toContain('dominant')
+  })
+
   it('cancel abandons the turn without a final mark', () => {
     beginVoiceLatencyTurn(0)
     cancelVoiceLatencyTurn()

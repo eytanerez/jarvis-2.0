@@ -768,8 +768,8 @@ export function speakText(text: string): Promise<AudioSpeakResponse> {
  * Kokoro) so a voice conversation's first turn doesn't pay their cold
  * model-load cost. The server returns immediately; loading continues on its
  * own thread. */
-export function warmupVoiceModels(): Promise<{ ok: boolean; started: boolean }> {
-  return window.jarvisDesktop.api<{ ok: boolean; started: boolean }>({
+export function warmupVoiceModels(): Promise<{ ok: boolean; reason?: string; started: boolean }> {
+  return window.jarvisDesktop.api<{ ok: boolean; reason?: string; started: boolean }>({
     path: '/api/audio/warmup',
     method: 'POST',
     body: {}

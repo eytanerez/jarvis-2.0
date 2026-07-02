@@ -30,7 +30,7 @@ struct DynamicNotchApp: App {
     @Environment(\.openWindow) var openWindow
 
     var body: some Scene {
-        MenuBarExtra("Jarvis", systemImage: "sparkles", isInserted: $showMenuBarIcon) {
+        MenuBarExtra(isInserted: $showMenuBarIcon) {
             Button("Talk to Jarvis") {
                 AppDelegate.shared?.activateJarvisAssistantFromHotkey()
             }
@@ -60,6 +60,9 @@ struct DynamicNotchApp: App {
                 }
             }
             .keyboardShortcut(KeyEquivalent("Q"), modifiers: .command)
+        } label: {
+            Image(systemName: "sparkles")
+                .accessibilityLabel("Jarvis")
         }
     }
 

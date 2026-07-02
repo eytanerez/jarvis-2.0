@@ -621,6 +621,13 @@ agent:
   # primaries (default 3). The OpenAI SDK does its own low-level retries
   # underneath this wrapper — this is the Jarvis-level loop.
   # api_max_retries: 3
+
+  # Background task handoff guidance.  When delegate_task is available, this
+  # steers Jarvis to dispatch independent "do this for me" requests in the
+  # background, acknowledge briefly, and stay quiet on small successful tasks
+  # while still surfacing errors/cancellations. Set false if you prefer the
+  # agent to keep most work in the foreground.
+  # background_task_guidance: true
   
   # Enable verbose logging
   verbose: false

@@ -2752,9 +2752,10 @@ async def warmup_voice_models():
     providers and when a warm-up is already running.
     """
 
+    if not _voice_warmup_lock.acquire(blocking=False):
+        return {"ok": True, "started": False, "reason": "already_running"}
+
     def _warm() -> None:
-        if not _voice_warmup_lock.acquire(blocking=False):
-            return
         try:
             from tools.transcription_tools import warm_up_stt
             from tools.tts_tool import warm_up_tts
@@ -2769,7 +2770,12 @@ async def warmup_voice_models():
             _voice_warmup_lock.release()
 
     loop = asyncio.get_running_loop()
-    loop.run_in_executor(None, _warm)
+    try:
+        loop.run_in_executor(None, _warm)
+    except Exception:
+        _voice_warmup_lock.release()
+        raise
+
     return {"ok": True, "started": True}
 
 

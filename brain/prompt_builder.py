@@ -346,6 +346,24 @@ PARALLEL_TOOL_CALL_GUIDANCE = (
     "in doubt and the calls are independent, batch them."
 )
 
+BACKGROUND_TASK_GUIDANCE = (
+    "# Background task handoff\n"
+    "When the user gives an independent do-this-for-me task and does not need "
+    "to watch each step, dispatch it with delegate_task(background=true) and "
+    "then give a short acknowledgment such as \"Got it, I will handle that.\" "
+    "Do not wait or poll after dispatching. For small low-risk tasks, set "
+    "notify_on_success=false so success stays quiet; failures, cancellations, "
+    "and errors still return to the conversation. For big tasks, reportable "
+    "artifacts, or anything the user will expect to inspect, leave "
+    "notify_on_success=true so the result comes back when finished.\n"
+    "Ask before destructive, irreversible, paid, privacy-sensitive, or broad "
+    "external side effects unless the user was explicit (for example deleting "
+    "playlists/files, purchases, mass messages, account changes). If the user "
+    "says \"cancel that\" or similar, call delegate_task(action='cancel_latest'); "
+    "if they say to stop all background work, call action='cancel_all'. "
+    "Unrelated new messages are not cancellation."
+)
+
 # OpenAI GPT/Codex-specific execution guidance.  Addresses known failure modes
 # where GPT models abandon work on partial results, skip prerequisite lookups,
 # hallucinate instead of using tools, and declare "done" without verification.

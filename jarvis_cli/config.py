@@ -937,6 +937,12 @@ DEFAULT_CONFIG = {
         # compounds over a long conversation.  Costs ~70 tokens in the cached
         # system prompt.  Set False to disable globally.
         "parallel_tool_call_guidance": True,
+        # Background task handoff guidance — short prompt block applied when
+        # delegate_task is available.  It steers models to dispatch
+        # independent "do this for me" work with delegate_task(background=true),
+        # acknowledge briefly, and suppress small successful completions while
+        # still surfacing errors/cancellations.  Set False to disable globally.
+        "background_task_guidance": True,
         # Persona persistence — keeps the SOUL.md voice from drifting toward
         # generic-assistant mode in long conversations by adding a short
         # voice cue to the API-bound copy of each turn's user message plus a

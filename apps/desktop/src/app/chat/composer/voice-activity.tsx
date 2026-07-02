@@ -9,6 +9,7 @@ import { getVoiceAnalyser } from '@/lib/voice-analyser'
 import { stopVoicePlayback } from '@/lib/voice-playback'
 import { $voicePlayback } from '@/store/voice-playback'
 
+import type { ConversationStatus } from './hooks/use-voice-conversation'
 import type { VoiceActivityState } from './types'
 
 function formatElapsed(seconds: number) {
@@ -147,6 +148,64 @@ export function VoiceActivity({ state }: { state: VoiceActivityState }) {
       </div>
 
       <VoiceLevelBars active={recording} level={state.level} />
+    </div>
+  )
+}
+
+export function VoiceConversationActivity({
+  status,
+  transcript
+}: {
+  status: ConversationStatus
+  transcript: string
+}) {
+  const { t } = useI18n()
+
+  if (status === 'idle' && !transcript) {
+    return null
+  }
+
+  const text = transcript.trim()
+
+  const title =
+    status === 'speaking'
+      ? t.composer.speaking
+      : status === 'transcribing'
+        ? t.composer.transcribing
+        : status === 'thinking'
+          ? t.composer.thinking
+          : t.composer.listening
+
+  const icon =
+    status === 'listening' ? (
+      <Mic size={12} />
+    ) : status === 'speaking' ? (
+      <Volume2 size={12} />
+    ) : (
+      <Loader2 className="animate-spin" size={12} />
+    )
+
+  return (
+    <div
+      aria-live="polite"
+      className={cn(
+        'flex h-8 items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--jarvis-blue)_26%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_9%,var(--jarvis-panel))] px-2.5 text-xs text-(--jarvis-blue)',
+        'shadow-[inset_0_1px_0_color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] backdrop-blur-sm'
+      )}
+      role="status"
+    >
+      <div className="flex size-5 shrink-0 items-center justify-center rounded-[3px] border border-[color-mix(in_srgb,var(--jarvis-blue)_24%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_14%,transparent)] text-(--jarvis-blue)">
+        {icon}
+      </div>
+
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <span className="shrink-0 font-medium text-foreground/85">{title}</span>
+        {text && (
+          <span className="min-w-0 truncate text-(--jarvis-muted)" title={text}>
+            {text}
+          </span>
+        )}
+      </div>
     </div>
   )
 }

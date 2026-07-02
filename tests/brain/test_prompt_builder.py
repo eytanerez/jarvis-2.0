@@ -23,6 +23,7 @@ from brain.prompt_builder import (
     _get_context_file_max_chars,
     _CONTEXT_FILE_DYNAMIC_CEILING,
     DEFAULT_AGENT_IDENTITY,
+    BACKGROUND_TASK_GUIDANCE,
     drain_truncation_warnings,
     TOOL_USE_ENFORCEMENT_GUIDANCE,
     TOOL_USE_ENFORCEMENT_MODELS,
@@ -1542,8 +1543,38 @@ class TestParallelToolCallGuidance:
         assert "parallel tool call" not in GOOGLE_MODEL_OPERATIONAL_GUIDANCE.lower()
 
 
+class TestBackgroundTaskGuidance:
+    """Behavior contracts for the do-this-for-me background handoff block."""
+
+    def test_is_nonempty_string(self):
+        assert isinstance(BACKGROUND_TASK_GUIDANCE, str)
+        assert BACKGROUND_TASK_GUIDANCE.strip()
+
+    def test_steers_background_delegation_and_short_ack(self):
+        text = BACKGROUND_TASK_GUIDANCE.lower()
+        assert "delegate_task" in text
+        assert "background=true" in text
+        assert "short acknowledgment" in text
+        assert "do not wait" in text
+
+    def test_supports_quiet_success_but_not_silent_failure(self):
+        text = BACKGROUND_TASK_GUIDANCE.lower()
+        assert "notify_on_success=false" in text
+        assert "success" in text and "quiet" in text
+        assert "failures" in text or "errors" in text
+
+    def test_covers_cancellation_and_destructive_actions(self):
+        text = BACKGROUND_TASK_GUIDANCE.lower()
+        assert "cancel_latest" in text
+        assert "cancel_all" in text
+        assert "destructive" in text
+        assert "irreversible" in text
+
+    def test_stays_short_for_cached_prompt(self):
+        assert len(BACKGROUND_TASK_GUIDANCE) < 1200
+
+
 # =========================================================================
 # Budget warning history stripping
 # =========================================================================
-
 

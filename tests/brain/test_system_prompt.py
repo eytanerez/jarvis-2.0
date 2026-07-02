@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from brain.prompt_builder import BACKGROUND_TASK_GUIDANCE
 from brain.system_prompt import build_system_prompt_parts
 
 
@@ -12,6 +13,7 @@ def _make_agent(**overrides):
         skip_context_files=False,
         valid_tool_names=[],
         _task_completion_guidance=False,
+        _background_task_guidance=True,
         _tool_use_enforcement=False,
         _environment_probe=False,
         _kanban_worker_guidance="",
@@ -96,3 +98,20 @@ class TestCodingContextBlock:
         monkeypatch.setenv("TERMINAL_CWD", str(tmp_path))
         agent = _make_agent(valid_tool_names=[], platform="cli")
         assert "coding agent" not in _stable_prompt(agent)
+
+
+class TestBackgroundTaskGuidanceBlock:
+    def test_injected_when_delegate_task_available(self):
+        agent = _make_agent(valid_tool_names=["delegate_task"])
+        assert BACKGROUND_TASK_GUIDANCE in _stable_prompt(agent)
+
+    def test_absent_without_delegate_task(self):
+        agent = _make_agent(valid_tool_names=["terminal"])
+        assert BACKGROUND_TASK_GUIDANCE not in _stable_prompt(agent)
+
+    def test_can_be_disabled(self):
+        agent = _make_agent(
+            valid_tool_names=["delegate_task"],
+            _background_task_guidance=False,
+        )
+        assert BACKGROUND_TASK_GUIDANCE not in _stable_prompt(agent)

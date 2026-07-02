@@ -1247,6 +1247,11 @@ def init_agent(
     # single turn; the runtime already executes such batches concurrently.
     agent._parallel_tool_call_guidance = bool(_agent_section.get("parallel_tool_call_guidance", True))
 
+    # Background task handoff guidance toggle. Default True. Steers the
+    # model to use delegate_task(background=true) for independent
+    # do-this-for-me work, with silent success for small low-risk tasks.
+    agent._background_task_guidance = bool(_agent_section.get("background_task_guidance", True))
+
     # Persona persistence toggle (recency voice cue + tonal checkpoint —
     # see brain/persona_cue.py).  Default True; interactive sessions only
     # (dispatched work is excluded via skip_context_files / kanban markers

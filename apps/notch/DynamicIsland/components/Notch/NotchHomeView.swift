@@ -688,12 +688,12 @@ struct NotchHomeView: View {
     @ObservedObject private var extensionNotchExperienceManager = ExtensionNotchExperienceManager.shared
     @ObservedObject private var musicManager = MusicManager.shared
     @Default(.showStandardMediaControls) private var showStandardMediaControls
-    @Default(.autoHideInactiveNotchMediaPlayer) private var autoHideInactiveNotchMediaPlayer
     let albumArtNamespace: Namespace.ID
 
-    /// Whether the music player should actively display (enabled AND has real content).
+    /// The home tab is a control surface; keep the music half visible even
+    /// when playback is idle so it does not disappear from the layout.
     private var shouldShowMusicPlayer: Bool {
-        showStandardMediaControls && (!autoHideInactiveNotchMediaPlayer || musicManager.hasActiveSession)
+        showStandardMediaControls
     }
     
     var body: some View {
