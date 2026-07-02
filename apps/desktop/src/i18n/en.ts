@@ -475,7 +475,6 @@ export const en: Translations = {
         extensions: "Extensions",
       },
       labels: {
-        menubarIcon: "Menu bar icon",
         showOnAllDisplays: "Show on all displays",
         automaticallySwitchDisplay: "Follow the active display",
         hideDynamicIslandFromScreenCapture: "Hide from screen capture",

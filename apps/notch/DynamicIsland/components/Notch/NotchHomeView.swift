@@ -727,10 +727,10 @@ struct NotchHomeView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         JarvisHomeFaceView()
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 } else {
                     JarvisHomeFaceView()
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 }
                 
                 if Defaults[.showMirror],

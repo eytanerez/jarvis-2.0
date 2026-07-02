@@ -586,7 +586,6 @@ export const zhHant = defineLocale({
         extensions: "擴充功能",
       },
       labels: {
-        menubarIcon: "選單列圖示",
         showOnAllDisplays: "在所有顯示器上顯示",
         automaticallySwitchDisplay: "跟隨目前使用中的顯示器",
         hideDynamicIslandFromScreenCapture: "在螢幕擷取中隱藏",

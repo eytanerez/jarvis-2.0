@@ -674,7 +674,6 @@ export const zh: Translations = {
         extensions: "扩展",
       },
       labels: {
-        menubarIcon: "菜单栏图标",
         showOnAllDisplays: "在所有显示器上显示",
         automaticallySwitchDisplay: "跟随当前活动显示器",
         hideDynamicIslandFromScreenCapture: "在屏幕录制中隐藏",

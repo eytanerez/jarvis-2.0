@@ -179,7 +179,6 @@ private let jarvisEditableNotchSettingDefaults: [String: Any] = [
     "lowBatteryHUDStyle": "standard",
     "lowBatteryHUDThreshold": 20,
     "mediaController": "Apple Music",
-    "menubarIcon": true,
     "minimumHoverDuration": 0.3,
     "mirrorSystemTimer": true,
     "musicControlWindowEnabled": false,
@@ -632,7 +631,14 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
     }
 
     private func permissionSnapshot() -> [[String: String]] {
-        [
+        // Accessibility's `isAuthorized` is a stored value that only updates
+        // via its own polling loop, which times out after ~15s — long enough
+        // to go grant it in System Settings and come back after it's given
+        // up. Refresh it here so every settings fetch reflects the real,
+        // current OS status instead of whatever it was at launch.
+        AccessibilityPermissionStore.shared.refreshStatus()
+
+        return [
             permission(
                 id: "accessibility",
                 label: "Accessibility",

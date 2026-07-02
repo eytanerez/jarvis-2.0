@@ -596,7 +596,6 @@ export const ja = defineLocale({
         extensions: "拡張機能",
       },
       labels: {
-        menubarIcon: "メニューバーアイコン",
         showOnAllDisplays: "すべてのディスプレイに表示",
         automaticallySwitchDisplay: "アクティブなディスプレイに追従",
         hideDynamicIslandFromScreenCapture: "画面キャプチャで非表示",

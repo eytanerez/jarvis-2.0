@@ -83,7 +83,6 @@ const SETTING_PAGES: NotchSettingsPageDef[] = [
     label: 'General',
     icon: Settings2,
     settings: [
-      bool('menubarIcon', 'Menu bar icon', true),
       bool('showOnAllDisplays', 'Show on all displays', false),
       bool('automaticallySwitchDisplay', 'Follow the active display', true),
       bool('hideDynamicIslandFromScreenCapture', 'Hide from screen capture', false),

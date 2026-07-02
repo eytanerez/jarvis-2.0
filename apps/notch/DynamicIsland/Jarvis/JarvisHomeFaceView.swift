@@ -16,6 +16,7 @@ struct JarvisHomeFaceView: View {
             JarvisOrbView()
                 .scaleEffect(isHovering ? 1.05 : 1.0)
                 .animation(.smooth(duration: 0.2), value: isHovering)
+                .padding(.vertical, 6)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Circle())
         }

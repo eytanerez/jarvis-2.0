@@ -119,6 +119,8 @@ final class FullDiskAccessPermissionStore: ObservableObject {
     }
 
     func requestAccessPrompt() {
+        refreshStatus()
+        guard !isAuthorized else { return }
 #if os(macOS)
         let alert = NSAlert()
         alert.messageText = "Full Disk Access Required"
@@ -203,6 +205,8 @@ final class ShelfFolderAccessPermissionStore: ObservableObject {
     }
 
     func requestAccessPrompt() {
+        refreshStatus()
+        guard !hasDocumentsAndDownloadsAccess else { return }
         ShelfFolderAccessAuthorization.requestAccessProbe()
         beginPollingForStatusChanges()
     }
