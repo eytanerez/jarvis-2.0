@@ -22,11 +22,11 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const { once } = require('node:events')
+const { EventEmitter, once } = require('node:events')
 const { test } = require('node:test')
 const WebSocket = require('ws')
 
-const { buildOrbUrl, createNotchLink, isAuthorized, resolveNotchAppPath } = require('./notch.cjs')
+const { buildOrbUrl, createNotchLink, isAuthorized, resolveNotchAppPath, resolveNotchBuildScript, serveOrbStatic } = require('./notch.cjs')
 
 // The real spawn would launch an actual Jarvis Notch.app on dev machines where
 // the bundle exists — never do that from tests.
@@ -37,6 +37,8 @@ function fakeSpawn() {
 function makeLink(overrides = {}) {
   return createNotchLink({
     devServerUrl: 'http://127.0.0.1:5174',
+    // Never pkill real notch instances from tests.
+    killStaleImpl: callback => callback(),
     log: () => {},
     spawnImpl: fakeSpawn,
     ...overrides
@@ -259,5 +261,244 @@ test('audio levels broadcast without being cached in the snapshot', async () => 
     late.ws.close()
   } finally {
     link.stop()
+  }
+})
+
+test('resolveNotchAppPath finds the bundle inside a source checkout (installed-app path)', t => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'notch-src-'))
+  t.after(() => fs.rmSync(tmp, { force: true, recursive: true }))
+
+  const bundle = path.join(tmp, 'apps', 'notch', '.build', 'xcode', 'Build', 'Products', 'Release', 'Jarvis Notch.app')
+  fs.mkdirSync(path.join(bundle, 'Contents', 'MacOS'), { recursive: true })
+  fs.writeFileSync(path.join(bundle, 'Contents', 'MacOS', 'Jarvis Notch'), '')
+
+  assert.equal(
+    resolveNotchAppPath({ env: {}, isPackaged: true, resourcesPath: path.join(tmp, 'nowhere'), sourceRoots: [tmp] }),
+    bundle
+  )
+})
+
+test('resolveNotchBuildScript finds the checkout build script', t => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'notch-script-'))
+  t.after(() => fs.rmSync(tmp, { force: true, recursive: true }))
+
+  assert.equal(resolveNotchBuildScript([tmp]), null)
+
+  const script = path.join(tmp, 'apps', 'notch', 'scripts', 'build.sh')
+  fs.mkdirSync(path.dirname(script), { recursive: true })
+  fs.writeFileSync(script, '')
+  assert.equal(resolveNotchBuildScript([null, tmp]), script)
+})
+
+test('buildOrbUrl falls back to link-served dist when no dev server runs', t => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'notch-dist-'))
+  t.after(() => fs.rmSync(tmp, { force: true, recursive: true }))
+
+  // dist without the orb page: still no URL.
+  assert.equal(buildOrbUrl({ devServerUrl: null, port: 9, rendererDistDir: tmp, token: 't' }), null)
+
+  fs.writeFileSync(path.join(tmp, 'notch-orb.html'), '<html></html>')
+  assert.equal(
+    buildOrbUrl({ devServerUrl: null, port: 9, rendererDistDir: tmp, token: 't' }),
+    'http://127.0.0.1:9/notch-orb.html?port=9&token=t'
+  )
+
+  // Dev server still wins when present.
+  assert.equal(
+    buildOrbUrl({ devServerUrl: 'http://127.0.0.1:5174', port: 9, rendererDistDir: tmp, token: 't' }),
+    'http://127.0.0.1:5174/notch-orb.html?port=9&token=t'
+  )
+})
+
+test('serveOrbStatic serves dist files and refuses escapes', t => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'notch-static-'))
+  t.after(() => fs.rmSync(tmp, { force: true, recursive: true }))
+
+  fs.writeFileSync(path.join(tmp, 'notch-orb.html'), '<html>orb</html>')
+  fs.mkdirSync(path.join(tmp, 'assets'))
+  fs.writeFileSync(path.join(tmp, 'assets', 'app.js'), 'js')
+  fs.writeFileSync(path.join(os.tmpdir(), 'notch-static-outside.js'), 'nope')
+
+  function fakeRes() {
+    const res = {
+      body: null,
+      end(content) {
+        res.body = content
+      },
+      headers: {},
+      setHeader(name, value) {
+        res.headers[name] = value
+      },
+      statusCode: 0
+    }
+    return res
+  }
+
+  const html = fakeRes()
+  assert.equal(serveOrbStatic({ method: 'GET', url: '/notch-orb.html?token=x' }, html, tmp), true)
+  assert.equal(html.statusCode, 200)
+  assert.equal(String(html.body), '<html>orb</html>')
+  assert.match(html.headers['content-type'], /text\/html/)
+
+  const js = fakeRes()
+  assert.equal(serveOrbStatic({ method: 'GET', url: '/assets/app.js' }, js, tmp), true)
+  assert.equal(String(js.body), 'js')
+
+  // Traversal, non-GET, unknown extensions, and no-dist all fall through.
+  assert.equal(serveOrbStatic({ method: 'GET', url: '/../notch-static-outside.js' }, fakeRes(), tmp), false)
+  assert.equal(serveOrbStatic({ method: 'GET', url: '/..%2fnotch-static-outside.js' }, fakeRes(), tmp), false)
+  assert.equal(serveOrbStatic({ method: 'POST', url: '/notch-orb.html' }, fakeRes(), tmp), false)
+  assert.equal(serveOrbStatic({ method: 'GET', url: '/notch' }, fakeRes(), tmp), false)
+  assert.equal(serveOrbStatic({ method: 'GET', url: '/notch-orb.html' }, fakeRes(), null), false)
+})
+
+/**
+ * A fake spawned child that actually behaves like one (kill() fires 'exit'),
+ * unlike the static `fakeSpawn()` used elsewhere — needed to exercise the
+ * restart/relaunch branches, which key off exit code + a restart flag.
+ */
+function makeControllableChild() {
+  const emitter = new EventEmitter()
+  emitter.killed = false
+  emitter.kill = signal => {
+    if (emitter.killed) return
+    emitter.killed = true
+    // Real child_process 'exit' gets (code, signal); SIGTERM → code null.
+    setImmediate(() => emitter.emit('exit', signal ? null : 0, signal || null))
+  }
+  return emitter
+}
+
+test('restartNotch kills the running child and respawns immediately, bypassing backoff', async () => {
+  const spawnedBinaries = []
+  const children = []
+  const link = makeLink({
+    spawnImpl: () => {
+      const child = makeControllableChild()
+      spawnedBinaries.push(child)
+      children.push(child)
+      return child
+    }
+  })
+
+  // No real bundle exists in the test env, so spawnImpl is only reached via
+  // resolveNotchAppPath finding a fake one — stub that too.
+  const fakeBundle = fs.mkdtempSync(path.join(os.tmpdir(), 'notch-restart-'))
+  const bundlePath = path.join(fakeBundle, 'Jarvis Notch.app', 'Contents', 'MacOS')
+  fs.mkdirSync(bundlePath, { recursive: true })
+  fs.writeFileSync(path.join(bundlePath, 'Jarvis Notch'), '')
+
+  const realLink = createNotchLink({
+    devServerUrl: 'http://127.0.0.1:5174',
+    env: { JARVIS_NOTCH_APP: path.join(fakeBundle, 'Jarvis Notch.app') },
+    killStaleImpl: callback => callback(),
+    log: () => {},
+    spawnImpl: () => {
+      const child = makeControllableChild()
+      children.push(child)
+      return child
+    }
+  })
+
+  try {
+    await realLink.start()
+    assert.equal(children.length, 1, 'spawned once on start')
+    const firstChild = children[0]
+
+    realLink.restartNotch()
+    assert.equal(firstChild.killed, true)
+
+    // Wait for the fake 'exit' (setImmediate) and the synchronous respawn it
+    // triggers to land.
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(children.length, 2, 'respawned once after restart, no backoff delay')
+
+    link.stop()
+  } finally {
+    realLink.stop()
+    fs.rmSync(fakeBundle, { force: true, recursive: true })
+  }
+})
+
+test('restartNotch spawns immediately when nothing is currently running', async () => {
+  const children = []
+  const fakeBundle = fs.mkdtempSync(path.join(os.tmpdir(), 'notch-restart-idle-'))
+  const bundlePath = path.join(fakeBundle, 'Jarvis Notch.app', 'Contents', 'MacOS')
+  fs.mkdirSync(bundlePath, { recursive: true })
+  fs.writeFileSync(path.join(bundlePath, 'Jarvis Notch'), '')
+
+  const link = createNotchLink({
+    devServerUrl: 'http://127.0.0.1:5174',
+    env: { JARVIS_NOTCH_APP: path.join(fakeBundle, 'Jarvis Notch.app') },
+    killStaleImpl: callback => callback(),
+    log: () => {},
+    spawnImpl: () => {
+      const child = makeControllableChild()
+      children.push(child)
+      return child
+    }
+  })
+
+  try {
+    await link.start()
+    assert.equal(children.length, 1)
+
+    // Simulate a real crash (no restart requested) that's currently mid-backoff...
+    children[0].kill('SIGKILL')
+    await new Promise(resolve => setImmediate(resolve))
+
+    // ...then an explicit restart should short-circuit that backoff and spawn now.
+    link.restartNotch()
+    assert.equal(children.length, 2)
+  } finally {
+    link.stop()
+    fs.rmSync(fakeBundle, { force: true, recursive: true })
+  }
+})
+
+test('gives up relaunching after MAX_RELAUNCH_ATTEMPTS consecutive unexpected exits', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+
+  const children = []
+  const fakeBundle = fs.mkdtempSync(path.join(os.tmpdir(), 'notch-crashloop-'))
+  const bundlePath = path.join(fakeBundle, 'Jarvis Notch.app', 'Contents', 'MacOS')
+  fs.mkdirSync(bundlePath, { recursive: true })
+  fs.writeFileSync(path.join(bundlePath, 'Jarvis Notch'), '')
+
+  const link = createNotchLink({
+    devServerUrl: 'http://127.0.0.1:5174',
+    env: { JARVIS_NOTCH_APP: path.join(fakeBundle, 'Jarvis Notch.app') },
+    killStaleImpl: callback => callback(),
+    log: () => {},
+    spawnImpl: () => {
+      const child = makeControllableChild()
+      children.push(child)
+      return child
+    }
+  })
+
+  try {
+    await link.start()
+    assert.equal(children.length, 1)
+
+    // Crash every child immediately and fast-forward through the backoff
+    // delay after each one, simulating a binary that can never survive.
+    // makeControllableChild's kill() emits 'exit' via a REAL setImmediate
+    // (only setTimeout is mocked above), so that needs an actual event-loop
+    // turn — mock.timers.tick() only advances fake time, it doesn't pump
+    // real macrotasks.
+    for (let i = 0; i < 8; i++) {
+      const current = children.at(-1)
+      current.kill('SIGKILL')
+      await new Promise(resolve => setImmediate(resolve)) // let the real 'exit' land
+      t.mock.timers.tick(30_000) // clear even the maxed-out backoff delay
+    }
+
+    // Capped at MAX_RELAUNCH_ATTEMPTS relaunches beyond the first spawn —
+    // it must have stopped scheduling more, not kept going for all 8 crashes.
+    assert.equal(children.length, 7, '1 initial spawn + 6 relaunches, then it gives up')
+  } finally {
+    link.stop()
+    fs.rmSync(fakeBundle, { force: true, recursive: true })
   }
 })

@@ -304,35 +304,50 @@ export function DesktopController() {
     return () => unsubscribe?.()
   }, [])
 
-  // jarvis:// deep links (e.g. a docs "Send to App" button for an automation blueprint).
-  // Build the equivalent /blueprint slash command from the payload and drop
-  // it into the composer — the user reviews/edits, then sends; the agent (or
-  // the shared command handler) creates the job. Signal readiness so a link
+  // jarvis:// deep links (e.g. a docs "Send to App" button for an automation
+  // blueprint, or an OS-level trigger — a Shortcut, Spotlight, another app —
+  // reaching into the notch's two entry points). Signal readiness so a link
   // that arrived during boot is flushed exactly once.
   useEffect(() => {
     const unsubscribe = window.jarvisDesktop?.onDeepLink?.(payload => {
-      if (!payload || payload.kind !== 'blueprint' || !payload.name) {
+      if (!payload) {
         return
       }
 
-      const slots = Object.entries(payload.params || {})
-        .map(([k, v]) => {
-          const sval = /\s/.test(v) ? `"${v.replace(/"/g, '\\"')}"` : v
+      if (payload.kind === 'blueprint' && payload.name) {
+        const slots = Object.entries(payload.params || {})
+          .map(([k, v]) => {
+            const sval = /\s/.test(v) ? `"${v.replace(/"/g, '\\"')}"` : v
 
-          return `${k}=${sval}`
-        })
-        .join(' ')
+            return `${k}=${sval}`
+          })
+          .join(' ')
 
-      const command = `/blueprint ${payload.name}${slots ? ' ' + slots : ''}`
-      requestComposerInsert(command, { mode: 'block', target: 'main' })
-      requestComposerFocus('main')
+        const command = `/blueprint ${payload.name}${slots ? ' ' + slots : ''}`
+        requestComposerInsert(command, { mode: 'block', target: 'main' })
+        requestComposerFocus('main')
+
+        return
+      }
+
+      // jarvis://notch/settings -> Settings -> The Notch (same destination
+      // the notch's own gear icon deep-links to over its WS link).
+      // jarvis://notch/talk -> starts a voice conversation, same as clicking
+      // the orb in the notch itself.
+      if (payload.kind === 'notch') {
+        if (payload.name === 'settings') {
+          navigate(`${SETTINGS_ROUTE}?tab=notch`)
+        } else if (payload.name === 'talk') {
+          $notchCommand.set('start')
+        }
+      }
     })
 
     // Tell the main process the renderer is ready to receive deep links.
     void window.jarvisDesktop?.signalDeepLinkReady?.()
 
     return () => unsubscribe?.()
-  }, [])
+  }, [navigate])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

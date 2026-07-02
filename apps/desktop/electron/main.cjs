@@ -665,6 +665,12 @@ function registerMediaProtocol() {
 }
 
 let mainWindow = null
+// True once a real quit (Cmd+Q, dock Quit, app.quit()) is underway — set at
+// the top of the 'before-quit' handler. The main window's 'close' handler
+// checks this to tell "user clicked the red button" (hide, keep the renderer
+// alive for the notch's background voice conversation) apart from "app is
+// actually quitting" (let the close proceed).
+let isQuittingApp = false
 // Link to the native notch companion app (macOS only; see electron/notch.cjs).
 let notchLink = null
 let jarvisProcess = null
@@ -2358,6 +2364,62 @@ function writeDefaultProjectDir(dir) {
   } catch (error) {
     rememberLog(`[settings] write default project dir failed: ${error.message}`)
   }
+}
+
+// Whether Jarvis has ever set the OS login item on this machine. `app.get/
+// setLoginItemSettings` already reads/writes the real login-item state (no
+// separate copy needed), but that API alone can't distinguish "never touched"
+// from "user explicitly turned it off" — this one-shot flag lets the
+// first-run default (see startLaunchAtLoginDefault) apply exactly once
+// without fighting the user's later choice on every subsequent launch.
+const LAUNCH_AT_LOGIN_FLAG_FILENAME = 'launch-at-login-configured.json'
+
+function launchAtLoginFlagPath() {
+  return path.join(app.getPath('userData'), LAUNCH_AT_LOGIN_FLAG_FILENAME)
+}
+
+function hasConfiguredLaunchAtLogin() {
+  try {
+    return JSON.parse(fs.readFileSync(launchAtLoginFlagPath(), 'utf8'))?.configured === true
+  } catch {
+    return false
+  }
+}
+
+function markLaunchAtLoginConfigured() {
+  try {
+    fs.mkdirSync(path.dirname(launchAtLoginFlagPath()), { recursive: true })
+    fs.writeFileSync(launchAtLoginFlagPath(), JSON.stringify({ configured: true }, null, 2), 'utf8')
+  } catch (error) {
+    rememberLog(`[settings] write launch-at-login flag failed: ${error.message}`)
+  }
+}
+
+function supportsLoginItemSettings() {
+  return (process.platform === 'darwin' || process.platform === 'win32') && typeof app.setLoginItemSettings === 'function'
+}
+
+function getLaunchAtLogin() {
+  if (!supportsLoginItemSettings()) return false
+  return Boolean(app.getLoginItemSettings().openAtLogin)
+}
+
+function setLaunchAtLogin(enabled) {
+  if (!supportsLoginItemSettings()) return false
+  app.setLoginItemSettings({ openAtLogin: Boolean(enabled) })
+  markLaunchAtLoginConfigured()
+  return true
+}
+
+// First run only: the notch companion is only reachable while Jarvis is
+// running (it spawns/kills the notch — see startNotchLink), so without a
+// login item the "always there" notch experience the user asked for would
+// require manually reopening Jarvis after every reboot. Configuring this
+// once and then leaving it alone respects a later manual toggle-off.
+function startLaunchAtLoginDefault() {
+  if (!supportsLoginItemSettings() || hasConfiguredLaunchAtLogin()) return
+  setLaunchAtLogin(true)
+  rememberLog('[settings] enabled launch-at-login by default (first run)')
 }
 
 function createPythonBackend(root, label, dashboardArgs, options = {}) {
@@ -5281,6 +5343,20 @@ function createWindow() {
   mainWindow.on('will-leave-full-screen', () => sendWindowStateChanged(false))
   mainWindow.on('leave-full-screen', () => sendWindowStateChanged(false))
 
+  // Hide-on-close (macOS only): the red button hides the window instead of
+  // destroying it, so the renderer — and with it, an active notch voice
+  // conversation (use-voice-conversation's React state) — survives being
+  // "closed". A real quit (before-quit sets isQuittingApp first) still tears
+  // the window down normally. Secondary session windows are unaffected; only
+  // the primary window represents "is Jarvis running".
+  if (IS_MAC) {
+    mainWindow.on('close', event => {
+      if (isQuittingApp || !mainWindow || mainWindow.isDestroyed()) return
+      event.preventDefault()
+      mainWindow.hide()
+    })
+  }
+
   wireCommonWindowHandlers(mainWindow)
 
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
@@ -6603,7 +6679,14 @@ async function startNotchLink() {
     onSettings: snapshot => {
       forwardNotchSettingsToRenderer(snapshot)
     },
-    resourcesPath: process.resourcesPath
+    // The orb page ships inside the renderer dist; the link serves it to the
+    // notch's web views when no Vite dev server is running.
+    rendererDistDir: path.join(APP_ROOT, 'dist'),
+    resourcesPath: process.resourcesPath,
+    // The installed app's own files live inside app.asar, but the source
+    // checkout it updates itself from has the notch project — resolve (and if
+    // needed, build) the notch bundle there.
+    sourceRoots: [resolveUpdateRoot()].filter(Boolean)
   })
 
   try {
@@ -6634,6 +6717,22 @@ ipcMain.handle('jarvis:notch:permission:request', (_event, id) => {
   return { ok, error: ok ? null : 'notch-offline' }
 })
 
+ipcMain.handle('jarvis:notch:restart', () => {
+  if (!notchLink) return { ok: false }
+  notchLink.restartNotch()
+  return { ok: true }
+})
+
+ipcMain.handle('jarvis:launchAtLogin:get', () => ({
+  enabled: getLaunchAtLogin(),
+  supported: supportsLoginItemSettings()
+}))
+
+ipcMain.handle('jarvis:launchAtLogin:set', (_event, enabled) => ({
+  enabled: getLaunchAtLogin(),
+  ok: setLaunchAtLogin(enabled)
+}))
+
 app.whenReady().then(() => {
   if (IS_MAC) {
     Menu.setApplicationMenu(buildApplicationMenu())
@@ -6648,6 +6747,7 @@ app.whenReady().then(() => {
   registerPowerResumeListeners()
   createWindow()
   startNotchLink().catch(error => rememberLog(`[notch] start failed: ${error.message}`))
+  startLaunchAtLoginDefault()
 
   // Win/Linux cold start: the launching jarvis:// URL is in our own argv.
   const _coldStartLink = _extractDeepLink(process.argv)
@@ -6689,6 +6789,8 @@ function configureSpellChecker() {
 }
 
 app.on('before-quit', () => {
+  isQuittingApp = true
+
   // Quitting mid-install should stop the installer, not orphan it.
   if (bootstrapAbortController) {
     try {

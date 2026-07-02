@@ -54,7 +54,8 @@ struct ContentView: View {
     @ObservedObject var localSendService = LocalSendService.shared
     @State private var downloadManager = DownloadManager.shared
     @ObservedObject var shelfState = ShelfStateViewModel.shared
-    
+    @ObservedObject var jarvisModel = JarvisAssistantBridge.shared.model
+
     @Default(.enableStatsFeature) var enableStatsFeature
     @Default(.showCpuGraph) var showCpuGraph
     @Default(.showMemoryGraph) var showMemoryGraph
@@ -916,6 +917,10 @@ struct ContentView: View {
                       } else if vm.notchState == .closed && capsLockManager.isCapsLockActive && Defaults[.enableCapsLockIndicator] && !vm.hideOnClosed && !lockScreenManager.isLocked {
                           InlineHUD(type: .constant(.capsLock), value: .constant(1.0), icon: .constant(""), hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
                               .transition(AnyTransition.move(edge: .trailing).combined(with: .opacity))
+                      } else if vm.notchState == .closed && jarvisModel.phase.isConversationActive && !vm.hideOnClosed && !lockScreenManager.isLocked {
+                          JarvisLiveActivity()
+                              .id("closed-jarvis-live-activity")
+                              .transition(closedLiveActivitySwapTransition)
                       } else if canShowMusicDuringExpansion && musicPairingEligible {
                           MusicLiveActivity(secondary: musicSecondary)
                               .id("closed-music-live-activity")
@@ -1159,6 +1164,33 @@ struct ContentView: View {
                     .frame(width: sideSize, height: sideSize)
             }
         }.frame(height: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0), alignment: .center)
+    }
+
+    /// Closed-notch surface while a Jarvis conversation is active: a tiny orb
+    /// in the album-art slot (left) and a voice-reactive visualizer (right),
+    /// mirroring MusicLiveActivity's layout so switching between them never
+    /// resizes the window. Takes priority over the music live activity (see
+    /// the branch above) — the bridge already pauses/resumes music around the
+    /// conversation, so this is purely which closed-notch surface shows.
+    private func JarvisLiveActivity() -> some View {
+        let notchContentHeight = max(0, vm.effectiveClosedNotchHeight - (isHovering ? 0 : 12))
+        let wingBaseWidth = max(0, vm.effectiveClosedNotchHeight - (isHovering ? 0 : 12) + gestureProgress / 2)
+        let centerBaseWidth = max(vm.closedNotchSize.width + (isHovering ? 8 : 0), 96)
+        let notchWidth = wingBaseWidth + centerBaseWidth + wingBaseWidth
+
+        return HStack(spacing: 0) {
+            JarvisOrbView()
+                .frame(width: wingBaseWidth, height: notchContentHeight)
+
+            Rectangle()
+                .fill(.black)
+                .frame(width: centerBaseWidth, height: notchContentHeight)
+
+            JarvisVoiceVisualizerView(level: jarvisModel.audioLevel)
+                .frame(width: wingBaseWidth, height: notchContentHeight)
+        }
+        .frame(width: notchWidth, height: notchContentHeight)
+        .frame(height: vm.effectiveClosedNotchHeight + (isHovering ? 8 : 0), alignment: .center)
     }
 
     @ViewBuilder

@@ -128,8 +128,16 @@ declare global {
         requestPermission: (id: string) => Promise<{ ok: boolean; error?: string | null }>
         publish: (payload: { type: string; [key: string]: unknown }) => void
         setSetting: (key: string, value: unknown) => Promise<{ ok: boolean; error?: string | null }>
+        restart: () => Promise<{ ok: boolean }>
         onCommand: (callback: (message: { type: string }) => void) => () => void
         onSettings: (callback: (snapshot: DesktopNotchSettingsSnapshot) => void) => () => void
+      }
+      // OS login item for Jarvis itself — the notch companion only runs while
+      // Jarvis does, so this is what makes the notch "always there" across
+      // reboots. Backed by Electron's app.get/setLoginItemSettings.
+      launchAtLogin: {
+        get: () => Promise<{ enabled: boolean; supported: boolean }>
+        set: (enabled: boolean) => Promise<{ enabled: boolean; ok: boolean }>
       }
     }
   }

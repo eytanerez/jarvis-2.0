@@ -39,25 +39,17 @@ struct DynamicNotchApp: App {
             }
             Divider()
             Button("Settings") {
-                SettingsWindowController.shared.showWindow()
+                JarvisAssistantBridge.shared.openSettingsPreferringJarvis()
             }
             Divider()
-            Button("Restart Jarvis") {
-                guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return }
-
-                let workspace = NSWorkspace.shared
-
-                if let appURL = workspace.urlForApplication(withBundleIdentifier: bundleIdentifier)
-                {
-
-                    let configuration = NSWorkspace.OpenConfiguration()
-                    configuration.createsNewApplicationInstance = true
-
-                    workspace.openApplication(at: appURL, configuration: configuration)
-                }
-
-                NSApplication.shared.terminate(self)
+            Button("Restart Notch") {
+                // Routed through Jarvis rather than self-relaunching: only
+                // Jarvis knows the current WS port/token, so only Jarvis can
+                // hand them to the fresh instance. A self-relaunch here would
+                // orphan a disconnected instance while the connected one dies.
+                JarvisAssistantBridge.shared.restartNotch()
             }
+            .disabled(JarvisAssistantBridge.shared.model.phase == .disconnected)
             Button("Quit", role: .destructive) {
                 NSApplication.shared.terminate(self)
             }
@@ -69,7 +61,7 @@ struct DynamicNotchApp: App {
     var commands: some Commands {
         CommandGroup(replacing: .appSettings) {
             Button("Settings…") {
-                SettingsWindowController.shared.showWindow()
+                JarvisAssistantBridge.shared.openSettingsPreferringJarvis()
             }
         }
     }
@@ -815,6 +807,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             case .open:
                 viewModel.close()
             }
+        }
+
+        // Talk to Jarvis is core to the app (not an optional feature toggle
+        // like the shortcuts below it), so it's registered unconditionally
+        // here alongside the other always-on shortcuts — only gated by the
+        // master enableShortcuts switch, same as toggleNotchOpen above.
+        KeyboardShortcuts.onKeyDown(for: .talkToJarvis) { [weak self] in
+            guard let self = self else { return }
+            guard Defaults[.enableShortcuts] else { return }
+            self.activateJarvisAssistantFromHotkey()
         }
 
         KeyboardShortcuts.isEnabled = Defaults[.enableShortcuts]

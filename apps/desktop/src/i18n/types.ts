@@ -318,6 +318,43 @@ export interface Translations {
     }
     fieldLabels: Record<string, string>
     fieldDescriptions: Record<string, string>
+    notch: {
+      title: string
+      subtitle: string
+      connected: string
+      offline: string
+      restart: string
+      restarting: string
+      restartFailed: string
+      offlineToast: string
+      loading: string
+      offlineBannerBefore: string
+      offlineBannerAfter: string
+      settingSaveFailed: string
+      settingsLoadFailed: string
+      permissionRequested: (label: string) => string
+      permissionRequestFailed: (label: string) => string
+      startup: {
+        title: string
+        launchAtLoginTitle: string
+        launchAtLoginDescription: string
+        launchAtLoginUnsupported: string
+        launchAtLoginSaveFailed: string
+        launchAtLoginError: string
+      }
+      permissions: {
+        title: string
+        empty: string
+        request: string
+        granted: string
+        denied: string
+        unknown: string
+      }
+      yesNo: { on: string; off: string }
+      pages: Record<string, string>
+      labels: Record<string, string>
+      optionLabels: Record<string, string>
+    }
     about: {
       heading: string
       version: (value: string) => string

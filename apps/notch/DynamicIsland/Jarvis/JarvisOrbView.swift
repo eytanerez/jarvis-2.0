@@ -102,3 +102,32 @@ private struct NativeOrbGlow: View {
         }
     }
 }
+
+/// Small equalizer-style visualizer for the closed-notch Jarvis live activity,
+/// directly amplitude-driven by the live mic/TTS level streamed over the WS
+/// link (no boolean on/off canned animation like the music spectrum — this
+/// tracks the actual level so it visibly reacts to your voice).
+struct JarvisVoiceVisualizerView: View {
+    let level: Double
+
+    private static let barCount = 4
+    private static let barPhases: [Double] = [0.0, 0.35, 0.15, 0.5]
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 3) {
+            ForEach(0..<Self.barCount, id: \.self) { index in
+                Capsule()
+                    .fill(Color.cyan.gradient)
+                    .frame(width: 3, height: barHeight(for: index))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.smooth(duration: 0.12), value: level)
+    }
+
+    private func barHeight(for index: Int) -> CGFloat {
+        let phase = Self.barPhases[index % Self.barPhases.count]
+        let modulated = max(0.16, min(1, level * (0.55 + phase) + 0.08))
+        return 3 + CGFloat(modulated) * 13
+    }
+}

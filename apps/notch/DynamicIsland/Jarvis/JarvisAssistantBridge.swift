@@ -377,8 +377,27 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
         send(["type": "openMainWindow"])
     }
 
+    /// Asks Jarvis to restart the notch (kill this process, spawn a fresh one
+    /// with the current port/token). See notch.cjs's restartNotch — routed
+    /// through Jarvis rather than self-relaunching because only Jarvis knows
+    /// the live WS credentials.
+    func restartNotch() {
+        send(["type": "restartNotch"])
+    }
+
     func openJarvisSettings() {
         send(["type": "openSettings"])
+    }
+
+    /// Settings live in the Jarvis app (Settings → The Notch). The native
+    /// settings window remains only as the offline fallback so the notch is
+    /// never unconfigurable while Jarvis is closed.
+    func openSettingsPreferringJarvis() {
+        if model.phase == .disconnected {
+            SettingsWindowController.shared.showWindow()
+        } else {
+            send(["type": "openSettings"])
+        }
     }
 
     // MARK: - Connection

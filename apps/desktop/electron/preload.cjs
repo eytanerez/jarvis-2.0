@@ -166,6 +166,7 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     getSettings: () => ipcRenderer.invoke('jarvis:notch:settings:get'),
     requestPermission: id => ipcRenderer.invoke('jarvis:notch:permission:request', id),
     setSetting: (key, value) => ipcRenderer.invoke('jarvis:notch:settings:set', { key, value }),
+    restart: () => ipcRenderer.invoke('jarvis:notch:restart'),
     onCommand: callback => {
       const listener = (_event, message) => callback(message)
       ipcRenderer.on('jarvis:notch:command', listener)
@@ -176,5 +177,9 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
       ipcRenderer.on('jarvis:notch:settings', listener)
       return () => ipcRenderer.removeListener('jarvis:notch:settings', listener)
     }
+  },
+  launchAtLogin: {
+    get: () => ipcRenderer.invoke('jarvis:launchAtLogin:get'),
+    set: enabled => ipcRenderer.invoke('jarvis:launchAtLogin:set', enabled)
   }
 })

@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import type { DesktopNotchPermission, DesktopNotchSettingsSnapshot } from '@/global'
+import { useI18n } from '@/i18n'
+import type { Translations } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import {
   Activity,
@@ -20,9 +22,11 @@ import {
   Layers3,
   Loader2,
   Lock,
+  LogIn,
   Monitor,
   NotebookTabs,
   Palette,
+  RefreshCw,
   Settings2,
   SlidersHorizontal,
   Terminal,
@@ -72,11 +76,6 @@ const BOOL = 'boolean'
 const NUMBER = 'number'
 const SELECT = 'select'
 const TEXT = 'text'
-
-const YES_NO_OPTIONS = [
-  { label: 'On', value: 'true' },
-  { label: 'Off', value: 'false' }
-]
 
 const SETTING_PAGES: NotchSettingsPageDef[] = [
   {
@@ -509,7 +508,9 @@ function normalizeNumber(raw: string, setting: NotchSettingDef): number | null {
   return next
 }
 
-function PermissionStatus({ permission }: { permission: DesktopNotchPermission }) {
+type NotchCopy = Translations['settings']['notch']
+
+function PermissionStatus({ n, permission }: { n: NotchCopy; permission: DesktopNotchPermission }) {
   const granted = permission.status === 'granted'
   const denied = permission.status === 'denied'
 
@@ -523,18 +524,65 @@ function PermissionStatus({ permission }: { permission: DesktopNotchPermission }
         <span className="size-2 rounded-full bg-(--ui-text-quaternary)" />
       )}
       <span className={granted ? 'text-emerald-300' : denied ? 'text-red-300' : 'text-(--ui-text-tertiary)'}>
-        {granted ? 'Granted' : denied ? 'Denied' : 'Unknown'}
+        {granted ? n.permissions.granted : denied ? n.permissions.denied : n.permissions.unknown}
       </span>
     </div>
   )
 }
 
 export function NotchSettings() {
+  const { t } = useI18n()
+  const n = t.settings.notch
   const [activePageId, setActivePageId] = useState(SETTING_PAGES[0].id)
   const [snapshot, setSnapshot] = useState<DesktopNotchSettingsSnapshot>(EMPTY_NOTCH_SETTINGS_SNAPSHOT)
   const [loading, setLoading] = useState(true)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [requestingPermission, setRequestingPermission] = useState<string | null>(null)
+  const [restarting, setRestarting] = useState(false)
+  // Jarvis-level (not notch-Defaults) setting: the notch only runs alongside
+  // Jarvis, so this is what keeps it "always there" across reboots.
+  const [launchAtLogin, setLaunchAtLoginState] = useState<{ enabled: boolean; supported: boolean } | null>(null)
+  const [savingLaunchAtLogin, setSavingLaunchAtLogin] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    void window.jarvisDesktop?.launchAtLogin
+      .get()
+      .then(next => {
+        if (!cancelled) {setLaunchAtLoginState(next)}
+      })
+      .catch(() => {
+        if (!cancelled) {setLaunchAtLoginState({ enabled: false, supported: false })}
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const toggleLaunchAtLogin = async (enabled: boolean) => {
+    setSavingLaunchAtLogin(true)
+    setLaunchAtLoginState(current => (current ? { ...current, enabled } : current))
+
+    try {
+      const result = await window.jarvisDesktop?.launchAtLogin.set(enabled)
+
+      if (result) {
+        setLaunchAtLoginState({ enabled: result.enabled, supported: true })
+
+        if (!result.ok) {
+          notify({ kind: 'error', message: n.startup.launchAtLoginSaveFailed })
+        } else {
+          triggerHaptic('selection')
+        }
+      }
+    } catch (error) {
+      notifyError(error, n.startup.launchAtLoginError)
+    } finally {
+      setSavingLaunchAtLogin(false)
+    }
+  }
 
   const activePage = useMemo(
     () => SETTING_PAGES.find(page => page.id === activePageId) ?? SETTING_PAGES[0],
@@ -549,7 +597,7 @@ export function NotchSettings() {
         if (!cancelled) {setSnapshot(next)}
       })
       .catch(error => {
-        if (!cancelled) {notifyError(error, 'Notch settings failed to load')}
+        if (!cancelled) {notifyError(error, n.settingsLoadFailed)}
       })
       .finally(() => {
         if (!cancelled) {setLoading(false)}
@@ -564,7 +612,7 @@ export function NotchSettings() {
       cancelled = true
       unsubscribe()
     }
-  }, [])
+  }, [n.settingsLoadFailed])
 
   const updateSetting = async (setting: NotchSettingDef, value: unknown) => {
     setSavingKey(setting.key)
@@ -574,12 +622,12 @@ export function NotchSettings() {
       const ok = await setNotchSetting(setting.key, value)
 
       if (!ok) {
-        notify({ kind: 'error', message: 'Jarvis Notch is offline.' })
+        notify({ kind: 'error', message: n.offlineToast })
       } else {
         triggerHaptic('selection')
       }
     } catch (error) {
-      notifyError(error, 'Could not save notch setting')
+      notifyError(error, n.settingSaveFailed)
     } finally {
       setSavingKey(null)
     }
@@ -592,40 +640,72 @@ export function NotchSettings() {
       const ok = await requestNotchPermission(permission.id)
       notify({
         kind: ok ? 'info' : 'error',
-        message: ok ? `Requested ${permission.label}.` : 'Jarvis Notch is offline.'
+        message: ok ? n.permissionRequested(permission.label) : n.offlineToast
       })
     } catch (error) {
-      notifyError(error, `Could not request ${permission.label}`)
+      notifyError(error, n.permissionRequestFailed(permission.label))
     } finally {
       setRequestingPermission(null)
+    }
+  }
+
+  const restartNotch = async () => {
+    setRestarting(true)
+
+    try {
+      const result = await window.jarvisDesktop?.notch?.restart()
+
+      if (result?.ok) {
+        notify({ kind: 'info', message: n.restarting })
+      } else {
+        notify({ kind: 'error', message: n.offlineToast })
+      }
+    } catch (error) {
+      notifyError(error, n.restartFailed)
+    } finally {
+      // The notch briefly disconnects during the restart; the snapshot
+      // subscription will flip `connected` back once it reconnects.
+      setTimeout(() => setRestarting(false), 2000)
     }
   }
 
   if (loading) {
     return (
       <SettingsContent>
-        <div className="grid min-h-48 place-items-center text-xs text-(--ui-text-tertiary)">Loading notch settings...</div>
+        <div className="grid min-h-48 place-items-center text-xs text-(--ui-text-tertiary)">{n.loading}</div>
       </SettingsContent>
     )
   }
 
   return (
     <SettingsContent>
-      <SectionHeading
-        icon={Settings2}
-        meta={snapshot.connected ? 'connected' : 'offline'}
-        title="The Notch"
-      />
+      <div className="mb-2.5 flex items-center justify-between gap-2">
+        <SectionHeading
+          icon={Settings2}
+          meta={snapshot.connected ? n.connected : n.offline}
+          title={n.title}
+        />
+        <Button
+          disabled={!snapshot.connected || restarting}
+          onClick={() => void restartNotch()}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <RefreshCw className={cn('size-3.5', restarting && 'animate-spin')} />
+          {n.restart}
+        </Button>
+      </div>
 
       <p className="mb-4 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-        Native notch settings live in Jarvis Notch. Changes here are sent to the companion app and stored in its
-        UserDefaults.
+        {n.subtitle}
       </p>
 
       {!snapshot.connected && (
         <div className="mb-4 rounded-md border border-[color-mix(in_srgb,var(--jarvis-amber)_42%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-amber)_8%,transparent)] px-3 py-2 text-xs text-(--ui-text-secondary)">
-          Jarvis Notch is not connected. Build it with <span className="font-mono">npm run notch:build</span> and
-          restart Jarvis Desktop to edit these settings.
+          {n.offlineBannerBefore}
+          <span className="font-mono">npm run notch:build</span>
+          {n.offlineBannerAfter}
         </div>
       )}
 
@@ -636,7 +716,7 @@ export function NotchSettings() {
               active={activePage.id === page.id}
               icon={page.icon}
               key={page.id}
-              label={page.label}
+              label={n.pages[page.id] ?? page.label}
               onClick={() => setActivePageId(page.id)}
             />
           ))}
@@ -645,10 +725,37 @@ export function NotchSettings() {
         <section className="min-w-0">
           {activePage.id === 'general' && (
             <div className="mb-5">
-              <SectionHeading icon={Lock} meta={`${snapshot.permissions.length}`} title="Permissions" />
+              <SectionHeading icon={LogIn} title={n.startup.title} />
+              <div className="divide-y divide-border/30">
+                <ListRow
+                  action={
+                    <div className="flex items-center justify-end gap-2">
+                      {savingLaunchAtLogin && <Loader2 className="size-3.5 animate-spin text-(--ui-text-tertiary)" />}
+                      <Switch
+                        aria-label={n.startup.launchAtLoginTitle}
+                        checked={Boolean(launchAtLogin?.enabled)}
+                        disabled={!launchAtLogin?.supported || savingLaunchAtLogin}
+                        onCheckedChange={toggleLaunchAtLogin}
+                      />
+                    </div>
+                  }
+                  description={
+                    launchAtLogin && !launchAtLogin.supported
+                      ? n.startup.launchAtLoginUnsupported
+                      : n.startup.launchAtLoginDescription
+                  }
+                  title={n.startup.launchAtLoginTitle}
+                />
+              </div>
+            </div>
+          )}
+
+          {activePage.id === 'general' && (
+            <div className="mb-5">
+              <SectionHeading icon={Lock} meta={`${snapshot.permissions.length}`} title={n.permissions.title} />
               <div className="divide-y divide-border/30">
                 {snapshot.permissions.length === 0 ? (
-                  <div className="py-3 text-xs text-(--ui-text-tertiary)">No permission status reported yet.</div>
+                  <div className="py-3 text-xs text-(--ui-text-tertiary)">{n.permissions.empty}</div>
                 ) : (
                   snapshot.permissions.map(permission => (
                     <ListRow
@@ -661,10 +768,10 @@ export function NotchSettings() {
                           variant="outline"
                         >
                           {requestingPermission === permission.id && <Loader2 className="size-3.5 animate-spin" />}
-                          Request
+                          {n.permissions.request}
                         </Button>
                       }
-                      below={<PermissionStatus permission={permission} />}
+                      below={<PermissionStatus n={n} permission={permission} />}
                       description={permission.description}
                       key={permission.id}
                       title={permission.label}
@@ -675,12 +782,17 @@ export function NotchSettings() {
             </div>
           )}
 
-          <SectionHeading icon={activePage.icon} meta={`${activePage.settings.length}`} title={activePage.label} />
+          <SectionHeading
+            icon={activePage.icon}
+            meta={`${activePage.settings.length}`}
+            title={n.pages[activePage.id] ?? activePage.label}
+          />
           <div className="divide-y divide-border/30">
             {activePage.settings.map(setting => (
               <NotchSettingRow
                 connected={snapshot.connected}
                 key={setting.key}
+                n={n}
                 onChange={value => void updateSetting(setting, value)}
                 saving={savingKey === setting.key}
                 setting={setting}
@@ -696,12 +808,14 @@ export function NotchSettings() {
 
 function NotchSettingRow({
   connected,
+  n,
   onChange,
   saving,
   setting,
   value
 }: {
   connected: boolean
+  n: NotchCopy
   onChange: (value: unknown) => void
   saving: boolean
   setting: NotchSettingDef
@@ -709,6 +823,8 @@ function NotchSettingRow({
 }) {
   const disabled = !connected || saving
   const common = cn(CONTROL_TEXT, saving && 'opacity-70')
+  const label = n.labels[setting.key] ?? setting.label
+  const optionLabel = (option: NotchSettingOption) => n.optionLabels[`${setting.key}:${option.value}`] ?? option.label
 
   if (setting.type === BOOL) {
     return (
@@ -716,22 +832,21 @@ function NotchSettingRow({
         action={
           <div className="flex items-center justify-end gap-2">
             {saving && <Loader2 className="size-3.5 animate-spin text-(--ui-text-tertiary)" />}
-            <Switch
-              aria-label={setting.label}
-              checked={Boolean(value)}
-              disabled={disabled}
-              onCheckedChange={onChange}
-            />
+            <Switch aria-label={label} checked={Boolean(value)} disabled={disabled} onCheckedChange={onChange} />
           </div>
         }
         description={setting.description}
-        title={setting.label}
+        title={label}
       />
     )
   }
 
   if (setting.type === SELECT) {
-    const options = setting.options ?? YES_NO_OPTIONS
+    const options = setting.options ?? [
+      { label: n.yesNo.on, value: 'true' },
+      { label: n.yesNo.off, value: 'false' }
+    ]
+
     const selected = typeof value === 'string' ? value : String(setting.defaultValue)
 
     return (
@@ -744,14 +859,14 @@ function NotchSettingRow({
             <SelectContent>
               {options.map(option => (
                 <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+                  {optionLabel(option)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         }
         description={setting.description}
-        title={setting.label}
+        title={label}
       />
     )
   }
@@ -787,7 +902,7 @@ function NotchSettingRow({
           </div>
         }
         description={setting.description}
-        title={setting.label}
+        title={label}
       />
     )
   }
@@ -810,7 +925,7 @@ function NotchSettingRow({
         </div>
       }
       description={setting.description}
-      title={setting.label}
+      title={label}
     />
   )
 }

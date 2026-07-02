@@ -28,10 +28,33 @@ const crypto = require('node:crypto')
 const fs = require('node:fs')
 const http = require('node:http')
 const path = require('node:path')
-const { spawn } = require('node:child_process')
+const { execFile, spawn } = require('node:child_process')
 
 const RELAUNCH_BASE_DELAY_MS = 1_000
 const RELAUNCH_MAX_DELAY_MS = 30_000
+// After this many consecutive unexpected exits (~1+2+4+8+16+30s of backoff,
+// about a minute), stop auto-relaunching — a binary that can't survive one
+// minute isn't going to fix itself on attempt 7. The notch stays offline
+// (existing UI already surfaces this: the settings banner + Restart button)
+// rather than looping forever in the background. Restart resets the count,
+// so the user always has a manual way back in.
+const MAX_RELAUNCH_ATTEMPTS = 6
+
+// Static files the notch's embedded orb page may fetch from the renderer dist.
+// Everything else 404s, and any path escaping the dist directory is refused.
+const ORB_STATIC_TYPES = {
+  '.css': 'text/css',
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript',
+  '.json': 'application/json',
+  '.map': 'application/json',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.ttf': 'font/ttf',
+  '.wasm': 'application/wasm',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2'
+}
 
 /** Extract the presented token from an upgrade/plain request (header or query). */
 function requestToken(req) {
@@ -63,10 +86,14 @@ function isAuthorized(req, token) {
 /**
  * Resolve the notch app bundle. Priority:
  *   1. JARVIS_NOTCH_APP env override (points at a .app bundle)
- *   2. packaged: bundled inside the app's Resources (Phase 4)
- *   3. dev: the xcodebuild output in apps/notch
+ *   2. packaged: bundled inside the app's Resources
+ *   3. the source checkout's xcodebuild output — `sourceRoots` covers the
+ *      packaged app, whose __dirname lives inside app.asar: the installed app
+ *      passes its update root (the repo it rebuilds itself from) so the notch
+ *      built there launches with it.
+ *   4. dev: the xcodebuild output relative to this file
  */
-function resolveNotchAppPath({ env = process.env, isPackaged, resourcesPath }) {
+function resolveNotchAppPath({ env = process.env, isPackaged, resourcesPath, sourceRoots = [] }) {
   const candidates = []
 
   if (env.JARVIS_NOTCH_APP) {
@@ -75,6 +102,14 @@ function resolveNotchAppPath({ env = process.env, isPackaged, resourcesPath }) {
 
   if (isPackaged && resourcesPath) {
     candidates.push(path.join(resourcesPath, 'Jarvis Notch.app'))
+  }
+
+  for (const root of sourceRoots) {
+    if (!root) continue
+    candidates.push(
+      path.join(root, 'apps', 'notch', '.build', 'xcode', 'Build', 'Products', 'Release', 'Jarvis Notch.app'),
+      path.join(root, 'apps', 'notch', '.build', 'xcode', 'Build', 'Products', 'Debug', 'Jarvis Notch.app')
+    )
   }
 
   candidates.push(
@@ -91,18 +126,82 @@ function resolveNotchAppPath({ env = process.env, isPackaged, resourcesPath }) {
   return null
 }
 
+/** The notch build script inside a source checkout, if that checkout has one. */
+function resolveNotchBuildScript(sourceRoots = []) {
+  for (const root of sourceRoots) {
+    if (!root) continue
+    const script = path.join(root, 'apps', 'notch', 'scripts', 'build.sh')
+    if (fs.existsSync(script)) {
+      return script
+    }
+  }
+  return null
+}
+
 /**
  * The orb page the notch embeds. In dev it lives on the Vite server (same
- * page the renderer runs from); packaged serving ships with Phase 4 — until
- * then a packaged app sends no orb URL and the notch draws its native glow.
+ * page the renderer runs from); in a built app the link's own HTTP server
+ * serves it from the renderer dist. With neither available the notch draws
+ * its native glow instead of a broken web view.
  */
-function buildOrbUrl({ devServerUrl, port, token }) {
+function buildOrbUrl({ devServerUrl, port, rendererDistDir = null, token }) {
   if (devServerUrl) {
     const base = devServerUrl.endsWith('/') ? devServerUrl.slice(0, -1) : devServerUrl
     return `${base}/notch-orb.html?port=${port}&token=${encodeURIComponent(token)}`
   }
 
+  if (rendererDistDir && fs.existsSync(path.join(rendererDistDir, 'notch-orb.html'))) {
+    return `http://127.0.0.1:${port}/notch-orb.html?port=${port}&token=${encodeURIComponent(token)}`
+  }
+
   return null
+}
+
+/**
+ * Serve the orb page + its assets out of the renderer dist (loopback only,
+ * GET only, no directory escapes). Static files carry no secrets — the WS
+ * endpoint is what the token protects — so subresource requests, which cannot
+ * attach the token, are allowed through unauthenticated.
+ */
+function serveOrbStatic(req, res, rendererDistDir) {
+  if (!rendererDistDir || (req.method !== 'GET' && req.method !== 'HEAD')) {
+    return false
+  }
+
+  let pathname = null
+  try {
+    pathname = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname)
+  } catch {
+    return false
+  }
+
+  if (pathname === '/' || pathname === '/notch-orb') {
+    pathname = '/notch-orb.html'
+  }
+
+  const type = ORB_STATIC_TYPES[path.extname(pathname).toLowerCase()]
+  if (!type) {
+    return false
+  }
+
+  const distRoot = path.resolve(rendererDistDir)
+  const resolved = path.resolve(distRoot, `.${path.sep}${pathname.replaceAll('/', path.sep)}`)
+  if (resolved !== distRoot && !resolved.startsWith(distRoot + path.sep)) {
+    return false
+  }
+
+  let content = null
+  try {
+    content = fs.readFileSync(resolved)
+  } catch {
+    return false
+  }
+
+  res.statusCode = 200
+  res.setHeader('content-type', type)
+  res.setHeader('cache-control', 'no-store')
+  res.end(req.method === 'HEAD' ? undefined : content)
+  return true
 }
 
 function createNotchLink({
@@ -110,10 +209,13 @@ function createNotchLink({
   devServerUrl = null,
   isPackaged = false,
   resourcesPath = null,
+  rendererDistDir = null,
+  sourceRoots = [],
   env = process.env,
   onCommand = () => {},
   onSettings = () => {},
   spawnImpl = spawn,
+  killStaleImpl = null,
   WebSocketServerImpl = null
 } = {}) {
   const token = crypto.randomBytes(32).toString('base64url')
@@ -125,6 +227,8 @@ function createNotchLink({
   let stopped = false
   let relaunchTimer = null
   let relaunchAttempt = 0
+  let buildAttempted = false
+  let restartRequested = false
 
   // Latest conversation state, replayed to every new client so a notch that
   // (re)connects mid-conversation renders the right thing immediately.
@@ -250,6 +354,14 @@ function createNotchLink({
       case 'openSettings':
         onCommand(message)
         break
+      case 'restartNotch':
+        // Routed through here (not left to the notch relaunching itself)
+        // because a self-relaunch loses the --jarvis-port/--jarvis-token
+        // launch args, orphaning a disconnected instance while the connected
+        // one dies. Only Jarvis knows the current port/token, so only Jarvis
+        // can restart it correctly.
+        restartNotch()
+        break
       case 'settingsSnapshot':
         updateSettingsSnapshot(message.snapshot)
         break
@@ -266,8 +378,11 @@ function createNotchLink({
     const { WebSocketServer } = WebSocketServerImpl ? { WebSocketServer: WebSocketServerImpl } : require('ws')
 
     httpServer = http.createServer((req, res) => {
-      // The HTTP surface exists only for the WS upgrade (and, in Phase 4,
-      // static orb assets). Everything else is denied.
+      // The HTTP surface serves the orb page + assets (built app; dev uses the
+      // Vite server) and the WS upgrade. Everything else is denied.
+      if (serveOrbStatic(req, res, rendererDistDir)) {
+        return
+      }
       res.statusCode = 404
       res.end()
     })
@@ -308,16 +423,49 @@ function createNotchLink({
     })
 
     port = httpServer.address().port
-    state.orbUrl = buildOrbUrl({ devServerUrl, port, token })
+    state.orbUrl = buildOrbUrl({ devServerUrl, port, rendererDistDir, token })
     log(`[notch] link listening on 127.0.0.1:${port}`)
+  }
+
+  /**
+   * No bundle anywhere → build one from the source checkout (the same repo
+   * the installed app updates itself from), then launch it. Once per session,
+   * best-effort: a failed build leaves the notch offline but never breaks the
+   * app.
+   */
+  function buildNotchAppThenSpawn(buildScript) {
+    if (buildAttempted) return
+    buildAttempted = true
+
+    log(`[notch] no built bundle found — building via ${buildScript} (first run takes a few minutes)`)
+    const builder = spawnImpl('/bin/bash', [buildScript, 'build'], { detached: false, stdio: 'ignore' })
+
+    builder.once('error', error => {
+      log(`[notch] build failed to start: ${error.message}`)
+    })
+
+    builder.once('exit', code => {
+      if (stopped) return
+      if (code === 0) {
+        log('[notch] build finished — launching')
+        spawnNotchApp()
+      } else {
+        log(`[notch] build failed (${code}) — notch stays offline this session`)
+      }
+    })
   }
 
   function spawnNotchApp() {
     if (stopped) return
 
-    const appPath = resolveNotchAppPath({ env, isPackaged, resourcesPath })
+    const appPath = resolveNotchAppPath({ env, isPackaged, resourcesPath, sourceRoots })
     if (!appPath) {
-      log('[notch] Jarvis Notch.app not found — build it with apps/notch/scripts/build.sh (notch stays offline)')
+      const buildScript = resolveNotchBuildScript(sourceRoots)
+      if (buildScript && !buildAttempted) {
+        buildNotchAppThenSpawn(buildScript)
+      } else {
+        log('[notch] Jarvis Notch.app not found — build it with apps/notch/scripts/build.sh (notch stays offline)')
+      }
       return
     }
 
@@ -338,6 +486,17 @@ function createNotchLink({
       state.settings = { connected: false, permissions: state.settings.permissions, values: state.settings.values }
       onSettings(settingsSnapshot())
 
+      // User-initiated restart: respawn immediately, skip the backoff and the
+      // "clean exit → don't relaunch" convention below (both exist to respect
+      // an intentional quit, and this is the opposite of that).
+      if (restartRequested) {
+        restartRequested = false
+        relaunchAttempt = 0
+        log('[notch] restarting')
+        spawnNotchApp()
+        return
+      }
+
       // The notch has no reason to exit while Jarvis runs (its Quit menu item
       // is a user action we honor by NOT relaunching on clean exits).
       if (code === 0) {
@@ -345,21 +504,52 @@ function createNotchLink({
         return
       }
 
+      if (relaunchAttempt >= MAX_RELAUNCH_ATTEMPTS) {
+        log(
+          `[notch] exited unexpectedly (${signal || code}) — giving up after ${relaunchAttempt} attempts. ` +
+            'Notch stays offline; use Settings → The Notch → Restart to try again.'
+        )
+        return
+      }
+
       const delay = Math.min(RELAUNCH_MAX_DELAY_MS, RELAUNCH_BASE_DELAY_MS * 2 ** relaunchAttempt)
       relaunchAttempt += 1
-      log(`[notch] exited unexpectedly (${signal || code}) — relaunching in ${delay}ms`)
+      log(`[notch] exited unexpectedly (${signal || code}) — relaunching in ${delay}ms (attempt ${relaunchAttempt}/${MAX_RELAUNCH_ATTEMPTS})`)
       relaunchTimer = setTimeout(() => {
         relaunchTimer = null
         spawnNotchApp()
       }, delay)
     })
 
-    // A launch that survives a while resets the crash-loop backoff.
+    // A launch that survives a while resets the crash-loop backoff. Compares
+    // by reference (not just truthiness) against the outer `child` — without
+    // that, a fast-crashing loop lets an EARLIER spawn's 60s timer fire while
+    // a LATER spawn happens to be the current `child`, wrongly resetting the
+    // counter for an attempt that never actually survived.
+    const spawnedChild = child
     setTimeout(() => {
-      if (child) relaunchAttempt = 0
+      if (child === spawnedChild) relaunchAttempt = 0
     }, 60_000).unref?.()
 
     log(`[notch] launched ${appPath}`)
+  }
+
+  function restartNotch() {
+    if (stopped) return
+
+    if (!child || child.killed) {
+      // Nothing running (e.g. it crashed and is mid-backoff) — just spawn.
+      if (relaunchTimer) {
+        clearTimeout(relaunchTimer)
+        relaunchTimer = null
+      }
+      relaunchAttempt = 0
+      spawnNotchApp()
+      return
+    }
+
+    restartRequested = true
+    child.kill('SIGTERM')
   }
 
   return {
@@ -374,6 +564,7 @@ function createNotchLink({
     },
     getSettingsSnapshot: settingsSnapshot,
     publish,
+    restartNotch,
     requestPermission(id) {
       if (typeof id !== 'string' || !id) return false
       return sendToNative({ id, type: 'settingsPermissionRequest' })
@@ -384,6 +575,13 @@ function createNotchLink({
     },
     async start() {
       await startServer()
+
+      // A stale notch from a previous Jarvis run (crash, force-quit, dev
+      // restart) holds a dead port+token — replace it, don't stack a second
+      // notch on top. Exact-name match so nothing else can be caught.
+      const killStale = killStaleImpl || (callback => execFile('pkill', ['-x', 'Jarvis Notch'], () => callback()))
+      await new Promise(resolve => killStale(resolve))
+
       spawnNotchApp()
     },
     stop() {
@@ -421,5 +619,7 @@ module.exports = {
   buildOrbUrl,
   createNotchLink,
   isAuthorized,
-  resolveNotchAppPath
+  resolveNotchAppPath,
+  resolveNotchBuildScript,
+  serveOrbStatic
 }

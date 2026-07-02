@@ -10,7 +10,6 @@ import Combine
 import Defaults
 import EventKit
 import KeyboardShortcuts
-import LaunchAtLogin
 import LottieUI
 import SwiftUI
 import SwiftUIIntrospect
@@ -689,7 +688,6 @@ struct SettingsView: View {
             // General
             SettingsSearchEntry(tab: .general, title: "Enable Minimalistic UI", keywords: ["minimalistic", "ui mode", "general"], highlightID: SettingsTab.general.highlightID(for: "Enable Minimalistic UI")),
             SettingsSearchEntry(tab: .general, title: "Menubar icon", keywords: ["menu bar", "status bar", "icon"], highlightID: SettingsTab.general.highlightID(for: "Menubar icon")),
-            SettingsSearchEntry(tab: .general, title: "Launch at login", keywords: ["autostart", "startup"], highlightID: SettingsTab.general.highlightID(for: "Launch at login")),
             SettingsSearchEntry(tab: .general, title: "Show on all displays", keywords: ["multi-display", "external monitor"], highlightID: SettingsTab.general.highlightID(for: "Show on all displays")),
             SettingsSearchEntry(tab: .general, title: "Show on a specific display", keywords: ["preferred screen", "display picker"], highlightID: SettingsTab.general.highlightID(for: "Show on a specific display")),
             SettingsSearchEntry(tab: .general, title: "Automatically switch displays", keywords: ["auto switch", "displays"], highlightID: SettingsTab.general.highlightID(for: "Automatically switch displays")),
@@ -1071,10 +1069,6 @@ struct GeneralSettings: View {
                     Text("Menubar icon")
                 }
                 .settingsHighlight(id: highlightID("Menubar icon"))
-                LaunchAtLogin.Toggle {
-                    Text("Launch at login")
-                }
-                .settingsHighlight(id: highlightID("Launch at login"))
                 Defaults.Toggle(key: .showOnAllDisplays) {
                     Text("Show on all displays")
                 }
@@ -6116,6 +6110,18 @@ struct Shortcuts: View {
                     Text("Navigation")
                 } footer: {
                     Text("Toggle the Dynamic Island open or closed from anywhere.")
+                        .multilineTextAlignment(.trailing)
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                }
+
+                Section {
+                    KeyboardShortcuts.Recorder("Talk to Jarvis:", name: .talkToJarvis)
+                        .disabled(!enableShortcuts)
+                } header: {
+                    Text("Jarvis")
+                } footer: {
+                    Text("Opens the notch on the Jarvis tab and starts talking, from anywhere.")
                         .multilineTextAlignment(.trailing)
                         .foregroundStyle(.secondary)
                         .font(.caption)

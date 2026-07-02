@@ -1,17 +1,15 @@
-import {
-  SiApple,
-  SiBilibili,
-  SiDiscord,
-  SiGmail,
-  SiHomeassistant,
-  SiMatrix,
-  SiMattermost,
-  SiQq,
-  SiSignal,
-  SiTelegram,
-  SiWechat,
-  SiWhatsapp
-} from '@icons-pack/react-simple-icons'
+import SiApple from '@icons-pack/react-simple-icons/icons/SiApple.mjs'
+import SiBilibili from '@icons-pack/react-simple-icons/icons/SiBilibili.mjs'
+import SiDiscord from '@icons-pack/react-simple-icons/icons/SiDiscord.mjs'
+import SiGmail from '@icons-pack/react-simple-icons/icons/SiGmail.mjs'
+import SiHomeassistant from '@icons-pack/react-simple-icons/icons/SiHomeassistant.mjs'
+import SiMatrix from '@icons-pack/react-simple-icons/icons/SiMatrix.mjs'
+import SiMattermost from '@icons-pack/react-simple-icons/icons/SiMattermost.mjs'
+import SiQq from '@icons-pack/react-simple-icons/icons/SiQq.mjs'
+import SiSignal from '@icons-pack/react-simple-icons/icons/SiSignal.mjs'
+import SiTelegram from '@icons-pack/react-simple-icons/icons/SiTelegram.mjs'
+import SiWechat from '@icons-pack/react-simple-icons/icons/SiWechat.mjs'
+import SiWhatsapp from '@icons-pack/react-simple-icons/icons/SiWhatsapp.mjs'
 import type { ComponentType, SVGProps } from 'react'
 
 import { Globe, Link as LinkIcon, MessageSquareText } from '@/lib/icons'
