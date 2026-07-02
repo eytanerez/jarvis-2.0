@@ -24,50 +24,53 @@ export interface MoodTarget {
   approvalRing: number
 }
 
+// Every state shares roughly the same brightness/amplitude/halo presence as
+// 'speaking' - moods are told apart by color, churn, spin, and rings, never
+// by fading the orb out. There should be no dim/thin/hard-to-see resting state.
 export const MOOD_TARGETS: Record<OrbState, MoodTarget> = {
   awaitingApproval: {
-    ampBase: 0.5,
+    ampBase: 0.95,
     approvalRing: 1,
-    brightness: 1.0,
+    brightness: 1.3,
     churn: 0.6,
     colorMode: 'approval',
-    haloScale: 1.25,
+    haloScale: 1.45,
     jagged: 0,
     ringsActive: 0,
     sizePulse: 0,
     spinSpeed: 0.3
   },
   error: {
-    ampBase: 0.42,
+    ampBase: 0.9,
     approvalRing: 0,
-    brightness: 0.88,
+    brightness: 1.25,
     churn: 0.18,
     colorMode: 'error',
-    haloScale: 1.15,
+    haloScale: 1.4,
     jagged: 0.85,
     ringsActive: 0,
     sizePulse: 0,
     spinSpeed: 0.05
   },
   idle: {
-    ampBase: 0.55,
+    ampBase: 0.95,
     approvalRing: 0,
-    brightness: 0.34,
+    brightness: 1.2,
     churn: 0.5,
     colorMode: 'accent',
-    haloScale: 0.85,
+    haloScale: 1.4,
     jagged: 0,
     ringsActive: 0,
     sizePulse: 0,
     spinSpeed: 0.4
   },
   listening: {
-    ampBase: 0.65,
+    ampBase: 1.0,
     approvalRing: 0,
-    brightness: 1.15,
+    brightness: 1.25,
     churn: 0.9,
     colorMode: 'amber',
-    haloScale: 1.35,
+    haloScale: 1.45,
     jagged: 0,
     ringsActive: 0,
     sizePulse: 0.15,
@@ -86,24 +89,24 @@ export const MOOD_TARGETS: Record<OrbState, MoodTarget> = {
     spinSpeed: 1.15
   },
   thinking: {
-    ampBase: 0.85,
+    ampBase: 0.95,
     approvalRing: 0,
-    brightness: 0.62,
+    brightness: 1.25,
     churn: 1.6,
     colorMode: 'cycle',
-    haloScale: 1.05,
+    haloScale: 1.4,
     jagged: 0.15,
     ringsActive: 1,
     sizePulse: 0,
     spinSpeed: 0.85
   },
   toolUse: {
-    ampBase: 0.75,
+    ampBase: 0.95,
     approvalRing: 0,
-    brightness: 0.7,
+    brightness: 1.25,
     churn: 1.2,
     colorMode: 'cycleTool',
-    haloScale: 1.1,
+    haloScale: 1.4,
     jagged: 0.1,
     ringsActive: 1,
     sizePulse: 0.1,

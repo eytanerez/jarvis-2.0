@@ -33,6 +33,7 @@ interface ConversationProps {
   muted: boolean
   status: ConversationStatus
   onEnd: () => void
+  onInterruptSpeech: () => void
   onStart: () => void
   onStopTurn: () => void
   onToggleMute: () => void
@@ -148,6 +149,7 @@ function ConversationPill({
   level,
   muted,
   onEnd,
+  onInterruptSpeech,
   onStopTurn,
   onToggleMute,
   status
@@ -187,16 +189,21 @@ function ConversationPill({
           <Codicon name={muted ? 'mic-off' : 'mic'} size="1rem" />
         </Button>
       </Tip>
-      {listening && (
+      {(listening || speaking) && (
         <Button
-          aria-label={c.stopListening}
+          aria-label={speaking ? c.interruptSpeaking : c.stopListening}
           className="h-(--composer-control-size) shrink-0 gap-1.5 rounded-md px-2.5 text-xs text-(--jarvis-muted) hover:bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,transparent)] hover:text-white"
           disabled={disabled}
           onClick={() => {
             triggerHaptic('submit')
-            onStopTurn()
+
+            if (speaking) {
+              onInterruptSpeech()
+            } else {
+              onStopTurn()
+            }
           }}
-          title={c.stopListening}
+          title={speaking ? c.interruptSpeaking : c.stopListening}
           type="button"
           variant="ghost"
         >

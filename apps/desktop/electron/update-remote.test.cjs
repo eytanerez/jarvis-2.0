@@ -6,7 +6,7 @@
  * (Wired into npm test:desktop:platforms in package.json.)
  *
  * Why this matters: a public install can carry
- * origin=git@github.com:NousResearch/jarvis-agent.git. A background
+ * origin=git@github.com:eytanerez/jarvis-2.0.git. A background
  * `git fetch origin` then authenticates over SSH and, with a FIDO2/passkey
  * key, triggers an unexplained hardware-touch prompt. isOfficialSshRemote
  * must reliably recognize the official SSH remote (in every URL form,
@@ -27,14 +27,14 @@ const {
 } = require('./update-remote.cjs')
 
 test('canonicalGitHubRemote normalizes SSH and HTTPS forms to the same value', () => {
-  assert.equal(canonicalGitHubRemote('git@github.com:NousResearch/jarvis-agent.git'), OFFICIAL_REPO_CANONICAL)
-  assert.equal(canonicalGitHubRemote('git@github.com:NousResearch/jarvis-agent'), OFFICIAL_REPO_CANONICAL)
-  assert.equal(canonicalGitHubRemote('ssh://git@github.com/NousResearch/jarvis-agent.git'), OFFICIAL_REPO_CANONICAL)
-  assert.equal(canonicalGitHubRemote('https://github.com/NousResearch/jarvis-agent.git'), OFFICIAL_REPO_CANONICAL)
+  assert.equal(canonicalGitHubRemote('git@github.com:eytanerez/jarvis-2.0.git'), OFFICIAL_REPO_CANONICAL)
+  assert.equal(canonicalGitHubRemote('git@github.com:eytanerez/jarvis-2.0'), OFFICIAL_REPO_CANONICAL)
+  assert.equal(canonicalGitHubRemote('ssh://git@github.com/eytanerez/jarvis-2.0.git'), OFFICIAL_REPO_CANONICAL)
+  assert.equal(canonicalGitHubRemote('https://github.com/eytanerez/jarvis-2.0.git'), OFFICIAL_REPO_CANONICAL)
   // Case-insensitive: an uppercased owner still canonicalizes to the same repo.
-  assert.equal(canonicalGitHubRemote('git@github.com:nousresearch/jarvis-agent.git'), OFFICIAL_REPO_CANONICAL)
+  assert.equal(canonicalGitHubRemote('git@github.com:EYTANEREZ/jarvis-2.0.git'), OFFICIAL_REPO_CANONICAL)
   // Trailing slashes are stripped.
-  assert.equal(canonicalGitHubRemote('https://github.com/NousResearch/jarvis-brain/'), OFFICIAL_REPO_CANONICAL)
+  assert.equal(canonicalGitHubRemote('https://github.com/eytanerez/jarvis-2.0/'), OFFICIAL_REPO_CANONICAL)
 })
 
 test('canonicalGitHubRemote is empty for falsy input', () => {
@@ -44,30 +44,30 @@ test('canonicalGitHubRemote is empty for falsy input', () => {
 })
 
 test('isSshRemote detects scp-like and ssh:// forms only', () => {
-  assert.equal(isSshRemote('git@github.com:NousResearch/jarvis-agent.git'), true)
-  assert.equal(isSshRemote('ssh://git@github.com/NousResearch/jarvis-agent.git'), true)
-  assert.equal(isSshRemote('https://github.com/NousResearch/jarvis-agent.git'), false)
+  assert.equal(isSshRemote('git@github.com:eytanerez/jarvis-2.0.git'), true)
+  assert.equal(isSshRemote('ssh://git@github.com/eytanerez/jarvis-2.0.git'), true)
+  assert.equal(isSshRemote('https://github.com/eytanerez/jarvis-2.0.git'), false)
   assert.equal(isSshRemote(''), false)
   assert.equal(isSshRemote(null), false)
 })
 
 test('isOfficialSshRemote is true only for the official repo over SSH', () => {
-  assert.equal(isOfficialSshRemote('git@github.com:NousResearch/jarvis-agent.git'), true)
-  assert.equal(isOfficialSshRemote('git@github.com:NousResearch/jarvis-agent'), true)
-  assert.equal(isOfficialSshRemote('ssh://git@github.com/NousResearch/jarvis-agent.git'), true)
+  assert.equal(isOfficialSshRemote('git@github.com:eytanerez/jarvis-2.0.git'), true)
+  assert.equal(isOfficialSshRemote('git@github.com:eytanerez/jarvis-2.0'), true)
+  assert.equal(isOfficialSshRemote('ssh://git@github.com/eytanerez/jarvis-2.0.git'), true)
   // Case-insensitive owner/repo match.
-  assert.equal(isOfficialSshRemote('git@github.com:nousresearch/jarvis-agent.git'), true)
+  assert.equal(isOfficialSshRemote('git@github.com:EYTANEREZ/jarvis-2.0.git'), true)
 })
 
 test('isOfficialSshRemote does NOT match forks, other hosts, or HTTPS', () => {
   // A fork over SSH belongs to the user — fetching it is their own remote,
   // not the official upstream, so the SSH-avoidance swap must not apply.
-  assert.equal(isOfficialSshRemote('git@github.com:someuser/jarvis-agent.git'), false)
+  assert.equal(isOfficialSshRemote('git@github.com:someuser/jarvis-2.0.git'), false)
   // Same repo name on a different host is not the official repo.
-  assert.equal(isOfficialSshRemote('git@gitlab.com:NousResearch/jarvis-agent.git'), false)
+  assert.equal(isOfficialSshRemote('git@gitlab.com:eytanerez/jarvis-2.0.git'), false)
   // HTTPS to the official repo never prompts for SSH/FIDO2, so it keeps the
   // normal fetch path — must not be flagged as an official SSH remote.
-  assert.equal(isOfficialSshRemote('https://github.com/NousResearch/jarvis-agent.git'), false)
+  assert.equal(isOfficialSshRemote('https://github.com/eytanerez/jarvis-2.0.git'), false)
   assert.equal(isOfficialSshRemote(''), false)
   assert.equal(isOfficialSshRemote(null), false)
 })

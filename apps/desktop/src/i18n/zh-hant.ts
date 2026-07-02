@@ -1370,6 +1370,7 @@ export const zhHant = defineLocale({
     muteMic: '麥克風靜音',
     unmuteMic: '取消麥克風靜音',
     stopListening: '停止聆聽並傳送',
+    interruptSpeaking: '停止說話並聆聽',
     stopShort: '停止',
     endConversation: '結束語音對話',
     endShort: '結束',

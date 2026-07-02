@@ -318,6 +318,14 @@ TOOL_CATEGORIES = {
                 "tts_provider": "piper",
                 "post_setup": "piper",
             },
+            {
+                "name": "Kokoro",
+                "badge": "local · free",
+                "tag": "82M-param local ONNX TTS, no torch (~90MB, quantized)",
+                "env_vars": [],
+                "tts_provider": "kokoro",
+                "post_setup": "kokoro",
+            },
         ],
     },
     "web": {
@@ -1021,6 +1029,29 @@ def _run_post_setup(post_setup_key: str):
         _print_info("    Default voice: en_US-lessac-medium (downloaded on first TTS call)")
         _print_info("    Full voice list: https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/VOICES.md")
         _print_info("    Switch voices by setting tts.piper.voice in ~/.jarvis/config.yaml")
+
+    elif post_setup_key == "kokoro":
+        try:
+            __import__("kokoro_onnx")
+            _print_success("    kokoro-onnx is already installed")
+        except ImportError:
+            _print_info("    Installing kokoro-onnx (ONNX runtime, no torch)...")
+            try:
+                result = _pip_install(["-U", "kokoro-onnx", "--quiet"], timeout=300)
+                if result.returncode == 0:
+                    _print_success("    kokoro-onnx installed")
+                else:
+                    _print_warning("    kokoro-onnx install failed:")
+                    _print_info(f"      {(result.stderr or '').strip()[:300]}")
+                    _print_info("    Run manually: uv pip install -U kokoro-onnx")
+                    return
+            except subprocess.TimeoutExpired:
+                _print_warning("    kokoro-onnx install timed out (>5min)")
+                _print_info("    Run manually: uv pip install -U kokoro-onnx")
+                return
+        _print_info("    Default voice: af_heart (model + voices ~90MB, downloaded on first TTS call)")
+        _print_info("    Full voice list: https://github.com/thewh1teagle/kokoro-onnx")
+        _print_info("    Switch voices by setting tts.kokoro.voice in ~/.jarvis/config.yaml")
 
     elif post_setup_key == "ddgs":
         try:

@@ -19,7 +19,7 @@ import {
 import { ListRow, SectionHeading, SettingsContent } from './primitives'
 import { UninstallSection } from './uninstall-section'
 
-const RELEASE_NOTES_URL = 'https://github.com/NousResearch/jarvis-brain/releases'
+const RELEASE_NOTES_URL = 'https://github.com/eytanerez/jarvis-2.0/releases'
 
 function relativeTime(ms: number | undefined, a: Translations['settings']['about']) {
   if (!ms) {

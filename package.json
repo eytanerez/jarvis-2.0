@@ -24,13 +24,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NousResearch/jarvis-agent.git"
+    "url": "git+https://github.com/eytanerez/jarvis-2.0.git"
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/NousResearch/jarvis-agent/issues"
+    "url": "https://github.com/eytanerez/jarvis-2.0/issues"
   },
-  "homepage": "https://github.com/NousResearch/jarvis-agent#readme",
+  "homepage": "https://github.com/eytanerez/jarvis-2.0#readme",
   "dependencies": {
     "@streamdown/math": "^1.0.2",
     "agent-browser": "^0.26.0"

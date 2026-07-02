@@ -9,6 +9,15 @@ export interface MicRecorderOptions {
   silenceLevel?: number
   silenceMs?: number
   idleSilenceMs?: number
+  /** Once at least this much cumulative speech time has been heard, a real
+   * utterance is underway - switch to `fastSilenceMs` for the trailing-pause
+   * confirm instead of the full `silenceMs`, so a normal-length turn doesn't
+   * eat the whole patient window. Short/ambiguous starts (below this) still
+   * get the safer, longer wait. Omit to keep the single fixed `silenceMs`. */
+  fastSilenceAfterMs?: number
+  /** Shorter trailing-silence confirm window used once `fastSilenceAfterMs`
+   * of speech has accumulated. */
+  fastSilenceMs?: number
 }
 
 export interface MicRecording {
@@ -76,6 +85,11 @@ export function useMicRecorder(copy: MicRecorderErrorCopy): {
   const heardSpeechRef = useRef(false)
   const silenceTriggeredRef = useRef(false)
   const silenceStartedAtRef = useRef<number | null>(null)
+  // Cumulative time spent above the speech threshold this turn, and the
+  // wall-clock time of the previous tick (to derive each tick's dt) - see
+  // `fastSilenceAfterMs`/`fastSilenceMs` on MicRecorderOptions.
+  const speechAccumulatedMsRef = useRef(0)
+  const lastTickAtRef = useRef<number | null>(null)
   const stopResolverRef = useRef<((recording: MicRecording | null) => void) | null>(null)
 
   const cleanup = () => {
@@ -92,6 +106,7 @@ export function useMicRecorder(copy: MicRecorderErrorCopy): {
     setLevel(0)
     setRecording(false)
     silenceTriggeredRef.current = false
+    lastTickAtRef.current = null
   }
 
   useEffect(() => () => cleanup(), [])
@@ -128,6 +143,8 @@ export function useMicRecorder(copy: MicRecorderErrorCopy): {
         const rms = Math.sqrt(sum / data.length)
         const normalized = Math.min(1, rms / 42)
         const now = Date.now()
+        const dtMs = lastTickAtRef.current === null ? 0 : now - lastTickAtRef.current
+        lastTickAtRef.current = now
 
         setLevel(normalized)
         options.onLevel?.(normalized)
@@ -135,16 +152,34 @@ export function useMicRecorder(copy: MicRecorderErrorCopy): {
         const speechThreshold = options.silenceLevel ?? 0
         const silenceMs = options.silenceMs ?? 0
         const idleSilenceMs = options.idleSilenceMs ?? 0
+        const fastSilenceAfterMs = options.fastSilenceAfterMs ?? 0
+        const fastSilenceMs = options.fastSilenceMs ?? 0
 
         if (speechThreshold > 0 && options.onSilence && !silenceTriggeredRef.current) {
           if (normalized >= speechThreshold) {
             heardSpeechRef.current = true
             silenceStartedAtRef.current = null
+            speechAccumulatedMsRef.current += dtMs
           } else if (heardSpeechRef.current && silenceMs > 0) {
             silenceStartedAtRef.current ??= now
 
-            if (now - silenceStartedAtRef.current >= silenceMs) {
+            // Layered end-of-turn wait: once enough speech has accumulated to
+            // be confident this is a real, completed utterance (not a false
+            // start or mid-thought pause), a short trailing pause is enough
+            // to take the turn - otherwise fall back to the patient window.
+            const useFastConfirm =
+              fastSilenceMs > 0 && fastSilenceAfterMs > 0 && speechAccumulatedMsRef.current >= fastSilenceAfterMs
+            const confirmMs = useFastConfirm ? Math.min(fastSilenceMs, silenceMs) : silenceMs
+
+            if (now - silenceStartedAtRef.current >= confirmMs) {
               silenceTriggeredRef.current = true
+
+              if (import.meta.env.DEV) {
+                console.debug(
+                  `[voice] end-of-turn: ${useFastConfirm ? 'fast' : 'patient'} confirm (${confirmMs}ms), ${Math.round(speechAccumulatedMsRef.current)}ms of speech heard`
+                )
+              }
+
               options.onSilence()
 
               return
@@ -211,6 +246,8 @@ export function useMicRecorder(copy: MicRecorderErrorCopy): {
     heardSpeechRef.current = false
     silenceTriggeredRef.current = false
     silenceStartedAtRef.current = null
+    speechAccumulatedMsRef.current = 0
+    lastTickAtRef.current = null
     startedAtRef.current = Date.now()
 
     recorder.ondataavailable = event => {

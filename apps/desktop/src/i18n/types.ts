@@ -1000,6 +1000,7 @@ export interface Translations {
     muteMic: string
     unmuteMic: string
     stopListening: string
+    interruptSpeaking: string
     stopShort: string
     endConversation: string
     endShort: string

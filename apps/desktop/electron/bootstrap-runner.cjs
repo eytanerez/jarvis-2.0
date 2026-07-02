@@ -50,6 +50,7 @@ function hiddenWindowsChildOptions(options = {}) {
 }
 
 const STAMP_COMMIT_RE = /^[0-9a-f]{7,40}$/i
+const JARVIS_REPO_RAW_BASE = 'https://raw.githubusercontent.com/eytanerez/jarvis-2.0'
 
 // Stages flagged needs_user_input=true in the manifest are skipped by the
 // runner (passed -NonInteractive to install.ps1, which the install script
@@ -109,7 +110,7 @@ function downloadInstallScript(commit, destPath) {
   // is immutable (unlike a branch ref), so we don't need integrity
   // verification beyond "did the file we wrote pass a syntax probe."
   const scriptName = installScriptName()
-  const url = `https://raw.githubusercontent.com/NousResearch/jarvis-brain/${commit}/scripts/${scriptName}`
+  const url = `${JARVIS_REPO_RAW_BASE}/${commit}/scripts/${scriptName}`
   return new Promise((resolve, reject) => {
     fs.mkdirSync(path.dirname(destPath), { recursive: true })
     const tmpPath = destPath + '.tmp'

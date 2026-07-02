@@ -5948,13 +5948,13 @@ def _update_via_zip(args):
         )
         sys.exit(1)
     zip_url = (
-        f"https://github.com/NousResearch/hermes-agent/archive/refs/heads/{branch}.zip"
+        f"https://github.com/eytanerez/jarvis-2.0/archive/refs/heads/{branch}.zip"
     )
 
     print("→ Downloading latest version...")
     tmp_dir = tempfile.mkdtemp(prefix="jarvis-update-")
     try:
-        zip_path = os.path.join(tmp_dir, f"jarvis-agent-{branch}.zip")
+        zip_path = os.path.join(tmp_dir, f"jarvis-2.0-{branch}.zip")
         urlretrieve(zip_url, zip_path)
 
         print("→ Extracting...")
@@ -5984,8 +5984,8 @@ def _update_via_zip(args):
                     )
             zf.extractall(tmp_dir)
 
-        # GitHub ZIPs extract to jarvis-agent-<branch>/
-        extracted = os.path.join(tmp_dir, f"jarvis-agent-{branch}")
+        # GitHub ZIPs extract to jarvis-2.0-<branch>/
+        extracted = os.path.join(tmp_dir, f"jarvis-2.0-{branch}")
         if not os.path.isdir(extracted):
             # Try to find it
             for d in os.listdir(tmp_dir):
@@ -6356,25 +6356,20 @@ def _discard_stashed_changes(
 # =========================================================================
 
 OFFICIAL_REPO_URLS = {
-    "https://github.com/NousResearch/hermes-agent.git",
-    "git@github.com:NousResearch/hermes-agent.git",
-    "https://github.com/NousResearch/hermes-agent",
-    "git@github.com:NousResearch/hermes-agent",
-    # Legacy names kept for existing installs and historical forks.
-    "https://github.com/NousResearch/jarvis-agent.git",
-    "git@github.com:NousResearch/jarvis-agent.git",
-    "https://github.com/NousResearch/jarvis-agent",
-    "git@github.com:NousResearch/jarvis-agent",
+    "https://github.com/eytanerez/jarvis-2.0.git",
+    "git@github.com:eytanerez/jarvis-2.0.git",
+    "https://github.com/eytanerez/jarvis-2.0",
+    "git@github.com:eytanerez/jarvis-2.0",
 }
-OFFICIAL_REPO_URL = "https://github.com/NousResearch/hermes-agent.git"
+OFFICIAL_REPO_URL = "https://github.com/eytanerez/jarvis-2.0.git"
 SKIP_UPSTREAM_PROMPT_FILE = ".skip_upstream_prompt"
 
 
-def _get_origin_url(git_cmd: list[str], cwd: Path) -> Optional[str]:
-    """Get the URL of the origin remote, or None if not set."""
+def _get_remote_url(git_cmd: list[str], cwd: Path, remote: str) -> Optional[str]:
+    """Get the URL of a remote, or None if not set."""
     try:
         result = subprocess.run(
-            git_cmd + ["remote", "get-url", "origin"],
+            git_cmd + ["remote", "get-url", remote],
             cwd=cwd,
             capture_output=True,
             text=True,
@@ -6386,12 +6381,17 @@ def _get_origin_url(git_cmd: list[str], cwd: Path) -> Optional[str]:
     return None
 
 
-def _is_fork(origin_url: Optional[str]) -> bool:
-    """Check if the origin remote points to a fork (not the official repo)."""
-    if not origin_url:
+def _get_origin_url(git_cmd: list[str], cwd: Path) -> Optional[str]:
+    """Get the URL of the origin remote, or None if not set."""
+    return _get_remote_url(git_cmd, cwd, "origin")
+
+
+def _is_official_repo_url(remote_url: Optional[str]) -> bool:
+    """Return True when a remote points to the Jarvis 2.0 update source."""
+    if not remote_url:
         return False
     # Normalize URL for comparison (strip trailing .git if present)
-    normalized = origin_url.rstrip("/")
+    normalized = remote_url.rstrip("/")
     if normalized.endswith(".git"):
         normalized = normalized[:-4]
     for official in OFFICIAL_REPO_URLS:
@@ -6399,8 +6399,13 @@ def _is_fork(origin_url: Optional[str]) -> bool:
         if official_normalized.endswith(".git"):
             official_normalized = official_normalized[:-4]
         if normalized == official_normalized:
-            return False
-    return True
+            return True
+    return False
+
+
+def _is_fork(origin_url: Optional[str]) -> bool:
+    """Check if the origin remote points to a fork (not the Jarvis 2.0 repo)."""
+    return bool(origin_url) and not _is_official_repo_url(origin_url)
 
 
 def _has_upstream_remote(git_cmd: list[str], cwd: Path) -> bool:
@@ -6418,10 +6423,24 @@ def _has_upstream_remote(git_cmd: list[str], cwd: Path) -> bool:
 
 
 def _add_upstream_remote(git_cmd: list[str], cwd: Path) -> bool:
-    """Add the official repo as the 'upstream' remote. Returns True on success."""
+    """Add the Jarvis 2.0 repo as the 'upstream' remote. Returns True on success."""
     try:
         result = subprocess.run(
             git_cmd + ["remote", "add", "upstream", OFFICIAL_REPO_URL],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def _set_upstream_remote(git_cmd: list[str], cwd: Path) -> bool:
+    """Point the existing 'upstream' remote at the Jarvis 2.0 repo."""
+    try:
+        result = subprocess.run(
+            git_cmd + ["remote", "set-url", "upstream", OFFICIAL_REPO_URL],
             cwd=cwd,
             capture_output=True,
             text=True,
@@ -6458,7 +6477,10 @@ def _fetch_remote_branch(
     that the branch did not exist.  Use an explicit refspec so update checks
     and pulls are independent of the user's current remote.fetch config.
     """
-    refspec = f"refs/heads/{branch}:{_remote_tracking_ref(remote, branch)}"
+    # Force-update the local remote-tracking ref. These refs are cache entries
+    # for the remote, not user branches; forcing is required when an install
+    # repoints a stale upstream remote from an unrelated history to Jarvis 2.0.
+    refspec = f"+refs/heads/{branch}:{_remote_tracking_ref(remote, branch)}"
     cmd = git_cmd + ["fetch", remote, refspec]
     if quiet:
         cmd.append("--quiet")
@@ -6504,7 +6526,7 @@ def _mark_skip_upstream_prompt():
 
 
 def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
-    """Check if fork is behind upstream and sync if safe.
+    """Check if fork is behind Jarvis 2.0 upstream and sync if safe.
 
     This implements the fork upstream sync logic:
     - If upstream remote doesn't exist, ask user if they want to add it
@@ -6513,6 +6535,18 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
     - Leave the user's fork remote untouched; update is a local install action
     """
     has_upstream = _has_upstream_remote(git_cmd, cwd)
+    if has_upstream:
+        upstream_url = _get_remote_url(git_cmd, cwd, "upstream")
+        if not _is_official_repo_url(upstream_url):
+            print()
+            print("ℹ Existing upstream remote does not point at Jarvis 2.0.")
+            print(f"  Current upstream: {upstream_url or '<unset>'}")
+            print(f"→ Repointing upstream to {OFFICIAL_REPO_URL}...")
+            if _set_upstream_remote(git_cmd, cwd):
+                print("  ✓ Upstream now tracks Jarvis 2.0")
+            else:
+                print("  ✗ Failed to repoint upstream. Skipping upstream sync.")
+                return
 
     if not has_upstream:
         # Check if user previously declined
@@ -6521,8 +6555,8 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
 
         # Ask user if they want to add upstream
         print()
-        print("ℹ Your fork is not tracking the official Jarvis repository.")
-        print("  This means you may miss updates from NousResearch/hermes-agent.")
+        print("ℹ Your fork is not tracking the Jarvis 2.0 repository.")
+        print("  This means you may miss updates from eytanerez/jarvis-2.0.")
         print()
         try:
             response = (
@@ -7941,13 +7975,10 @@ def _cmd_update_check(branch: str = "main", *, branch_explicit: bool = False):
     if sys.platform == "win32":
         git_cmd = ["git", "-c", "windows.appendAtomically=false"]
 
-    # Fetch only the branch we compare against; prefer upstream as the canonical
-    # reference. A bare `git fetch <remote>` pulls every ref, and this repo has
-    # thousands of auto-generated branches, so scope the fetch to <branch>.
-    # Note: upstream/<branch> may not exist for non-main branches (a fork's
-    # bb/gui has no upstream counterpart), so when the caller picks a
-    # non-default branch we skip the upstream probe and use origin directly.
-    if branch == "main":
+    # Fetch only the branch we compare against. Prefer an upstream remote only
+    # when it is the Jarvis 2.0 repository; old installs may still have
+    # an unrelated upstream, and update checks must not drift across histories.
+    if branch == "main" and _is_official_repo_url(_get_remote_url(git_cmd, PROJECT_ROOT, "upstream")):
         print("→ Fetching from upstream...")
         fetch_result = _fetch_remote_branch(
             git_cmd,
@@ -7968,7 +7999,8 @@ def _cmd_update_check(branch: str = "main", *, branch_explicit: bool = False):
         else:
             compare_branch = _remote_tracking_name("upstream", branch)
     else:
-        # Non-default branch: compare against origin/<branch> directly.
+        # No official upstream, or a non-default branch: compare against
+        # origin/<branch> directly.
         print("→ Fetching from origin...")
         fetch_result = _fetch_remote_branch(
             git_cmd,
@@ -8623,7 +8655,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
                 return
             print("✗ Not a git repository. Please reinstall:")
             print(
-                "  curl -fsSL https://jarvis-agent.nousresearch.com/install.sh | bash"
+                "  curl -fsSL https://raw.githubusercontent.com/eytanerez/jarvis-2.0/main/scripts/install.sh | bash"
             )
             sys.exit(1)
 

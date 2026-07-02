@@ -16,6 +16,11 @@ export type { OrbState } from './types'
 
 export interface JarvisOrbSceneProps {
   className?: string
+  /** Horizontal pixel offset that recenters the orb (and its halo/rings/
+   * constellation/labels) within the visible content area when a sidebar
+   * pane is open - the starfield background layer is intentionally left
+   * out of this shift so it keeps filling the whole window. */
+  centerOffsetPx?: number
   /** Per-frame level sampler, 0-1. Preferred over the numeric props - lets the
    * parent feed live mic/TTS levels without pushing audio through React state. */
   getLevel?: OrbGetLevel
@@ -56,6 +61,7 @@ interface LabelEntry {
  */
 export function JarvisOrbScene({
   className,
+  centerOffsetPx = 0,
   getLevel,
   listeningLevel = 0,
   paused = false,
@@ -258,8 +264,16 @@ export function JarvisOrbScene({
   return (
     <div className={cn('jarvis-stage relative isolate overflow-hidden', className)} data-orb-state={state} ref={containerRef}>
       <canvas aria-hidden="true" className="absolute inset-0 block size-full" ref={bgCanvasRef} />
-      <canvas aria-hidden="true" className="absolute inset-0 block size-full" ref={orbCanvasRef} />
-      <div className="pointer-events-none absolute inset-0 hidden overflow-visible sm:block" ref={labelLayerRef} />
+      {/* Only the orb + labels recenter when a sidebar opens - the starfield
+          background above stays untransformed so it keeps filling the whole
+          window edge to edge. */}
+      <div
+        className="absolute inset-0 transition-transform duration-300 ease-out"
+        style={{ transform: `translateX(${centerOffsetPx}px)` }}
+      >
+        <canvas aria-hidden="true" className="absolute inset-0 block size-full" ref={orbCanvasRef} />
+        <div className="pointer-events-none absolute inset-0 hidden overflow-visible sm:block" ref={labelLayerRef} />
+      </div>
     </div>
   )
 }

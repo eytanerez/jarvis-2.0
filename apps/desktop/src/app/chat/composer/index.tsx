@@ -52,8 +52,9 @@ import {
   updateQueuedPrompt
 } from '@/store/composer-queue'
 import { $statusItemsBySession } from '@/store/composer-status'
+import { setCockpitMode } from '@/store/jarvis-cockpit'
 import { notify } from '@/store/notifications'
-import { $gatewayState, $messages, setSessionPickerOpen } from '@/store/session'
+import { $awaitingResponse, $gatewayState, $messages, setSessionPickerOpen } from '@/store/session'
 import { $threadScrolledUp } from '@/store/thread-scroll'
 import { useTheme } from '@/themes'
 
@@ -185,6 +186,7 @@ export function ChatBar({
   const queuedPromptsBySession = useStore($queuedPromptsBySession)
   const statusItemsBySession = useStore($statusItemsBySession)
   const scrolledUp = useStore($threadScrolledUp)
+  const awaitingResponse = useStore($awaitingResponse)
   const activeQueueSessionKey = queueSessionKey || sessionId || null
 
   const queuedPrompts = useMemo(
@@ -1689,14 +1691,22 @@ export function ChatBar({
     triggerHaptic('submit')
     resetBrowseState(sessionId)
     clearDraft()
-    await onSubmit(text)
+    await onSubmit(text, { fromVoice: true })
   }
 
   const conversation = useVoiceConversation({
-    busy,
+    // The reply is "in flight" from the moment the prompt is accepted
+    // ($awaitingResponse) until the stream finishes ($busy). Plain `busy` has a
+    // false-window right after submit, which made the loop conclude no reply
+    // was coming and skip speaking it.
+    busy: busy || awaitingResponse,
     consumePendingResponse,
     enabled: voiceConversationActive,
     onFatalError: () => setVoiceConversationActive(false),
+    // A clear "okay, thanks" ends the conversation gracefully - same
+    // teardown as tapping the end-conversation button, just without an
+    // error notification.
+    onSignoff: () => setVoiceConversationActive(false),
     onSubmit: submitVoiceTurn,
     onTranscribeAudio,
     pendingResponse
@@ -1731,7 +1741,14 @@ export function ChatBar({
           setVoiceConversationActive(false)
           void conversation.end()
         },
-        onStart: () => setVoiceConversationActive(true),
+        onInterruptSpeech: conversation.interruptSpeech,
+        onStart: () => {
+          // Voice IS the orb cockpit - resuming it from classic/chat view
+          // should bring the orb back up rather than leaving you staring at
+          // the scrolling thread while talking.
+          setCockpitMode('orb')
+          setVoiceConversationActive(true)
+        },
         onStopTurn: conversation.stopTurn,
         onToggleMute: conversation.toggleMute,
         status: conversation.status

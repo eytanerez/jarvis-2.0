@@ -1,4 +1,5 @@
 import { speakText } from '@/jarvis'
+import type { AudioSpeakResponse } from '@/types/jarvis'
 import {
   $voicePlayback,
   setVoicePlaybackState,
@@ -11,6 +12,30 @@ import { sanitizeTextForSpeech } from './speech-text'
 let currentAudio: HTMLAudioElement | null = null
 let currentStop: (() => void) | null = null
 let sequence = 0
+
+// Single-slot "hold one ahead" cache: while one sentence chunk is playing,
+// the voice-conversation loop kicks off synthesis for the next one so it's
+// ready the instant the current chunk finishes, instead of paying the TTS
+// round-trip in the gap between sentences. Keyed on the exact sanitized
+// text so `playSpeechText` can only reuse a prefetch that's actually for
+// the chunk it was asked to speak.
+let prefetched: { text: string; promise: Promise<AudioSpeakResponse> } | null = null
+
+/** Start synthesizing `text` ahead of when it'll actually be spoken. Safe to
+ * call speculatively - a prefetch that's never claimed by `playSpeechText`
+ * (e.g. the turn ends first) is just a discarded request. */
+export function prefetchSpeechText(text: string): void {
+  const speakableText = sanitizeTextForSpeech(text)
+
+  if (!speakableText || prefetched?.text === speakableText) {
+    return
+  }
+
+  prefetched = { text: speakableText, promise: speakText(speakableText) }
+  // Prefetch failures surface when playback actually claims the promise;
+  // silence the otherwise-unhandled rejection on the speculative path.
+  prefetched.promise.catch(() => {})
+}
 
 function currentState(
   status: VoicePlaybackState['status'],
@@ -61,13 +86,21 @@ export async function playSpeechText(text: string, options: VoicePlaybackOptions
     return false
   }
 
+  // Reuse a matching "hold one ahead" prefetch instead of paying the TTS
+  // round-trip again - see `prefetchSpeechText`.
+  const claimedPrefetch = prefetched?.text === speakableText ? prefetched : null
+
+  if (claimedPrefetch) {
+    prefetched = null
+  }
+
   const ownSequence = sequence
   const isCurrent = () => ownSequence === sequence
 
   setVoicePlaybackState(currentState('preparing', options))
 
   try {
-    const response = await speakText(speakableText)
+    const response = await (claimedPrefetch ? claimedPrefetch.promise : speakText(speakableText))
 
     if (!isCurrent()) {
       return false

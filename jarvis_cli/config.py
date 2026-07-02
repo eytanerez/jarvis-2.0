@@ -1758,7 +1758,7 @@ DEFAULT_CONFIG = {
     # limit (OpenAI 4096, xAI 15000, MiniMax 10000, ElevenLabs 5k-40k model-aware,
     # Gemini 32000, Edge 5000, Mistral 4000, NeuTTS/KittenTTS 2000).
     "tts": {
-        "provider": "edge",  # "edge" (free) | "elevenlabs" (premium) | "openai" | "xai" | "minimax" | "mistral" | "gemini" | "neutts" (local) | "kittentts" (local) | "piper" (local)
+        "provider": "edge",  # "edge" (free) | "elevenlabs" (premium) | "openai" | "xai" | "minimax" | "mistral" | "gemini" | "neutts" (local) | "kittentts" (local) | "piper" (local) | "kokoro" (local)
         "edge": {
             "voice": "en-US-AriaNeural",
             # Popular: AriaNeural, JennyNeural, AndrewNeural, BrianNeural, SoniaNeural
@@ -1814,8 +1814,18 @@ DEFAULT_CONFIG = {
             # "volume": 1.0,
             # "normalize_audio": True,
         },
+        "kokoro": {
+            # Voice name (e.g. "af_heart") — see the full list at
+            # https://github.com/thewh1teagle/kokoro-onnx
+            "voice": "af_heart",
+            "lang": "en-us",
+            # "model_file": "kokoro-v1.0.int8.onnx",  # quantized default; use "kokoro-v1.0.onnx" for fp32
+            # "models_dir": "",   # Override model cache dir; default = ~/.jarvis/cache/kokoro/
+            # "model_path": "",   # Absolute path to a pre-downloaded .onnx file
+            # "voices_path": "",  # Absolute path to a pre-downloaded voices .bin file
+        },
     },
-    
+
     "stt": {
         "enabled": True,
         "provider": "local",  # "local" (free, faster-whisper) | "groq" | "openai" (Whisper API) | "mistral" (Voxtral Transcribe) | "elevenlabs" (Scribe)

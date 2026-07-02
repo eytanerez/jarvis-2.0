@@ -107,7 +107,7 @@ test('resolveInstallScript falls back to the installed agent checkout on a 404',
     assert.equal(result.path, cachedScriptPath(home, commit))
     assert.ok(fs.existsSync(result.path), 'fallback script copied into cache')
     assert.ok(
-      logs.some(ev => /falling back to installed brain/.test(ev.line || '')),
+      logs.some(ev => /falling back to installed agent/.test(ev.line || '')),
       'emits a fallback log line'
     )
   } finally {

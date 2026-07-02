@@ -1475,6 +1475,7 @@ export const zh: Translations = {
     muteMic: '麦克风静音',
     unmuteMic: '取消麦克风静音',
     stopListening: '停止聆听并发送',
+    interruptSpeaking: '停止说话并聆听',
     stopShort: '停止',
     endConversation: '结束语音对话',
     endShort: '结束',

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useI18n } from '@/i18n'
-import { playSpeechText, stopVoicePlayback } from '@/lib/voice-playback'
+import { playSpeechText, prefetchSpeechText, stopVoicePlayback } from '@/lib/voice-playback'
+import { classifyVoiceSignoff } from '@/lib/voice-signoff'
 import { setMicSignal } from '@/store/jarvis-cockpit'
 import { notify, notifyError } from '@/store/notifications'
 
@@ -23,6 +24,11 @@ interface VoiceConversationOptions {
   onFatalError?: () => void
   onSubmit: (text: string) => Promise<void> | void
   onTranscribeAudio?: (audio: Blob) => Promise<string>
+  /** Called when a turn is classified as a conversational sign-off (see
+   * `classifyVoiceSignoff`) - the conversation is winding down gracefully,
+   * not erroring out. Callers should treat this the same as ending the
+   * conversation (e.g. turn off voice-conversation mode). */
+  onSignoff?: () => void
   pendingResponse: () => PendingVoiceResponse | null
   consumePendingResponse: () => void
 }
@@ -31,6 +37,7 @@ export function useVoiceConversation({
   busy,
   enabled,
   onFatalError,
+  onSignoff,
   onSubmit,
   onTranscribeAudio,
   pendingResponse,
@@ -45,6 +52,13 @@ export function useVoiceConversation({
   const pendingStartRef = useRef(false)
   const turnClosingRef = useRef(false)
   const awaitingSpokenResponseRef = useRef(false)
+  // How many turns have been submitted this session - a sign-off is only
+  // ever considered once at least one earlier turn has already gone all the
+  // way through the assistant (turns are strictly sequential: the mic can't
+  // start a new turn until the previous one's reply finished speaking or
+  // errored out), so the very first thing someone says can never get
+  // swallowed as a goodbye.
+  const submittedTurnCountRef = useRef(0)
   const responseIdRef = useRef<string | null>(null)
   const silentTurnCountRef = useRef(0)
   const spokenSourceLengthRef = useRef(0)
@@ -113,11 +127,17 @@ export function useVoiceConversation({
     speechBufferRef.current = `${speechBufferRef.current}${text}`
   }
 
-  const takeSpeechChunk = (force = false): string | null => {
+  // `peek: true` returns the next chunk (if one is ready) without consuming
+  // it from the buffer - used to prefetch its TTS audio one chunk ahead
+  // while the current chunk is still speaking, without disturbing what
+  // actually gets taken-and-spoken next.
+  const takeSpeechChunk = (force = false, peek = false): string | null => {
     const buffer = speechBufferRef.current.replace(/\s+/g, ' ').trim()
 
     if (!buffer) {
-      speechBufferRef.current = ''
+      if (!peek) {
+        speechBufferRef.current = ''
+      }
 
       return null
     }
@@ -126,7 +146,10 @@ export function useVoiceConversation({
 
     if (sentence?.[1] && (sentence[1].length >= 8 || force)) {
       const chunk = sentence[1].trim()
-      speechBufferRef.current = buffer.slice(sentence[1].length).trim()
+
+      if (!peek) {
+        speechBufferRef.current = buffer.slice(sentence[1].length).trim()
+      }
 
       return chunk
     }
@@ -140,7 +163,10 @@ export function useVoiceConversation({
 
       if (softBoundary > 80) {
         const chunk = buffer.slice(0, softBoundary + 1).trim()
-        speechBufferRef.current = buffer.slice(softBoundary + 1).trim()
+
+        if (!peek) {
+          speechBufferRef.current = buffer.slice(softBoundary + 1).trim()
+        }
 
         return chunk
       }
@@ -150,7 +176,9 @@ export function useVoiceConversation({
       return null
     }
 
-    speechBufferRef.current = ''
+    if (!peek) {
+      speechBufferRef.current = ''
+    }
 
     return buffer
   }
@@ -202,6 +230,29 @@ export function useVoiceConversation({
           }
 
           silentTurnCountRef.current = 0
+
+          // Conservative sign-off check - runs before any model call, and
+          // only once the assistant has actually said something already
+          // this session. A clear "okay, thanks" ends the conversation for
+          // free (no round trip); anything ambiguous falls through to a
+          // normal reply.
+          if (submittedTurnCountRef.current > 0) {
+            const signoff = classifyVoiceSignoff(transcript)
+
+            if (signoff.isSignoff) {
+              if (import.meta.env.DEV) {
+                console.debug(`[voice] sign-off detected ("${signoff.reason}") - ending conversation silently`)
+              }
+
+              pendingStartRef.current = false
+              setStatus('idle')
+              onSignoff?.()
+
+              return
+            }
+          }
+
+          submittedTurnCountRef.current += 1
           awaitingSpokenResponseRef.current = true
           resetSpeechBuffer()
           await onSubmit(transcript)
@@ -219,7 +270,7 @@ export function useVoiceConversation({
         turnClosingRef.current = false
       }
     },
-    [handle, noteSilentTurn, onSubmit, onTranscribeAudio, voiceCopy.transcriptionFailed]
+    [handle, noteSilentTurn, onSignoff, onSubmit, onTranscribeAudio, voiceCopy.transcriptionFailed]
   )
 
   const startListening = useCallback(async () => {
@@ -235,10 +286,17 @@ export function useVoiceConversation({
 
     try {
       // VAD tuning mirrors `tools.voice_mode` defaults so the browser loop matches the CLI.
+      // Layered end-of-turn wait: once ~1.2s of real speech has accumulated
+      // (a confident, substantial utterance - not a false start), only a
+      // short 450ms trailing pause is needed to take the turn instead of the
+      // full 1.25s patient window. Short/ambiguous starts still get the
+      // patient window so a mid-thought pause doesn't get clipped.
       await handle.start({
         silenceLevel: 0.075,
         silenceMs: 1_250,
         idleSilenceMs: 12_000,
+        fastSilenceAfterMs: 1_200,
+        fastSilenceMs: 450,
         onError: error => {
           notifyError(error, voiceCopy.microphoneFailed)
           pendingStartRef.current = false
@@ -290,6 +348,7 @@ export function useVoiceConversation({
 
     setMuted(false)
     silentTurnCountRef.current = 0
+    submittedTurnCountRef.current = 0
     awaitingSpokenResponseRef.current = false
     resetSpeechBuffer()
     consumePendingResponse()
@@ -311,6 +370,7 @@ export function useVoiceConversation({
     handle.cancel()
     turnClosingRef.current = false
     silentTurnCountRef.current = 0
+    submittedTurnCountRef.current = 0
     awaitingSpokenResponseRef.current = false
     resetSpeechBuffer()
     consumePendingResponse()
@@ -323,6 +383,29 @@ export function useVoiceConversation({
       void handleTurn(true)
     }
   }, [handleTurn])
+
+  // Manual barge-in: let the person tap to cut the assistant off mid-reply
+  // and immediately start listening for what they want to say instead of
+  // waiting for the rest of the (possibly long) spoken reply. Discards any
+  // still-unspoken chunks of the current reply rather than continuing on to
+  // the next sentence - a real interrupt, not just a "skip one sentence".
+  //
+  // This is a user-initiated stop, not automatic acoustic barge-in (the mic
+  // doesn't stay hot while the assistant is speaking) - the mic and speaker
+  // sharing a room without a headset makes automatic voice-triggered
+  // barge-in unreliable (the assistant hearing itself), so that's left as a
+  // deliberate follow-up rather than something to guess at here.
+  const interruptSpeech = useCallback(() => {
+    if (statusRef.current !== 'speaking') {
+      return
+    }
+
+    awaitingSpokenResponseRef.current = false
+    resetSpeechBuffer()
+    consumePendingResponse()
+    stopVoicePlayback()
+    pendingStartRef.current = true
+  }, [consumePendingResponse])
 
   const toggleMute = useCallback(() => {
     setMuted(value => {
@@ -370,7 +453,7 @@ export function useVoiceConversation({
       return
     }
 
-    if (awaitingSpokenResponseRef.current && status !== 'speaking') {
+    if (awaitingSpokenResponseRef.current) {
       const response = pendingResponse()
 
       if (response) {
@@ -382,6 +465,21 @@ export function useVoiceConversation({
         if (response.text.length > spokenSourceLengthRef.current) {
           appendSpeechText(response.text.slice(spokenSourceLengthRef.current))
           spokenSourceLengthRef.current = response.text.length
+        }
+
+        // A chunk is already speaking - don't dispatch another one yet, but
+        // as soon as the next one is fully buffered, start synthesizing its
+        // audio now ("hold one ahead") so it's ready the instant the
+        // current chunk finishes instead of leaving dead air for the TTS
+        // round-trip.
+        if (status === 'speaking') {
+          const upcoming = takeSpeechChunk(!response.pending && !busy, true)
+
+          if (upcoming) {
+            prefetchSpeechText(upcoming)
+          }
+
+          return
         }
 
         const chunk = takeSpeechChunk(!response.pending && !busy)
@@ -434,5 +532,5 @@ export function useVoiceConversation({
     wasEnabledRef.current = enabled
   }, [enabled, end, start])
 
-  return { end, level, muted, start, status, stopTurn, toggleMute }
+  return { end, interruptSpeech, level, muted, start, status, stopTurn, toggleMute }
 }

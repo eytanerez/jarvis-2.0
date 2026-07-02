@@ -87,7 +87,7 @@ interface ChatViewProps extends Omit<React.ComponentProps<'div'>, 'onSubmit'> {
   onSteer: (text: string) => Promise<boolean> | boolean
   onSubmit: (
     text: string,
-    options?: { attachments?: ComposerAttachment[]; fromQueue?: boolean }
+    options?: { attachments?: ComposerAttachment[]; fromQueue?: boolean; fromVoice?: boolean }
   ) => Promise<boolean> | boolean
   onThreadMessagesChange: (messages: readonly ThreadMessage[]) => void
   onEdit: (message: AppendMessage) => Promise<void>
@@ -428,10 +428,16 @@ export function ChatView({
   }, [])
 
   const submitFromChatBar = useCallback(
-    async (text: string, options?: { attachments?: ComposerAttachment[]; fromQueue?: boolean }) => {
+    async (
+      text: string,
+      options?: { attachments?: ComposerAttachment[]; fromQueue?: boolean; fromVoice?: boolean }
+    ) => {
+      // Voice-conversation turns never reveal the thread: the orb IS the voice
+      // interface (state animation + spoken reply), so the cockpit stays up.
       const shouldRevealThread =
         cockpitMode === 'orb' &&
         !options?.fromQueue &&
+        !options?.fromVoice &&
         !SLASH_COMMAND_RE.test(text.trim()) &&
         (text.trim().length > 0 || (options?.attachments?.length ?? 0) > 0)
 

@@ -1415,6 +1415,7 @@ export const ja = defineLocale({
     muteMic: 'マイクをミュート',
     unmuteMic: 'マイクのミュートを解除',
     stopListening: '聴き取りを停止して送信',
+    interruptSpeaking: '発話を止めて聴く',
     stopShort: '停止',
     endConversation: '音声会話を終了',
     endShort: '終了',

@@ -263,7 +263,8 @@ export const ENUM_OPTIONS: Record<string, string[]> = {
     'gemini',
     'neutts',
     'kittentts',
-    'piper'
+    'piper',
+    'kokoro'
   ],
   'stt.openai.model': ['whisper-1', 'gpt-4o-mini-transcribe', 'gpt-4o-transcribe'],
   'stt.mistral.model': ['voxtral-mini-latest', 'voxtral-mini-2602'],
@@ -271,6 +272,19 @@ export const ENUM_OPTIONS: Record<string, string[]> = {
   'tts.elevenlabs.model_id': ['eleven_multilingual_v2', 'eleven_turbo_v2_5', 'eleven_flash_v2_5'],
   // NeuTTS local inference device.
   'tts.neutts.device': ['cpu', 'cuda', 'mps'],
+  // A curated subset of Kokoro's ~48 voices (full list:
+  // https://github.com/thewh1teagle/kokoro-onnx). Users can still type any
+  // other voice id directly via config.yaml.
+  'tts.kokoro.voice': [
+    'af_heart',
+    'af_bella',
+    'af_nicole',
+    'af_sarah',
+    'am_adam',
+    'am_michael',
+    'bf_emma',
+    'bm_george'
+  ],
   'updates.non_interactive_local_changes': ['stash', 'discard']
 }
 
@@ -396,6 +410,9 @@ export const FIELD_LABELS: Record<string, string> = defineFieldCopy({
     },
     piper: {
       voice: 'Piper Voice'
+    },
+    kokoro: {
+      voice: 'Kokoro Voice'
     }
   },
   memory: {
@@ -589,6 +606,7 @@ export const SECTIONS: DesktopConfigSection[] = [
       'tts.kittentts.model',
       'tts.kittentts.voice',
       'tts.piper.voice',
+      'tts.kokoro.voice',
       'stt.local.model',
       'stt.local.language',
       'stt.openai.model',

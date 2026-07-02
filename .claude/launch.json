@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev:renderer", "--workspace", "apps/desktop"],
       "port": 5174
+    },
+    {
+      "name": "jarvis-desktop-renderer-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:renderer", "--workspace", "apps/desktop", "--", "--port", "5199"],
+      "port": 5199
     }
   ]
 }

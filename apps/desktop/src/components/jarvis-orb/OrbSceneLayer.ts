@@ -305,7 +305,12 @@ export class OrbSceneLayer {
     const amp = this.mood.ampBase * (0.75 + 0.25 * breathe) + this.level * 0.9
     const sizeScale = 1 + this.mood.sizePulse * this.level * 0.16 + this.mood.sizePulse * 0.02 * Math.sin(t * 3.0)
 
-    const eye: Vec3 = [0, 0, 8.5]
+    // Camera pulled in from the original 8.5 so the orb (and its halo/rings/
+    // constellation, which all key off this same projection) reads noticeably
+    // bigger on screen - fills more of the viewport instead of floating small
+    // in the middle. Orbit radii top out around 2.6, so this still leaves
+    // comfortable clearance before the near plane.
+    const eye: Vec3 = [0, 0, 6.4]
     const view = lookAt4(eye, [0, 0, 0], [0, 1, 0])
     const aspect = width / Math.max(1, height)
     const proj = perspective4((42 * Math.PI) / 180, aspect, 0.1, 20)

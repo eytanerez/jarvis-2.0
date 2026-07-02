@@ -1288,6 +1288,7 @@ export const en: Translations = {
     muteMic: 'Mute microphone',
     unmuteMic: 'Unmute microphone',
     stopListening: 'Stop listening and send',
+    interruptSpeaking: 'Stop speaking and listen',
     stopShort: 'Stop',
     endConversation: 'End voice conversation',
     endShort: 'End',
