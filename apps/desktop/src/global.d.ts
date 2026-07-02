@@ -209,7 +209,11 @@ export interface DesktopUpdateStatus {
   targetSha?: string
   commits?: DesktopUpdateCommit[]
   dirty?: boolean
+  desktopBuildStale?: boolean
   fetchedAt?: number
+  installedDirty?: boolean
+  installedSha?: string
+  sourceSha?: string
 }
 
 export type DesktopUpdateDirtyStrategy = 'abort' | 'stash' | 'force'

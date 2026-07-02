@@ -14,6 +14,25 @@ function shouldRetryRebuild(code) {
   return code !== 0
 }
 
+function normalizeUpdateSha(value) {
+  const sha = typeof value === 'string' ? value.trim() : ''
+  return /^[0-9a-f]{7,64}$/i.test(sha) ? sha : ''
+}
+
+function resolveClientUpdateBase({ installStamp, isPackaged = false, sourceSha } = {}) {
+  const installedSha = normalizeUpdateSha(installStamp?.commit)
+  const currentSourceSha = normalizeUpdateSha(sourceSha)
+  const fromInstallStamp = Boolean(isPackaged && installedSha)
+
+  return {
+    currentSha: fromInstallStamp ? installedSha : currentSourceSha,
+    fromInstallStamp,
+    installedDirty: Boolean(installStamp?.dirty),
+    installedSha: installedSha || null,
+    sourceSha: currentSourceSha || null
+  }
+}
+
 /**
  * Run `rebuild()` (async, resolves `{ code, ... }`), retrying once on failure.
  * Returns the final result.
@@ -26,4 +45,4 @@ async function runRebuildWithRetry(rebuild) {
   return result
 }
 
-module.exports = { shouldRetryRebuild, runRebuildWithRetry }
+module.exports = { normalizeUpdateSha, resolveClientUpdateBase, shouldRetryRebuild, runRebuildWithRetry }

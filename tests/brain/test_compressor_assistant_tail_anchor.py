@@ -482,7 +482,7 @@ class TestSourceGuardrail:
     def source(self) -> str:
         from pathlib import Path
         return (Path(__file__).resolve().parents[2]
-                / "agent" / "context_compressor.py").read_text(
+                / "brain" / "context_compressor.py").read_text(
                     encoding="utf-8")
 
     def test_helper_defined(self, source):

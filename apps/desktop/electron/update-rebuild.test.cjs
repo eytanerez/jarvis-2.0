@@ -15,12 +15,49 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 
-const { shouldRetryRebuild, runRebuildWithRetry } = require('./update-rebuild.cjs')
+const {
+  normalizeUpdateSha,
+  resolveClientUpdateBase,
+  shouldRetryRebuild,
+  runRebuildWithRetry
+} = require('./update-rebuild.cjs')
 
 test('shouldRetryRebuild retries only on a non-success exit', () => {
   assert.equal(shouldRetryRebuild(0), false)
   assert.equal(shouldRetryRebuild(1), true)
   assert.equal(shouldRetryRebuild(null), true)
+})
+
+test('normalizeUpdateSha accepts git-looking shas and rejects unsafe refs', () => {
+  assert.equal(normalizeUpdateSha('  45314dbba883cfd7df0e5692a6c1d712b34bf54a\n'), '45314dbba883cfd7df0e5692a6c1d712b34bf54a')
+  assert.equal(normalizeUpdateSha('78a48e8'), '78a48e8')
+  assert.equal(normalizeUpdateSha('main'), '')
+  assert.equal(normalizeUpdateSha('HEAD..origin/main'), '')
+  assert.equal(normalizeUpdateSha(null), '')
+})
+
+test('packaged client update checks use the running app install stamp as current sha', () => {
+  const base = resolveClientUpdateBase({
+    installStamp: { commit: '78a48e8a009ad410fc58a19b81666a8308a5a93d', dirty: true },
+    isPackaged: true,
+    sourceSha: '45314dbba883cfd7df0e5692a6c1d712b34bf54a'
+  })
+
+  assert.equal(base.currentSha, '78a48e8a009ad410fc58a19b81666a8308a5a93d')
+  assert.equal(base.fromInstallStamp, true)
+  assert.equal(base.installedDirty, true)
+  assert.equal(base.sourceSha, '45314dbba883cfd7df0e5692a6c1d712b34bf54a')
+})
+
+test('dev client update checks fall back to the source checkout sha', () => {
+  const base = resolveClientUpdateBase({
+    installStamp: { commit: '78a48e8a009ad410fc58a19b81666a8308a5a93d' },
+    isPackaged: false,
+    sourceSha: '45314dbba883cfd7df0e5692a6c1d712b34bf54a'
+  })
+
+  assert.equal(base.currentSha, '45314dbba883cfd7df0e5692a6c1d712b34bf54a')
+  assert.equal(base.fromInstallStamp, false)
 })
 
 test('a clean first rebuild runs once and does not retry', async () => {

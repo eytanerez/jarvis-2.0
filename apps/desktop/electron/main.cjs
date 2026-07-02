@@ -20,7 +20,6 @@ const crypto = require('node:crypto')
 const fs = require('node:fs')
 const http = require('node:http')
 const https = require('node:https')
-const net = require('node:net')
 const path = require('node:path')
 const { pathToFileURL } = require('node:url')
 const { execFileSync, spawn } = require('node:child_process')
@@ -45,7 +44,7 @@ const { readDirForIpc } = require('./fs-read-dir.cjs')
 const { gitRootForIpc } = require('./git-root.cjs')
 const { worktreesForIpc } = require('./git-worktrees.cjs')
 const { OFFICIAL_REPO_HTTPS_URL, isOfficialSshRemote } = require('./update-remote.cjs')
-const { runRebuildWithRetry } = require('./update-rebuild.cjs')
+const { resolveClientUpdateBase, runRebuildWithRetry } = require('./update-rebuild.cjs')
 const {
   buildPosixCleanupScript,
   buildWindowsCleanupScript,
@@ -1485,6 +1484,35 @@ async function resolveHealedBranch(updateRoot, branch) {
   return 'main'
 }
 
+async function countCommitsBetween(cwd, baseRef, targetRef) {
+  if (!baseRef || !targetRef || baseRef === targetRef) {
+    return 0
+  }
+
+  const result = await runGit(['rev-list', `${baseRef}..${targetRef}`, '--count'], { cwd })
+  if (result.code !== 0) {
+    return 1
+  }
+
+  return Number.parseInt(result.stdout.trim(), 10) || 0
+}
+
+function desktopClientFields(sourceSha) {
+  const base = resolveClientUpdateBase({
+    installStamp: INSTALL_STAMP,
+    isPackaged: IS_PACKAGED,
+    sourceSha
+  })
+
+  return {
+    currentSha: base.currentSha || sourceSha,
+    desktopBuildStale: Boolean(base.fromInstallStamp && base.currentSha && sourceSha && base.currentSha !== sourceSha),
+    installedDirty: base.installedDirty,
+    installedSha: base.installedSha || undefined,
+    sourceSha: base.sourceSha || sourceSha
+  }
+}
+
 async function checkUpdates() {
   const updateRoot = resolveUpdateRoot()
   let { branch } = readDesktopUpdateConfig()
@@ -1503,7 +1531,7 @@ async function checkUpdates() {
   const originUrl = await getOriginUrl(updateRoot)
   if (isOfficialSshRemote(originUrl)) {
     const git = args => runGit(args, { cwd: updateRoot }).then(r => r.stdout.trim())
-    const [currentSha, target, dirtyStr, currentBranch] = await Promise.all([
+    const [sourceSha, target, dirtyStr, currentBranch] = await Promise.all([
       git(['rev-parse', 'HEAD']),
       runGit(['ls-remote', OFFICIAL_REPO_HTTPS_URL, `refs/heads/${branch}`], { cwd: updateRoot }),
       git(['status', '--porcelain']),
@@ -1520,17 +1548,20 @@ async function checkUpdates() {
         fetchedAt: Date.now()
       }
     }
+    const client = desktopClientFields(sourceSha)
+    const behind = await countCommitsBetween(updateRoot, client.currentSha, targetSha)
     return {
       supported: true,
       branch,
       currentBranch,
-      behind: currentSha && currentSha === targetSha ? 0 : 1,
-      currentSha,
+      behind,
+      currentSha: client.currentSha,
       targetSha,
-      commits: [],
+      commits: behind > 0 ? await readCommitLog(updateRoot, branch, client.currentSha, targetSha) : [],
       dirty: dirtyStr.length > 0,
       jarvisRoot: updateRoot,
-      fetchedAt: Date.now()
+      fetchedAt: Date.now(),
+      ...client
     }
   }
 
@@ -1547,38 +1578,43 @@ async function checkUpdates() {
   }
 
   const git = args => runGit(args, { cwd: updateRoot }).then(r => r.stdout.trim())
-  const [currentSha, targetSha, countStr, dirtyStr, currentBranch] = await Promise.all([
+  const [sourceSha, targetSha, dirtyStr, currentBranch] = await Promise.all([
     git(['rev-parse', 'HEAD']),
     git(['rev-parse', `origin/${branch}`]),
-    git(['rev-list', `HEAD..origin/${branch}`, '--count']),
     git(['status', '--porcelain']),
     git(['rev-parse', '--abbrev-ref', 'HEAD'])
   ])
 
-  const behind = Number.parseInt(countStr, 10) || 0
-  const commits = behind > 0 ? await readCommitLog(updateRoot, branch) : []
+  const client = desktopClientFields(sourceSha)
+  const targetRef = `origin/${branch}`
+  const behind = await countCommitsBetween(updateRoot, client.currentSha, targetRef)
+  const commits = behind > 0 ? await readCommitLog(updateRoot, branch, client.currentSha, targetRef) : []
 
   return {
     supported: true,
     branch,
     currentBranch,
     behind,
-    currentSha,
+    currentSha: client.currentSha,
     targetSha,
     commits,
     dirty: dirtyStr.length > 0,
     jarvisRoot: updateRoot,
-    fetchedAt: Date.now()
+    fetchedAt: Date.now(),
+    ...client
   }
 }
 
-async function readCommitLog(cwd, branch) {
+async function readCommitLog(cwd, branch, baseRef = 'HEAD', targetRef = `origin/${branch}`) {
   const SEP = '\x1f'
   const REC = '\x1e'
-  const { stdout } = await runGit(
-    ['log', `HEAD..origin/${branch}`, `--pretty=format:%H${SEP}%s${SEP}%an${SEP}%at${REC}`, '-n', '40'],
+  const { code, stdout } = await runGit(
+    ['log', `${baseRef}..${targetRef}`, `--pretty=format:%H${SEP}%s${SEP}%an${SEP}%at${REC}`, '-n', '40'],
     { cwd }
   )
+  if (code !== 0) {
+    return []
+  }
 
   return stdout
     .split(REC)

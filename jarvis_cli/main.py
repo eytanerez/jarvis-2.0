@@ -8576,6 +8576,41 @@ def _cmd_update_pip(args):
     print("✓ Update complete! Restart jarvis to use the new version.")
 
 
+def _maybe_rebuild_desktop_after_update() -> None:
+    # Rebuild the desktop app if the source tree changed since the last
+    # build. ``jarvis desktop --build-only`` uses the content-hash stamp
+    # internally, so this is effectively a no-op when nothing changed.
+    # Only bother if the user has a desktop app installed (indicated by
+    # an existing packaged executable or desktop dist); people who have
+    # never run ``jarvis desktop`` shouldn't be forced into a full
+    # Electron build by ``jarvis update``.
+    desktop_dir = PROJECT_ROOT / "apps" / "desktop"
+    has_desktop_app = (
+        _desktop_packaged_executable(desktop_dir) is not None
+        or _desktop_dist_exists(desktop_dir)
+    )
+    if not ((desktop_dir / "package.json").exists() and shutil.which("npm") and has_desktop_app):
+        return
+
+    print("→ Checking if desktop app needs rebuilding...")
+    desktop_build_cmd = [
+        sys.executable,
+        "-m",
+        "jarvis_cli.main",
+        "desktop",
+        "--build-only",
+    ]
+    # Stream the build output live (long Electron builds otherwise
+    # look hung). On the rare nonzero exit, retry once after waiting
+    # again for the venv — this covers a still-settling rebuild window
+    # the first wait didn't fully catch.
+    build_result = subprocess.run(desktop_build_cmd, cwd=PROJECT_ROOT, check=False)
+    if build_result.returncode != 0:
+        build_result = subprocess.run(desktop_build_cmd, cwd=PROJECT_ROOT, check=False)
+    if build_result.returncode != 0:
+        print("  ⚠ Desktop build failed (non-fatal; run `jarvis desktop` to retry)")
+
+
 def _cmd_update_impl(args, gateway_mode: bool):
     """Body of ``cmd_update`` — kept separate so the wrapper can always
     restore stdio even on ``sys.exit``."""
@@ -8840,6 +8875,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
                     text=True,
                     check=False,
                 )
+            _maybe_rebuild_desktop_after_update()
             print("✓ Already up to date!")
             _resume_windows_gateways_after_update(_windows_gateway_resume)
             return
@@ -9058,27 +9094,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
         _update_node_dependencies()
         _build_web_ui(PROJECT_ROOT / "web")
 
-        # Rebuild the desktop app if the source tree changed since the last
-        # build.  ``jarvis desktop --build-only`` uses the content-hash stamp
-        # internally, so this is effectively a no-op when nothing changed.
-        # Only bother if the user has a desktop app installed (indicated by
-        # an existing packaged executable or desktop dist); people who have
-        # never run ``jarvis desktop`` shouldn't be forced into a full
-        # Electron build by ``jarvis update``.
-        desktop_dir = PROJECT_ROOT / "apps" / "desktop"
-        has_desktop_app = _desktop_packaged_executable(desktop_dir) is not None or _desktop_dist_exists(desktop_dir)
-        if (desktop_dir / "package.json").exists() and shutil.which("npm") and has_desktop_app:
-            print("→ Checking if desktop app needs rebuilding...")
-            _desktop_build_cmd = [sys.executable, "-m", "jarvis_cli.main", "desktop", "--build-only"]
-            # Stream the build output live (long Electron builds otherwise
-            # look hung). On the rare nonzero exit, retry once after waiting
-            # again for the venv — this covers a still-settling rebuild window
-            # the first wait didn't fully catch.
-            build_result = subprocess.run(_desktop_build_cmd, cwd=PROJECT_ROOT, check=False)
-            if build_result.returncode != 0:
-                build_result = subprocess.run(_desktop_build_cmd, cwd=PROJECT_ROOT, check=False)
-            if build_result.returncode != 0:
-                print("  ⚠ Desktop build failed (non-fatal; run `jarvis desktop` to retry)")
+        _maybe_rebuild_desktop_after_update()
 
         print()
         print("✓ Code updated!")

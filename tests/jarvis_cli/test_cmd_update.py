@@ -176,6 +176,21 @@ class TestCmdUpdateBranchFallback:
         pull_cmds = [c for c in commands if "pull" in c]
         assert len(pull_cmds) == 0
 
+    @patch("subprocess.run")
+    def test_update_already_up_to_date_still_checks_desktop_rebuild(
+        self, mock_run, mock_args
+    ):
+        from jarvis_cli import main as hm
+
+        mock_run.side_effect = _make_run_side_effect(
+            branch="main", verify_ok=True, commit_count="0"
+        )
+
+        with patch.object(hm, "_maybe_rebuild_desktop_after_update") as rebuild_mock:
+            cmd_update(mock_args)
+
+        rebuild_mock.assert_called_once()
+
     @patch("shutil.which", return_value=None)
     @patch("subprocess.run")
     def test_update_on_fork_checks_upstream_when_origin_up_to_date(

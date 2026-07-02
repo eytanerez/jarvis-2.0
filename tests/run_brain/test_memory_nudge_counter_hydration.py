@@ -131,7 +131,7 @@ def test_production_code_contains_hydration_block():
     from pathlib import Path
     repo = Path(__file__).resolve().parents[2]
     turn_src = "".join(
-        (repo / "agent" / name).read_text(encoding="utf-8")
+        (repo / "brain" / name).read_text(encoding="utf-8")
         for name in ("conversation_loop.py", "turn_context.py")
     )
     # Anchor on the unique comment + the modulo line.
@@ -140,6 +140,6 @@ def test_production_code_contains_hydration_block():
         "(conversation_loop.py / turn_context.py)"
     )
     assert (
-        "brain._turns_since_memory = prior_user_turns % agent._memory_nudge_interval"
+        "agent._turns_since_memory = prior_user_turns % agent._memory_nudge_interval"
         in turn_src
     ), "Hydration modulo assignment missing from the turn subsystem"
