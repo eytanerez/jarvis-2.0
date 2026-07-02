@@ -1584,6 +1584,33 @@ def _tui_need_rebuild(root: Path) -> bool:
     return False
 
 
+def _prepend_node_candidate_bins() -> None:
+    """Prepend known Node/npm install dirs to PATH when they exist.
+
+    GUI and updater subprocesses are often launched by Finder/system services
+    rather than an interactive shell, so they miss shell rc additions like
+    ``~/.local/bin`` or Homebrew's bin dir. Add the locations Jarvis itself uses
+    before asking ``shutil.which("npm")``.
+    """
+    jarvis_home = os.environ.get("JARVIS_HOME") or str(Path.home() / ".jarvis")
+    candidates = [
+        Path(jarvis_home) / "node" / "bin",
+        Path.home() / ".local" / "bin",
+        Path("/opt/homebrew/bin"),
+        Path("/usr/local/bin"),
+    ]
+    current = [part for part in os.environ.get("PATH", "").split(os.pathsep) if part]
+    prefix: list[str] = []
+
+    for candidate in candidates:
+        path_str = str(candidate)
+        if candidate.is_dir() and path_str not in current and path_str not in prefix:
+            prefix.append(path_str)
+
+    if prefix:
+        os.environ["PATH"] = os.pathsep.join(prefix + current)
+
+
 def _ensure_tui_node() -> None:
     """Make sure `node` + `npm` are on PATH for the TUI.
 
@@ -1597,6 +1624,8 @@ def _ensure_tui_node() -> None:
     Idempotent no-op when node+npm are already discoverable. Set
     ``JARVIS_SKIP_NODE_BOOTSTRAP=1`` to disable auto-install.
     """
+    _prepend_node_candidate_bins()
+
     if shutil.which("node") and shutil.which("npm"):
         return
     if os.environ.get("JARVIS_SKIP_NODE_BOOTSTRAP"):
@@ -5416,6 +5445,8 @@ def cmd_gui(args: argparse.Namespace):
     packaged_executable = _desktop_packaged_executable(desktop_dir)
 
     if source_mode or not skip_build:
+        _ensure_tui_node()
+        env["PATH"] = os.environ.get("PATH", env.get("PATH", ""))
         npm = shutil.which("npm")
         if not npm:
             print("Desktop GUI requires Node.js/npm, but npm was not found on PATH.")

@@ -272,6 +272,8 @@ function resolveJarvisHome() {
 }
 
 const JARVIS_HOME = resolveJarvisHome()
+const USER_LOCAL_BIN = path.join(app.getPath('home'), '.local', 'bin')
+const POSIX_NODE_BIN_PATHS = IS_WINDOWS ? [] : [USER_LOCAL_BIN, '/opt/homebrew/bin', '/usr/local/bin']
 // ACTIVE_JARVIS_ROOT — the canonical mutable Jarvis install. Same path
 // install.ps1 / install.sh use, so a desktop-only user and a CLI-only user end
 // up with identical layouts and can share one install.
@@ -1876,7 +1878,9 @@ async function applyUpdates(opts = {}) {
       env: {
         ...process.env,
         JARVIS_HOME,
-        PATH: [path.join(JARVIS_HOME, 'node', 'bin'), venvBin, process.env.PATH].filter(Boolean).join(path.delimiter)
+        PATH: [path.join(JARVIS_HOME, 'node', 'bin'), ...POSIX_NODE_BIN_PATHS, venvBin, process.env.PATH]
+          .filter(Boolean)
+          .join(path.delimiter)
       },
       detached: true,
       stdio: 'ignore',
@@ -1920,7 +1924,9 @@ async function handOffWindowsBootstrapRecovery(reason) {
     env: {
       ...process.env,
       JARVIS_HOME,
-      PATH: [path.join(JARVIS_HOME, 'node', 'bin'), venvBin, process.env.PATH].filter(Boolean).join(path.delimiter)
+      PATH: [path.join(JARVIS_HOME, 'node', 'bin'), ...POSIX_NODE_BIN_PATHS, venvBin, process.env.PATH]
+        .filter(Boolean)
+        .join(path.delimiter)
     },
     detached: true,
     stdio: 'ignore',
@@ -2056,7 +2062,7 @@ async function applyUpdatesPosixInApp() {
   // npm build can find them on a machine with no system Node.
   const venvBin = path.join(updateRoot, 'venv', IS_WINDOWS ? 'Scripts' : 'bin')
   const dotVenvBin = path.join(updateRoot, '.venv', IS_WINDOWS ? 'Scripts' : 'bin')
-  const extraPath = [path.join(JARVIS_HOME, 'node', 'bin'), dotVenvBin, venvBin]
+  const extraPath = [path.join(JARVIS_HOME, 'node', 'bin'), ...POSIX_NODE_BIN_PATHS, dotVenvBin, venvBin]
     .filter(Boolean)
     .join(path.delimiter)
   const env = {

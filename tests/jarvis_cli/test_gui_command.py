@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -119,6 +120,47 @@ def test_gui_exits_when_npm_missing(tmp_path, monkeypatch, capsys):
 
     assert exc.value.code == 1
     assert "npm was not found" in capsys.readouterr().out
+
+
+def test_gui_discovers_local_node_from_thin_update_path(tmp_path, monkeypatch):
+    """Desktop self-update launches outside a login shell, so PATH may omit
+    ~/.local/bin even when install.sh put node/npm there."""
+    root = _make_desktop_tree(tmp_path)
+    desktop_dir = root / "apps" / "desktop"
+    home = tmp_path / "home"
+    local_bin = home / ".local" / "bin"
+    local_bin.mkdir(parents=True)
+    npm = local_bin / "npm"
+    node = local_bin / "node"
+    npm.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    node.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    npm.chmod(0o755)
+    node.chmod(0o755)
+
+    monkeypatch.setattr(cli_main, "PROJECT_ROOT", root)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.delenv("JARVIS_HOME", raising=False)
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    packaged_exe = _make_packaged_executable(root, monkeypatch)
+
+    install_ok = subprocess.CompletedProcess([str(npm), "ci"], 0)
+    pack_ok = subprocess.CompletedProcess([str(npm), "run", "pack"], 0)
+    launch_ok = subprocess.CompletedProcess([str(packaged_exe)], 0)
+
+    with patch("jarvis_cli.main._run_npm_install_deterministic", return_value=install_ok) as mock_install, \
+         patch("jarvis_cli.main._desktop_build_needed", return_value=True), \
+         patch("jarvis_cli.main._write_desktop_build_stamp"), \
+         patch("jarvis_cli.main._desktop_macos_relaunchable_fixup"), \
+         patch("jarvis_cli.main.subprocess.run", side_effect=[pack_ok, launch_ok]) as mock_run, \
+         pytest.raises(SystemExit) as exc:
+        cli_main.cmd_gui(_ns())
+
+    assert exc.value.code == 0
+    mock_install.assert_called_once()
+    assert mock_install.call_args.args[0] == str(npm)
+    assert mock_run.call_args_list[0].args[0] == [str(npm), "run", "pack"]
+    assert mock_run.call_args_list[0].kwargs["cwd"] == desktop_dir
+    assert mock_run.call_args_list[0].kwargs["env"]["PATH"].split(os.pathsep)[0] == str(local_bin)
 
 
 def test_gui_skip_build_requires_existing_packaged_app(tmp_path, monkeypatch, capsys):
