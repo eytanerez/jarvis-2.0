@@ -20,7 +20,6 @@ import Defaults
 import SwiftUI
 
 struct DynamicIslandHeader: View {
-    @Environment(\.openWindow) private var openWindow
     @EnvironmentObject var vm: DynamicIslandViewModel
     @EnvironmentObject var webcamManager: WebcamManager
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
@@ -201,7 +200,7 @@ struct DynamicIslandHeader: View {
                     
                     if Defaults[.settingsIconInNotch] {
                         Button(action: {
-                            SettingsWindowController.shared.showWindow()
+                            JarvisAssistantBridge.shared.openSettingsPreferringJarvis()
                         }) {
                             Capsule()
                                 .fill(.black)
@@ -217,21 +216,21 @@ struct DynamicIslandHeader: View {
                     }
 
                     Button(action: {
-                        openWindow(id: "jarvisDebug")
+                        JarvisAssistantBridge.shared.openJarvisApp()
                     }) {
                         Capsule()
                             .fill(.black)
                             .frame(width: 30, height: 30)
                             .overlay {
-                                Image(systemName: "ladybug")
+                                Image(systemName: "sparkles")
                                     .foregroundColor(.white)
                                     .padding()
                                     .imageScale(.medium)
                             }
                     }
                     .buttonStyle(PlainButtonStyle())
-                    .help("Open Jarvis Debug")
-                    
+                    .help("Open Jarvis")
+
                     if Defaults[.enableDoNotDisturbDetection]
                         && Defaults[.showDoNotDisturbIndicator]
                         && doNotDisturbManager.isDoNotDisturbActive

@@ -377,9 +377,14 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
         send(["type": "startConversation"])
     }
 
-    /// Focuses the Jarvis desktop app on the current conversation.
+    /// Focuses the Jarvis desktop app on the current conversation. The notch
+    /// itself is an always-on-top panel, so closing it here is what actually
+    /// makes the newly-focused desktop window visible — otherwise the app
+    /// comes to front behind the still-open notch and it looks like nothing
+    /// happened.
     func openJarvisApp() {
         send(["type": "openMainWindow"])
+        deactivationHandler?()
     }
 
     /// Asks Jarvis to restart the notch (kill this process, spawn a fresh one
@@ -429,6 +434,16 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
         let socket = session.webSocketTask(with: request)
         self.socket = socket
         socket.resume()
+        // Optimistic: a live socket means Jarvis is reachable, so drop the
+        // offline styling immediately rather than waiting on the renderer to
+        // broadcast its first "state" message (which only happens once the
+        // chat view has mounted — leaving the UI stuck showing "Offline",
+        // and intents like Open Jarvis silently blocked, until then).
+        // handleDisconnect() corrects this back to .disconnected if the
+        // connection actually fails.
+        if model.phase == .disconnected {
+            model.phase = .idle
+        }
         send(["type": "hello", "version": 1])
         sendSettingsSnapshot()
         receiveLoop(on: socket)

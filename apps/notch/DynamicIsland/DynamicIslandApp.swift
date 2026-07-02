@@ -26,43 +26,18 @@ import SkyLightWindow
 @main
 struct DynamicNotchApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @Default(.menubarIcon) var showMenuBarIcon
-    @Environment(\.openWindow) var openWindow
 
+    // No menu bar icon — the notch itself, plus the Jarvis desktop app, are
+    // the only surfaces. This app is LSUIElement (no Dock icon either), so a
+    // Scene is still required to satisfy `App`; `Settings` is never shown
+    // since Cmd+, is intercepted below and there's no menu bar item to open
+    // it from.
     var body: some Scene {
-        MenuBarExtra(isInserted: $showMenuBarIcon) {
-            Button("Talk to Jarvis") {
-                AppDelegate.shared?.activateJarvisAssistantFromHotkey()
-            }
-            Button("Open Jarvis") {
-                JarvisAssistantBridge.shared.openJarvisApp()
-            }
-            Divider()
-            Button("Settings") {
-                JarvisAssistantBridge.shared.openSettingsPreferringJarvis()
-            }
-            Divider()
-            Button("Restart Notch") {
-                // Routed through Jarvis rather than self-relaunching: only
-                // Jarvis knows the current WS port/token, so only Jarvis can
-                // hand them to the fresh instance. A self-relaunch here would
-                // orphan a disconnected instance while the connected one dies.
-                JarvisAssistantBridge.shared.restartNotch()
-            }
-            .disabled(JarvisAssistantBridge.shared.model.phase == .disconnected)
-            Button("Quit", role: .destructive) {
-                // Tell Jarvis this is a deliberate quit before actually
-                // terminating (see notifyUserQuit's doc comment) — brief
-                // delay so the WS send has time to leave the process.
-                JarvisAssistantBridge.shared.notifyUserQuit()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    NSApplication.shared.terminate(self)
-                }
-            }
-            .keyboardShortcut(KeyEquivalent("Q"), modifiers: .command)
-        } label: {
-            Image(systemName: "sparkles")
-                .accessibilityLabel("Jarvis")
+        Settings {
+            EmptyView()
+        }
+        .commands {
+            commands
         }
     }
 
