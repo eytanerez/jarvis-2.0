@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useI18n } from '@/i18n'
+import { warmupVoiceModels } from '@/jarvis'
+import { beginVoiceLatencyTurn, cancelVoiceLatencyTurn, markVoiceLatency } from '@/lib/voice-latency'
 import { playSpeechText, prefetchSpeechText, stopVoicePlayback } from '@/lib/voice-playback'
 import { classifyVoiceSignoff } from '@/lib/voice-signoff'
 import { setMicSignal } from '@/store/jarvis-cockpit'
@@ -31,6 +33,13 @@ interface VoiceConversationOptions {
   onSignoff?: () => void
   pendingResponse: () => PendingVoiceResponse | null
   consumePendingResponse: () => void
+  /** Subscribe to changes of the underlying response stream (e.g. the
+   * messages store). The pump effect below only re-runs when one of its
+   * dependencies changes - without this, newly streamed text is only noticed
+   * when some unrelated re-render happens to occur, which delays both the
+   * first spoken chunk and the "hold one ahead" prefetch of the next one.
+   * Returns an unsubscribe function. */
+  subscribeToResponse?: (onChange: () => void) => () => void
 }
 
 export function useVoiceConversation({
@@ -41,13 +50,17 @@ export function useVoiceConversation({
   onSubmit,
   onTranscribeAudio,
   pendingResponse,
-  consumePendingResponse
+  consumePendingResponse,
+  subscribeToResponse
 }: VoiceConversationOptions) {
   const { t } = useI18n()
   const voiceCopy = t.notifications.voice
   const { handle, level } = useMicRecorder(voiceCopy)
   const [status, setStatus] = useState<ConversationStatus>('idle')
   const [muted, setMuted] = useState(false)
+  // Bumped on every response-stream change so the pump effect re-runs the
+  // moment new text arrives (see `subscribeToResponse`).
+  const [responseTick, setResponseTick] = useState(0)
   const turnTimeoutRef = useRef<number | null>(null)
   const pendingStartRef = useRef(false)
   const turnClosingRef = useRef(false)
@@ -91,6 +104,14 @@ export function useVoiceConversation({
   }, [level, status])
 
   useEffect(() => () => setMicSignal(false, 0), [])
+
+  useEffect(() => {
+    if (!enabled || !subscribeToResponse) {
+      return
+    }
+
+    return subscribeToResponse(() => setResponseTick(tick => tick + 1))
+  }, [enabled, subscribeToResponse])
 
   const clearTurnTimeout = () => {
     if (turnTimeoutRef.current) {
@@ -195,8 +216,11 @@ export function useVoiceConversation({
 
       try {
         const result = await handle.stop()
+        markVoiceLatency('recorder-stopped', result ? `${Math.round(result.audio.size / 1024)}KB audio` : 'no audio')
 
         if (!result || (!result.heardSpeech && !forceTranscribe) || !onTranscribeAudio) {
+          cancelVoiceLatencyTurn()
+
           const shouldContinue = noteSilentTurn()
 
           if (
@@ -216,8 +240,11 @@ export function useVoiceConversation({
 
         try {
           const transcript = (await onTranscribeAudio(result.audio)).trim()
+          markVoiceLatency('transcript-received', `${transcript.length} chars`)
 
           if (!transcript) {
+            cancelVoiceLatencyTurn()
+
             const shouldContinue = noteSilentTurn()
 
             if (shouldContinue && enabledRef.current) {
@@ -244,6 +271,7 @@ export function useVoiceConversation({
                 console.debug(`[voice] sign-off detected ("${signoff.reason}") - ending conversation silently`)
               }
 
+              cancelVoiceLatencyTurn()
               pendingStartRef.current = false
               setStatus('idle')
               onSignoff?.()
@@ -256,8 +284,10 @@ export function useVoiceConversation({
           awaitingSpokenResponseRef.current = true
           resetSpeechBuffer()
           await onSubmit(transcript)
+          markVoiceLatency('turn-submitted')
           setStatus('thinking')
         } catch (error) {
+          cancelVoiceLatencyTurn()
           notifyError(error, voiceCopy.transcriptionFailed)
 
           if (enabledRef.current && !mutedRef.current && !busyRef.current) {
@@ -288,24 +318,31 @@ export function useVoiceConversation({
       // VAD tuning mirrors `tools.voice_mode` defaults so the browser loop matches the CLI.
       // Layered end-of-turn wait: once ~1.2s of real speech has accumulated
       // (a confident, substantial utterance - not a false start), only a
-      // short 450ms trailing pause is needed to take the turn instead of the
+      // short 600ms trailing pause is needed to take the turn instead of the
       // full 1.25s patient window. Short/ambiguous starts still get the
-      // patient window so a mid-thought pause doesn't get clipped.
+      // patient window so a mid-thought pause doesn't get clipped. (600ms was
+      // bumped from 450ms after mid-sentence clipping on natural pauses.)
       await handle.start({
         silenceLevel: 0.075,
         silenceMs: 1_250,
         idleSilenceMs: 12_000,
         fastSilenceAfterMs: 1_200,
-        fastSilenceMs: 450,
+        fastSilenceMs: 600,
         onError: error => {
           notifyError(error, voiceCopy.microphoneFailed)
           pendingStartRef.current = false
           onFatalError?.()
         },
-        onSilence: () => void handleTurn()
+        onSilence: info => {
+          beginVoiceLatencyTurn(info.confirmMs)
+          void handleTurn()
+        }
       })
       setStatus('listening')
-      turnTimeoutRef.current = window.setTimeout(() => void handleTurn(), 60_000)
+      turnTimeoutRef.current = window.setTimeout(() => {
+        beginVoiceLatencyTurn(0)
+        void handleTurn()
+      }, 60_000)
     } catch (error) {
       notifyError(error, voiceCopy.couldNotStartSession)
       pendingStartRef.current = false
@@ -346,6 +383,11 @@ export function useVoiceConversation({
       return
     }
 
+    // Fire-and-forget: pre-load local STT/TTS models server-side so the
+    // session's first turn doesn't pay their cold model-load cost. Failures
+    // are harmless - the first transcribe/speak call loads them anyway.
+    warmupVoiceModels().catch(() => {})
+
     setMuted(false)
     silentTurnCountRef.current = 0
     submittedTurnCountRef.current = 0
@@ -364,6 +406,7 @@ export function useVoiceConversation({
   ])
 
   const end = useCallback(async () => {
+    cancelVoiceLatencyTurn()
     pendingStartRef.current = false
     clearTurnTimeout()
     stopVoicePlayback()
@@ -380,6 +423,9 @@ export function useVoiceConversation({
 
   const stopTurn = useCallback(() => {
     if (statusRef.current === 'listening') {
+      // Manual stop - the user chose this instant as end-of-turn, so no
+      // confirm-window backdating.
+      beginVoiceLatencyTurn(0)
       void handleTurn(true)
     }
   }, [handleTurn])
@@ -463,6 +509,10 @@ export function useVoiceConversation({
         }
 
         if (response.text.length > spokenSourceLengthRef.current) {
+          if (spokenSourceLengthRef.current === 0) {
+            markVoiceLatency('first-response-text', `${response.text.length} chars`)
+          }
+
           appendSpeechText(response.text.slice(spokenSourceLengthRef.current))
           spokenSourceLengthRef.current = response.text.length
         }
@@ -485,12 +535,16 @@ export function useVoiceConversation({
         const chunk = takeSpeechChunk(!response.pending && !busy)
 
         if (chunk) {
+          // Only logs for the first chunk of a turn - the latency turn is
+          // closed by voice-playback once that chunk starts playing.
+          markVoiceLatency('chunk-dispatched', `${chunk.length} chars`)
           void speak(chunk)
 
           return
         }
 
         if (!response.pending && !busy) {
+          cancelVoiceLatencyTurn()
           awaitingSpokenResponseRef.current = false
           consumePendingResponse()
           resetSpeechBuffer()
@@ -502,6 +556,7 @@ export function useVoiceConversation({
       }
 
       if (!busy && status === 'thinking') {
+        cancelVoiceLatencyTurn()
         awaitingSpokenResponseRef.current = false
         resetSpeechBuffer()
         pendingStartRef.current = true
@@ -518,7 +573,7 @@ export function useVoiceConversation({
     if (pendingStartRef.current) {
       void startListening()
     }
-  }, [busy, consumePendingResponse, enabled, muted, pendingResponse, speak, startListening, status])
+  }, [busy, consumePendingResponse, enabled, muted, pendingResponse, responseTick, speak, startListening, status])
 
   useEffect(() => {
     if (enabled && !wasEnabledRef.current) {

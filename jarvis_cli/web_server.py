@@ -2736,6 +2736,43 @@ async def get_elevenlabs_voices():
     return {"available": True, "voices": voices}
 
 
+# Serializes voice-model warm-ups: the desktop client fires /api/audio/warmup
+# every time a voice conversation starts, and concurrent cold loads of the
+# same model would waste memory and CPU for no benefit.
+_voice_warmup_lock = threading.Lock()
+
+
+@app.post("/api/audio/warmup")
+async def warmup_voice_models():
+    """Pre-load local STT/TTS models (faster-whisper, Kokoro) in the background.
+
+    Fired by the desktop client when a voice conversation starts, so the
+    session's first turn doesn't pay the cold model-load cost. Returns
+    immediately; the loads happen on an executor thread. No-op for API-backed
+    providers and when a warm-up is already running.
+    """
+
+    def _warm() -> None:
+        if not _voice_warmup_lock.acquire(blocking=False):
+            return
+        try:
+            from tools.transcription_tools import warm_up_stt
+            from tools.tts_tool import warm_up_tts
+
+            stt = warm_up_stt()
+            _log.info("Voice warm-up STT: %s", stt)
+            tts = warm_up_tts()
+            _log.info("Voice warm-up TTS: %s", tts)
+        except Exception:
+            _log.exception("Voice warm-up failed")
+        finally:
+            _voice_warmup_lock.release()
+
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(None, _warm)
+    return {"ok": True, "started": True}
+
+
 @app.post("/api/audio/speak")
 async def speak_text(payload: TTSSpeakRequest):
     """Synthesize speech and return audio as base64 data URL.

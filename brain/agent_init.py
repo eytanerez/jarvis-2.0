@@ -1247,6 +1247,12 @@ def init_agent(
     # single turn; the runtime already executes such batches concurrently.
     agent._parallel_tool_call_guidance = bool(_agent_section.get("parallel_tool_call_guidance", True))
 
+    # Persona persistence toggle (recency voice cue + tonal checkpoint —
+    # see brain/persona_cue.py).  Default True; interactive sessions only
+    # (dispatched work is excluded via skip_context_files / kanban markers
+    # regardless of this flag).
+    agent._persona_cue_enabled = bool(_agent_section.get("persona_cue", True))
+
     # Local Python toolchain probe toggle.  Default True.  When False,
     # the probe is skipped entirely (no subprocess calls, no system-prompt
     # line).  Useful for users on exotic setups where the probe heuristics

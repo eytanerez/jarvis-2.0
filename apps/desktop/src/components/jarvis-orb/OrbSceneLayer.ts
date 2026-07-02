@@ -290,6 +290,12 @@ export class OrbSceneLayer {
     const levelRate = levelTarget > this.level ? LEVEL_ATTACK_RATE : LEVEL_RELEASE_RATE
     this.level = damp(this.level, levelTarget, levelRate, input.dt)
 
+    // Live speech should visibly energize the orb's churn/spin/glow on top of
+    // its resting mood, not just its displacement - ties "how much it's
+    // moving" to "how loud the voice is right now" instead of a constant
+    // churn that runs at full tilt for the whole state regardless of sound.
+    const audioBoost = 1 + this.level * 0.7
+
     const targetAccent = this.resolveTargetColor(target.colorMode, input.colors, t)
     this.currentAccent = [
       damp(this.currentAccent[0], targetAccent[0], MOOD_EASE_RATE * 1.4, input.dt),
@@ -299,11 +305,14 @@ export class OrbSceneLayer {
     this.ringActivity = damp(this.ringActivity, target.ringsActive, MOOD_EASE_RATE * 0.8, input.dt)
 
     const spinMul = input.reducedMotion ? 0.3 : 1
-    this.spinAngle += this.mood.spinSpeed * 0.22 * spinMul * input.dt
+    this.spinAngle += this.mood.spinSpeed * (1 + this.level * 0.55) * 0.22 * spinMul * input.dt
 
     const breathe = 0.5 + 0.5 * Math.sin(t * 0.6)
-    const amp = this.mood.ampBase * (0.75 + 0.25 * breathe) + this.level * 0.9
-    const sizeScale = 1 + this.mood.sizePulse * this.level * 0.16 + this.mood.sizePulse * 0.02 * Math.sin(t * 3.0)
+    const amp = this.mood.ampBase * (0.75 + 0.25 * breathe) + this.level * 1.05
+    const sizeScale = 1 + this.mood.sizePulse * this.level * 0.22 + this.mood.sizePulse * 0.02 * Math.sin(t * 3.0)
+    // Glow/line intensity gets a modest live-level lift too - a loud moment
+    // should read as "brighter", not just "bigger and busier".
+    const brightness = this.mood.brightness * (1 + this.level * 0.12)
 
     // Camera pulled in from the original 8.5 so the orb (and its halo/rings/
     // constellation, which all key off this same projection) reads noticeably
@@ -325,7 +334,7 @@ export class OrbSceneLayer {
     const edgeScreen = projectToScreen(viewProj, [HALO_BASE_RADIUS * this.mood.haloScale, 0, 0], width, height, eye)
     const haloPx = Math.abs(edgeScreen.x - centerScreen.x) * 2.1
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
-    this.drawBillboard(this.glowDotTexture, [centerScreen.x, centerScreen.y], haloPx, this.currentAccent, 0.5 * this.mood.brightness)
+    this.drawBillboard(this.glowDotTexture, [centerScreen.x, centerScreen.y], haloPx, this.currentAccent, 0.5 * brightness)
 
     // --- wireframe orb ---
     gl.useProgram(this.wireframeProgram)
@@ -338,13 +347,13 @@ export class OrbSceneLayer {
     gl.uniformMatrix4fv(wU.u_viewProj, false, viewProj)
     gl.uniformMatrix4fv(wU.u_model, false, model)
     gl.uniform1f(wU.u_time, t)
-    gl.uniform1f(wU.u_churn, this.mood.churn)
+    gl.uniform1f(wU.u_churn, this.mood.churn * audioBoost)
     gl.uniform1f(wU.u_amp, amp)
     gl.uniform1f(wU.u_jagged, this.mood.jagged)
     gl.uniform3f(wU.u_cameraPos, eye[0], eye[1], eye[2])
     gl.uniform3f(wU.u_accent, this.currentAccent[0], this.currentAccent[1], this.currentAccent[2])
     gl.uniform3f(wU.u_core, input.colors.core[0], input.colors.core[1], input.colors.core[2])
-    gl.uniform1f(wU.u_brightness, this.mood.brightness)
+    gl.uniform1f(wU.u_brightness, brightness)
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.meshEdgeIndices)
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
     gl.drawElements(gl.LINES, this.edgeIndexCount, gl.UNSIGNED_SHORT, 0)
@@ -462,7 +471,7 @@ export class OrbSceneLayer {
 
     labels.sort((a, b) => a.depth - b.depth)
 
-    return { labels, orbBrightness: this.mood.brightness, orbColor: this.currentAccent }
+    return { labels, orbBrightness: brightness, orbColor: this.currentAccent }
   }
 
   private resolveTargetColor(mode: MoodTarget['colorMode'], colors: OrbColorPalette, t: number): RGB {

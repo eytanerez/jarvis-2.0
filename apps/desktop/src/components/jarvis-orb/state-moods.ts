@@ -64,29 +64,35 @@ export const MOOD_TARGETS: Record<OrbState, MoodTarget> = {
     sizePulse: 0,
     spinSpeed: 0.4
   },
+  // listening/speaking baselines are intentionally calmer than they used to
+  // be - churn/spin used to be constantly cranked whether or not there was
+  // any actual sound, which read as the orb "going crazy" the moment a voice
+  // turn started. The energy budget moved into the live level instead (see
+  // OrbSceneLayer's audioBoost), so these are the at-rest floor and the orb
+  // only gets churny/fast/big in sync with real mic/TTS loudness.
   listening: {
-    ampBase: 1.0,
+    ampBase: 0.9,
     approvalRing: 0,
     brightness: 1.25,
-    churn: 0.9,
+    churn: 0.6,
     colorMode: 'amber',
     haloScale: 1.45,
     jagged: 0,
     ringsActive: 0,
-    sizePulse: 0.15,
-    spinSpeed: 0.55
+    sizePulse: 0.3,
+    spinSpeed: 0.42
   },
   speaking: {
-    ampBase: 1.0,
+    ampBase: 0.85,
     approvalRing: 0,
     brightness: 1.3,
-    churn: 1.35,
+    churn: 0.75,
     colorMode: 'accent',
     haloScale: 1.5,
-    jagged: 0.1,
+    jagged: 0.08,
     ringsActive: 0,
-    sizePulse: 0.45,
-    spinSpeed: 1.15
+    sizePulse: 0.65,
+    spinSpeed: 0.55
   },
   thinking: {
     ampBase: 0.95,
@@ -119,6 +125,10 @@ export const MOOD_TARGETS: Record<OrbState, MoodTarget> = {
 export const MOOD_EASE_RATE = 1.1
 
 /** Audio level smoothing: fast attack, slow release, so a loud syllable snaps the
- * orb to life but it eases back down instead of twitching frame to frame. */
-export const LEVEL_ATTACK_RATE = 18
-export const LEVEL_RELEASE_RATE = 2.6
+ * orb to life but it eases back down instead of twitching frame to frame. Tuned
+ * down from 18 - at that rate the envelope tracked raw mic/analyser noise almost
+ * sample-for-sample instead of the speech envelope, which read as jitter. Pairs
+ * with the bigger analyser windows in voice-analyser.ts/use-mic-recorder.ts,
+ * which smooth the *source* signal so this stage isn't fighting single-frame noise. */
+export const LEVEL_ATTACK_RATE = 14
+export const LEVEL_RELEASE_RATE = 3

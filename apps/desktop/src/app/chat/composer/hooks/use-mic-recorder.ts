@@ -2,10 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 
 type BrowserAudioContext = typeof AudioContext
 
+export interface EndOfTurnInfo {
+  /** Trailing-silence window that elapsed before end-of-turn fired - lets the
+   * caller backdate "when the user actually stopped talking" (0 when the turn
+   * ended without any confirmed speech, e.g. the idle timeout). */
+  confirmMs: number
+  /** Cumulative speech heard this turn, in ms. */
+  speechMs: number
+}
+
 export interface MicRecorderOptions {
   onLevel?: (level: number) => void
   onError?: (error: Error) => void
-  onSilence?: () => void
+  onSilence?: (info: EndOfTurnInfo) => void
   silenceLevel?: number
   silenceMs?: number
   idleSilenceMs?: number
@@ -124,7 +133,12 @@ export function useMicRecorder(copy: MicRecorderErrorCopy): {
       const analyser = audioContext.createAnalyser()
       const source = audioContext.createMediaStreamSource(stream)
 
-      analyser.fftSize = 256
+      // 1024 (~21ms @48kHz), not the old 256 (~5.3ms) - a window shorter than
+      // a pitch period samples the raw waveform almost at random (peak vs.
+      // trough) rather than its amplitude envelope, so the level readout
+      // jittered frame to frame instead of tracking actual loudness. See the
+      // matching note in lib/voice-analyser.ts for the TTS-playback side.
+      analyser.fftSize = 1024
       const data = new Uint8Array(analyser.fftSize)
 
       source.connect(analyser)
@@ -169,6 +183,7 @@ export function useMicRecorder(copy: MicRecorderErrorCopy): {
             // to take the turn - otherwise fall back to the patient window.
             const useFastConfirm =
               fastSilenceMs > 0 && fastSilenceAfterMs > 0 && speechAccumulatedMsRef.current >= fastSilenceAfterMs
+
             const confirmMs = useFastConfirm ? Math.min(fastSilenceMs, silenceMs) : silenceMs
 
             if (now - silenceStartedAtRef.current >= confirmMs) {
@@ -180,13 +195,13 @@ export function useMicRecorder(copy: MicRecorderErrorCopy): {
                 )
               }
 
-              options.onSilence()
+              options.onSilence({ confirmMs, speechMs: speechAccumulatedMsRef.current })
 
               return
             }
           } else if (!heardSpeechRef.current && idleSilenceMs > 0 && now - startedAtRef.current >= idleSilenceMs) {
             silenceTriggeredRef.current = true
-            options.onSilence()
+            options.onSilence({ confirmMs: 0, speechMs: 0 })
 
             return
           }

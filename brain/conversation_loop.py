@@ -731,6 +731,19 @@ def run_conversation(
                     if isinstance(_base, str):
                         api_msg["content"] = _base + "\n\n" + "\n\n".join(_injections)
 
+                # Persona recency voice cue — appended LAST so it sits after
+                # every other injection, in the most recent position the
+                # model reads before generating. API-call-time only, same
+                # contract as the injections above: stored history never
+                # sees it, so it can't compound across the transcript.
+                # String content only — tool_result rounds carry block
+                # lists and are skipped by the isinstance guard.
+                from brain.persona_cue import append_voice_cue, should_apply_persona_cue
+                if should_apply_persona_cue(agent):
+                    _cue_base = api_msg.get("content", "")
+                    if isinstance(_cue_base, str) and _cue_base.strip():
+                        api_msg["content"] = append_voice_cue(_cue_base)
+
             # For ALL assistant messages, pass reasoning back to the API
             # This ensures multi-turn reasoning context is preserved
             agent._copy_reasoning_content_for_api(msg, api_msg)

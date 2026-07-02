@@ -1,11 +1,12 @@
 import { speakText } from '@/jarvis'
-import type { AudioSpeakResponse } from '@/types/jarvis'
+import { endVoiceLatencyTurn, markVoiceLatency } from '@/lib/voice-latency'
 import {
   $voicePlayback,
   setVoicePlaybackState,
   type VoicePlaybackSource,
   type VoicePlaybackState
 } from '@/store/voice-playback'
+import type { AudioSpeakResponse } from '@/types/jarvis'
 
 import { sanitizeTextForSpeech } from './speech-text'
 
@@ -96,6 +97,7 @@ export async function playSpeechText(text: string, options: VoicePlaybackOptions
 
   const ownSequence = sequence
   const isCurrent = () => ownSequence === sequence
+  const preparedAt = performance.now()
 
   setVoicePlaybackState(currentState('preparing', options))
 
@@ -106,10 +108,30 @@ export async function playSpeechText(text: string, options: VoicePlaybackOptions
       return false
     }
 
+    markVoiceLatency('tts-audio-received', claimedPrefetch ? 'prefetch hit' : 'prefetch miss')
+
     const audio = new Audio(response.data_url)
     audio.preload = 'auto'
     currentAudio = audio
     setVoicePlaybackState(currentState('speaking', options, audio))
+
+    // Per-chunk synth-gap diagnostics for the voice loop: how long this
+    // chunk waited on TTS before sound started, and whether the "hold one
+    // ahead" prefetch actually absorbed that wait. Closes the latency turn
+    // on the first audible chunk (no-op for the rest of the reply).
+    if (import.meta.env.DEV && options.source === 'voice-conversation') {
+      audio.addEventListener(
+        'playing',
+        () => {
+          const waitedMs = Math.round(performance.now() - preparedAt)
+          endVoiceLatencyTurn('first-audio', `${waitedMs}ms from dispatch to sound`)
+          console.debug(
+            `[voice] chunk audible after ${waitedMs}ms (${claimedPrefetch ? 'prefetch hit' : 'prefetch miss'}, ${speakableText.length} chars)`
+          )
+        },
+        { once: true }
+      )
+    }
 
     await new Promise<void>((resolve, reject) => {
       let settled = false

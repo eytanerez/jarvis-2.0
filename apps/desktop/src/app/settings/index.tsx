@@ -2,8 +2,8 @@ import { IconDownload, IconRefresh, IconUpload } from '@tabler/icons-react'
 import { useRef } from 'react'
 
 import { Tip } from '@/components/ui/tooltip'
-import { getJarvisConfigDefaults, getJarvisConfigRecord, saveJarvisConfig } from '@/jarvis'
 import { useI18n } from '@/i18n'
+import { getJarvisConfigDefaults, getJarvisConfigRecord, saveJarvisConfig } from '@/jarvis'
 import { triggerHaptic } from '@/lib/haptics'
 import { Archive, Bell, Globe, Info, KeyRound, Settings2, Sparkles, Wrench, Zap } from '@/lib/icons'
 import { notifyError } from '@/store/notifications'
@@ -217,7 +217,7 @@ export function SettingsView({ gateway, onClose, onConfigSaved, onMainModelChang
           {activeView === 'config:appearance' ? (
             <AppearanceSettings />
           ) : activeView === 'about' ? (
-            <AboutSettings />
+            <AboutSettings onClose={onClose} />
           ) : activeView === 'gateway' ? (
             <GatewaySettings />
           ) : activeView.startsWith('config:') ? (

@@ -764,6 +764,18 @@ export function speakText(text: string): Promise<AudioSpeakResponse> {
   })
 }
 
+/** Kick off a background pre-load of the local STT/TTS models (Whisper,
+ * Kokoro) so a voice conversation's first turn doesn't pay their cold
+ * model-load cost. The server returns immediately; loading continues on its
+ * own thread. */
+export function warmupVoiceModels(): Promise<{ ok: boolean; started: boolean }> {
+  return window.jarvisDesktop.api<{ ok: boolean; started: boolean }>({
+    path: '/api/audio/warmup',
+    method: 'POST',
+    body: {}
+  })
+}
+
 export function getElevenLabsVoices(): Promise<ElevenLabsVoicesResponse> {
   return window.jarvisDesktop.api<ElevenLabsVoicesResponse>({
     path: '/api/audio/elevenlabs/voices'

@@ -34,8 +34,14 @@ function getPlaybackAudioContext(): AudioContext | null {
 
 /**
  * Get (creating once) the shared AnalyserNode for a playback audio element.
- * fftSize 512 / smoothing 0.65 suits both the frequency-bar waveform and a
- * time-domain RMS read.
+ * fftSize 1024 / smoothing 0.65 suits both the frequency-bar waveform and a
+ * time-domain RMS read. The bigger-than-you'd-guess fftSize matters for the
+ * latter: `smoothingTimeConstant` only smooths frequency-domain reads, so the
+ * time-domain RMS in `sampleSpeakingLevel` is only as stable as the raw window
+ * - at 512 (~10.6ms @48kHz) it's shorter than a full pitch period for a lot of
+ * voices, so the RMS could land on a waveform peak or trough almost at random
+ * frame to frame, which read as the orb "jittering". 1024 (~21ms) spans
+ * several pitch periods and settles into a real amplitude envelope.
  */
 export function getVoiceAnalyser(audioElement: HTMLAudioElement): AnalyserNode | null {
   let entry = elementAnalysers.get(audioElement)
@@ -50,7 +56,7 @@ export function getVoiceAnalyser(audioElement: HTMLAudioElement): AnalyserNode |
     const source = context.createMediaElementSource(audioElement)
     const analyser = context.createAnalyser()
 
-    analyser.fftSize = 512
+    analyser.fftSize = 1024
     analyser.smoothingTimeConstant = 0.65
     source.connect(analyser)
     analyser.connect(context.destination)

@@ -441,6 +441,11 @@ export const en: Translations = {
       automaticUpdatesDesc:
         'Jarvis checks for updates automatically in the background and lets you know when one is ready.',
       branchCommit: (branch, commit) => `Branch ${branch} · Commit ${commit}`,
+      terminalUpdate: 'Terminal command',
+      terminalUpdateDesc: 'Open the desktop terminal and run the CLI updater from this checkout.',
+      runJarvisUpdate: 'Run jarvis update',
+      runJarvisUpdateToast: 'Running jarvis update in the terminal...',
+      terminalUnavailable: 'Terminal unavailable',
       never: 'never',
       justNow: 'just now',
       minAgo: count => `${count} min ago`,

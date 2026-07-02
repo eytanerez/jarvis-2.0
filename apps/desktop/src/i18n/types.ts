@@ -338,6 +338,11 @@ export interface Translations {
       automaticUpdates: string
       automaticUpdatesDesc: string
       branchCommit: (branch: string, commit: string) => string
+      terminalUpdate: string
+      terminalUpdateDesc: string
+      runJarvisUpdate: string
+      runJarvisUpdateToast: string
+      terminalUnavailable: string
       never: string
       justNow: string
       minAgo: (count: number) => string

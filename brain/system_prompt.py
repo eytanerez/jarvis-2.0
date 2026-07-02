@@ -458,6 +458,15 @@ def build_system_prompt_parts(agent: Any, system_message: Optional[str] = None) 
         timestamp_line += f"\nProvider: {agent.provider}"
     volatile_parts.append(timestamp_line)
 
+    # Persona tonal checkpoint — deliberately the LAST block of the prompt
+    # so the voice rules are the final system-role tokens the model reads
+    # (the matching recency cue rides on the user message; see
+    # brain/persona_cue.py). Static text, so the byte-stable-per-session
+    # cache contract documented on build_system_prompt still holds.
+    from brain.persona_cue import TONAL_CHECKPOINT, should_apply_persona_cue
+    if should_apply_persona_cue(agent):
+        volatile_parts.append(TONAL_CHECKPOINT)
+
     return {
         "stable":   "\n\n".join(p.strip() for p in stable_parts   if p and p.strip()),
         "context":  "\n\n".join(p.strip() for p in context_parts  if p and p.strip()),

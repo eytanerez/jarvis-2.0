@@ -1694,6 +1694,14 @@ export function ChatBar({
     await onSubmit(text, { fromVoice: true })
   }
 
+  // The composer deliberately doesn't subscribe to $messages (re-rendering
+  // this whole component per stream delta is wasteful), so the voice loop
+  // gets its own narrow subscription: while a conversation is active, each
+  // store change re-runs the speak/prefetch pump so newly streamed sentences
+  // are picked up the moment they arrive instead of on the next unrelated
+  // re-render.
+  const subscribeToResponse = useCallback((onChange: () => void) => $messages.listen(onChange), [])
+
   const conversation = useVoiceConversation({
     // The reply is "in flight" from the moment the prompt is accepted
     // ($awaitingResponse) until the stream finishes ($busy). Plain `busy` has a
@@ -1709,7 +1717,8 @@ export function ChatBar({
     onSignoff: () => setVoiceConversationActive(false),
     onSubmit: submitVoiceTurn,
     onTranscribeAudio,
-    pendingResponse
+    pendingResponse,
+    subscribeToResponse
   })
 
   const contextMenu = (

@@ -704,6 +704,16 @@
   outline-offset: 0.125rem;
 }
 
+/* The composer's rich-text box already shows focus via the surface's
+   border-color shift (`focus-within:border-...` on [data-slot="composer-surface"]);
+   browsers also treat text fields as keyboard-focus-visible even on a plain
+   mouse click, so without this the generic rail above stamped a mismatched
+   inner rectangle on every click, not just Tab navigation. */
+[data-slot='composer-rich-input']:focus,
+[data-slot='composer-rich-input']:focus-visible {
+  outline: none;
+}
+
 button {
   -webkit-app-region: no-drag;
 }

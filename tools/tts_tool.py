@@ -2292,6 +2292,49 @@ def _generate_kokoro_tts(text: str, output_path: str, tts_config: Dict[str, Any]
     return output_path
 
 
+def warm_up_tts() -> Dict[str, Any]:
+    """Pre-load the configured local TTS engine so the first real synthesis
+    doesn't pay the cold model-load cost.
+
+    Currently warms Kokoro (the only local engine whose load is slow enough
+    to matter for the voice loop: ONNX session creation plus a first-run
+    graph warm-up). API-backed and other providers return ``warmed: False``
+    with a reason - callers treat that as a harmless no-op.
+    """
+    tts_config = _load_tts_config()
+    provider = _get_provider(tts_config)
+
+    if provider != "kokoro":
+        return {"warmed": False, "provider": provider, "reason": "no local model to warm"}
+
+    if not _check_kokoro_available():
+        return {"warmed": False, "provider": provider, "reason": "kokoro-onnx not installed"}
+
+    Kokoro = _import_kokoro()
+    kokoro_config = tts_config.get("kokoro", {}) if isinstance(tts_config, dict) else {}
+    model_path, voices_path = _resolve_kokoro_assets(kokoro_config)
+    cache_key = f"{model_path}::{voices_path}"
+
+    if cache_key in _kokoro_model_cache:
+        return {"warmed": True, "provider": provider, "reason": "already loaded"}
+
+    logger.info("[Kokoro] Warming up model: %s", model_path)
+    kokoro = Kokoro(model_path, voices_path)
+    # A tiny throwaway synthesis: ONNX Runtime does its allocations and graph
+    # optimization on the first run, so without this the first *real* sentence
+    # still pays a noticeable one-time cost.
+    kokoro.create(
+        "Hi.",
+        voice=kokoro_config.get("voice", DEFAULT_KOKORO_VOICE),
+        speed=1.0,
+        lang=kokoro_config.get("lang", DEFAULT_KOKORO_LANG),
+    )
+    _kokoro_model_cache[cache_key] = kokoro
+    logger.info("[Kokoro] Warm-up complete")
+
+    return {"warmed": True, "provider": provider, "reason": "loaded"}
+
+
 # ===========================================================================
 # Main tool function
 # ===========================================================================

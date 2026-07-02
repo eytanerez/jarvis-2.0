@@ -1173,6 +1173,42 @@ def _transcribe_local(file_path: str, model_name: str) -> Dict[str, Any]:
         return {"success": False, "transcript": "", "error": f"Local transcription failed: {e}"}
 
 
+def warm_up_stt() -> Dict[str, Any]:
+    """Pre-load the local faster-whisper model so the first real transcription
+    doesn't pay the cold model-load cost (which can run to seconds, and on the
+    very first use includes the model download).
+
+    Only the ``local`` provider has an in-process model; every other provider
+    returns ``warmed: False`` with a reason - callers treat that as a
+    harmless no-op.
+    """
+    global _local_model, _local_model_name
+
+    stt_config = _load_stt_config()
+    if not is_stt_enabled(stt_config):
+        return {"warmed": False, "provider": None, "reason": "stt disabled"}
+
+    provider = _get_provider(stt_config)
+    if provider != "local":
+        return {"warmed": False, "provider": provider, "reason": "no local model to warm"}
+
+    if not _HAS_FASTER_WHISPER and not _try_lazy_install_stt():
+        return {"warmed": False, "provider": provider, "reason": "faster-whisper not installed"}
+
+    model_name = _normalize_local_model(
+        stt_config.get("local", {}).get("model", DEFAULT_LOCAL_MODEL)
+    )
+    if _local_model is not None and _local_model_name == model_name:
+        return {"warmed": True, "provider": provider, "reason": "already loaded"}
+
+    logger.info("Warming up faster-whisper model '%s'...", model_name)
+    _local_model = _load_local_whisper_model(model_name)
+    _local_model_name = model_name
+    logger.info("faster-whisper warm-up complete")
+
+    return {"warmed": True, "provider": provider, "reason": "loaded"}
+
+
 def _prepare_local_audio(file_path: str, work_dir: str) -> tuple[Optional[str], Optional[str]]:
     """Normalize audio for local CLI STT when needed."""
     audio_path = Path(file_path)

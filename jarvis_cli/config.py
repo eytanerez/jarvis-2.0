@@ -937,6 +937,14 @@ DEFAULT_CONFIG = {
         # compounds over a long conversation.  Costs ~70 tokens in the cached
         # system prompt.  Set False to disable globally.
         "parallel_tool_call_guidance": True,
+        # Persona persistence — keeps the SOUL.md voice from drifting toward
+        # generic-assistant mode in long conversations by adding a short
+        # voice cue to the API-bound copy of each turn's user message plus a
+        # tonal checkpoint at the end of the system prompt (see
+        # brain/persona_cue.py).  Interactive chat/voice sessions only —
+        # dispatched work (cron, batch, delegate, kanban) stays neutral.
+        # Set False to disable globally.
+        "persona_cue": True,
         # Local-environment toolchain probe — surfaces Python/pip/uv/PEP-668
         # state in the system prompt when something non-default is detected
         # (e.g. python3 has no pip module, pip→python version mismatch, PEP
