@@ -31,6 +31,7 @@ export function toggleCockpitMode(): void {
 
 export const $micLevel = atom(0)
 export const $micActive = atom(false)
+export const $liveVoiceTranscript = atom('')
 
 export function setMicSignal(active: boolean, level: number): void {
   if ($micActive.get() !== active) {
@@ -38,6 +39,12 @@ export function setMicSignal(active: boolean, level: number): void {
   }
 
   $micLevel.set(active ? level : 0)
+}
+
+export function setLiveVoiceTranscript(text: string): void {
+  if ($liveVoiceTranscript.get() !== text) {
+    $liveVoiceTranscript.set(text)
+  }
 }
 
 // Orb-state signals derived from existing gateway/session stores.

@@ -22,6 +22,7 @@ const {
   OFFICIAL_REPO_HTTPS_URL,
   OFFICIAL_REPO_CANONICAL,
   canonicalGitHubRemote,
+  isOfficialRemote,
   isSshRemote,
   isOfficialSshRemote
 } = require('./update-remote.cjs')
@@ -65,11 +66,19 @@ test('isOfficialSshRemote does NOT match forks, other hosts, or HTTPS', () => {
   assert.equal(isOfficialSshRemote('git@github.com:someuser/jarvis-2.0.git'), false)
   // Same repo name on a different host is not the official repo.
   assert.equal(isOfficialSshRemote('git@gitlab.com:eytanerez/jarvis-2.0.git'), false)
-  // HTTPS to the official repo never prompts for SSH/FIDO2, so it keeps the
-  // normal fetch path — must not be flagged as an official SSH remote.
+  // HTTPS to the official repo is official, but it must not be flagged as SSH.
   assert.equal(isOfficialSshRemote('https://github.com/eytanerez/jarvis-2.0.git'), false)
   assert.equal(isOfficialSshRemote(''), false)
   assert.equal(isOfficialSshRemote(null), false)
+})
+
+test('isOfficialRemote matches the official repo over SSH and HTTPS', () => {
+  assert.equal(isOfficialRemote('git@github.com:eytanerez/jarvis-2.0.git'), true)
+  assert.equal(isOfficialRemote('https://github.com/eytanerez/jarvis-2.0.git'), true)
+  assert.equal(isOfficialRemote('https://github.com/eytanerez/jarvis-2.0/'), true)
+  assert.equal(isOfficialRemote('git@github.com:someuser/jarvis-2.0.git'), false)
+  assert.equal(isOfficialRemote('https://gitlab.com/eytanerez/jarvis-2.0.git'), false)
+  assert.equal(isOfficialRemote(''), false)
 })
 
 test('OFFICIAL_REPO_HTTPS_URL canonicalizes to OFFICIAL_REPO_CANONICAL', () => {

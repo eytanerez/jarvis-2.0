@@ -49,10 +49,15 @@ function isOfficialSshRemote(url) {
   return isSshRemote(url) && canonicalGitHubRemote(url) === OFFICIAL_REPO_CANONICAL
 }
 
+function isOfficialRemote(url) {
+  return canonicalGitHubRemote(url) === OFFICIAL_REPO_CANONICAL
+}
+
 module.exports = {
   OFFICIAL_REPO_HTTPS_URL,
   OFFICIAL_REPO_CANONICAL,
   canonicalGitHubRemote,
+  isOfficialRemote,
   isSshRemote,
   isOfficialSshRemote
 }

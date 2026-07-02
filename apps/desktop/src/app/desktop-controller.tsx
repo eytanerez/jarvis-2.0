@@ -335,6 +335,7 @@ export function DesktopController() {
       // jarvis://notch/talk -> starts a voice conversation, same as clicking
       // the orb in the notch itself.
       if (payload.kind === 'notch') {
+        void window.jarvisDesktop?.notch?.focusMain?.()
         if (payload.name === 'settings') {
           navigate(`${SETTINGS_ROUTE}?tab=notch`)
         } else if (payload.name === 'talk') {

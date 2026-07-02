@@ -2,13 +2,14 @@ import type { MutableRefObject } from 'react'
 import { useCallback, useRef } from 'react'
 import type { NavigateFunction } from 'react-router-dom'
 
-import { deleteSession, getSession, getSessionMessages, setSessionArchived } from '@/jarvis'
 import { useI18n } from '@/i18n'
+import { deleteSession, getSession, getSessionMessages, setSessionArchived } from '@/jarvis'
 import { type ChatMessage, chatMessageText, preserveLocalAssistantErrors, toChatMessages } from '@/lib/chat-messages'
 import { normalizePersonalityValue } from '@/lib/chat-runtime'
 import { embeddedImageUrls, textWithoutEmbeddedImages } from '@/lib/embedded-images'
 import { setSessionYolo } from '@/lib/yolo-session'
 import { clearQueuedPrompts } from '@/store/composer-queue'
+import { setCockpitMode } from '@/store/jarvis-cockpit'
 import { $pinnedSessionIds } from '@/store/layout'
 import { clearNotifications, notify, notifyError } from '@/store/notifications'
 import { requestDesktopOnboarding } from '@/store/onboarding'
@@ -427,6 +428,7 @@ export function useSessionActions({
       setYoloActive(false)
       setCurrentCwd(workspaceCwdForNewSession())
       setCurrentBranch('')
+      setCockpitMode('orb')
       // Never clear the composer here — ChatBar's per-thread draft swap owns it.
       setFreshDraftReady(true)
     },

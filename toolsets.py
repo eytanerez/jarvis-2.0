@@ -49,6 +49,8 @@ _JARVIS_CORE_TOOLS = [
     "browser_vision", "browser_console", "browser_cdp", "browser_dialog",
     # Text-to-speech
     "text_to_speech",
+    # Native desktop/notch timer intent
+    "set_timer",
     # Planning & memory
     "todo", "memory",
     # Session history search
@@ -196,6 +198,12 @@ TOOLSETS = {
     "tts": {
         "description": "Text-to-speech: convert text to audio with Edge TTS (free), ElevenLabs, OpenAI, or xAI",
         "tools": ["text_to_speech"],
+        "includes": []
+    },
+
+    "timer": {
+        "description": "Timer intent tool for starting countdown timers in desktop/notch clients",
+        "tools": ["set_timer"],
         "includes": []
     },
     

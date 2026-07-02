@@ -125,6 +125,7 @@ class TimerManager: ObservableObject {
     private var timerInstance: Timer?
     private var cancellables = Set<AnyCancellable>()
     private var soundPlayer: AVAudioPlayer?
+    private var externalTimerPlaysSound = false
     // MARK: - Initialization
     private init() {
         // Simple initialization
@@ -161,32 +162,7 @@ class TimerManager: ObservableObject {
 
         activePresetId = preset?.id
         
-        // Start countdown timer
-        timerInstance = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            
-            Task { @MainActor in
-                if !self.isPaused {
-                    if self.remainingTime > 0 {
-                        // Normal countdown
-                        self.remainingTime -= 1
-                        self.elapsedTime = self.totalDuration - self.remainingTime
-                        self.lastUpdated = Date()
-                    } else if self.remainingTime == 0 {
-                        // Timer just finished - play sound and start overtime
-                        self.isFinished = true
-                        self.isOvertime = true
-                        self.playTimerSound()
-                        self.remainingTime = -1
-                        self.lastUpdated = Date()
-                    } else {
-                        // Overtime - count negative
-                        self.remainingTime -= 1
-                        self.lastUpdated = Date()
-                    }
-                }
-            }
-        }
+        startCountdownTimer()
     }
     
     func startDemoTimer(duration: TimeInterval) {
@@ -199,8 +175,7 @@ class TimerManager: ObservableObject {
             return
         }
 
-        timerInstance?.invalidate()
-        timerInstance = nil
+        stopCountdownTimer()
         soundPlayer?.stop()
         
         // Smooth close animation for live activity
@@ -218,8 +193,7 @@ class TimerManager: ObservableObject {
         }
 
         // Immediate stop for user action (stop button)
-        timerInstance?.invalidate()
-        timerInstance = nil
+        stopCountdownTimer()
         soundPlayer?.stop()
         withAnimation(.smooth) {
             isTimerActive = false
@@ -231,8 +205,7 @@ class TimerManager: ObservableObject {
         guard activeSource == .manual else { return }
         guard isTimerActive && !isPaused else { return }
         isPaused = true
-        timerInstance?.invalidate()
-        timerInstance = nil
+        stopCountdownTimer()
     }
     
     func resumeTimer() {
@@ -240,43 +213,23 @@ class TimerManager: ObservableObject {
         guard isTimerActive && isPaused else { return }
         isPaused = false
         lastUpdated = Date()
-        
-        // Resume countdown timer with same logic as start timer
-        timerInstance = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            
-            Task { @MainActor in
-                if !self.isPaused {
-                    if self.remainingTime > 0 {
-                        // Normal countdown
-                        self.remainingTime -= 1
-                        self.elapsedTime = self.totalDuration - self.remainingTime
-                        self.lastUpdated = Date()
-                    } else if self.remainingTime == 0 {
-                        // Timer just finished - play sound and start overtime
-                        self.isFinished = true
-                        self.isOvertime = true
-                        self.playTimerSound()
-                        self.remainingTime = -1
-                        self.lastUpdated = Date()
-                    } else {
-                        // Overtime - count negative
-                        self.remainingTime -= 1
-                        self.lastUpdated = Date()
-                    }
-                }
-            }
-        }
+        startCountdownTimer()
     }
 
-    func adoptExternalTimer(name: String, totalDuration: TimeInterval, remaining: TimeInterval, isPaused: Bool) {
+    func adoptExternalTimer(
+        name: String,
+        totalDuration: TimeInterval,
+        remaining: TimeInterval,
+        isPaused: Bool,
+        playsLocalSound: Bool = false
+    ) {
         guard activeSource != .manual else { return }
 
-        timerInstance?.invalidate()
-        timerInstance = nil
+        stopCountdownTimer()
         soundPlayer?.stop()
 
         activeSource = .external
+        externalTimerPlaysSound = playsLocalSound
 
         let clampedTotal = totalDuration > 0 ? totalDuration : max(totalDuration, remaining)
 
@@ -293,6 +246,12 @@ class TimerManager: ObservableObject {
         isOvertime = remaining < 0
         activePresetId = nil
         lastUpdated = Date()
+
+        if isPaused {
+            stopCountdownTimer()
+        } else {
+            startCountdownTimer()
+        }
     }
 
     func updateExternalTimer(remaining: TimeInterval, totalDuration: TimeInterval?, isPaused paused: Bool, name: String? = nil) {
@@ -314,11 +273,19 @@ class TimerManager: ObservableObject {
         isPaused = paused
         isFinished = remaining <= 0 && !isOvertime
         lastUpdated = Date()
+
+        if paused || remaining <= 0 {
+            stopCountdownTimer()
+        } else {
+            startCountdownTimer()
+        }
     }
 
     func completeExternalTimer() {
         guard activeSource == .external else { return }
 
+        stopCountdownTimer()
+        externalTimerPlaysSound = false
         remainingTime = 0
         elapsedTime = totalDuration
         isOvertime = false
@@ -329,6 +296,9 @@ class TimerManager: ObservableObject {
 
     func endExternalTimer(triggerSmoothClose: Bool) {
         guard activeSource == .external else { return }
+
+        stopCountdownTimer()
+        soundPlayer?.stop()
 
         if triggerSmoothClose && isTimerActive {
             scheduleSmoothClose()
@@ -354,6 +324,7 @@ class TimerManager: ObservableObject {
         isOvertime = false
         activePresetId = nil
         activeSource = .none
+        externalTimerPlaysSound = false
     }
 
     // MARK: - Derived State
@@ -378,6 +349,63 @@ class TimerManager: ObservableObject {
         case none
         case manual
         case external
+    }
+
+    private func startCountdownTimer() {
+        stopCountdownTimer()
+
+        timerInstance = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+
+            Task { @MainActor in
+                self.tickTimer()
+            }
+        }
+    }
+
+    private func stopCountdownTimer() {
+        timerInstance?.invalidate()
+        timerInstance = nil
+    }
+
+    private func tickTimer() {
+        guard isTimerActive && !isPaused else { return }
+
+        if remainingTime > 1 {
+            remainingTime -= 1
+            elapsedTime = max(0, totalDuration - remainingTime)
+            lastUpdated = Date()
+            return
+        }
+
+        if remainingTime > 0 {
+            remainingTime = 0
+            elapsedTime = totalDuration
+            lastUpdated = Date()
+            finishCountdown()
+            return
+        }
+
+        if remainingTime == 0 {
+            finishCountdown()
+            return
+        }
+
+        remainingTime -= 1
+        lastUpdated = Date()
+    }
+
+    private func finishCountdown() {
+        if activeSource == .external && !externalTimerPlaysSound {
+            completeExternalTimer()
+            return
+        }
+
+        isFinished = true
+        isOvertime = true
+        playTimerSound()
+        remainingTime = -1
+        lastUpdated = Date()
     }
 
     private func scheduleSmoothClose() {

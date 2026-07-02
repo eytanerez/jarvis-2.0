@@ -124,6 +124,7 @@ declare global {
       // Bridge to the native notch companion app (macOS only; absent on other
       // platforms / older preloads). See electron/notch.cjs for the protocol.
       notch?: {
+        focusMain: () => Promise<{ ok: boolean }>
         getSettings: () => Promise<DesktopNotchSettingsSnapshot>
         requestPermission: (id: string) => Promise<{ ok: boolean; error?: string | null }>
         publish: (payload: { type: string; [key: string]: unknown }) => void

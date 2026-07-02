@@ -59,6 +59,19 @@ struct JarvisTranscriptTurn: Identifiable, Equatable {
     var isFinal: Bool
 }
 
+struct JarvisToolActivity: Equatable {
+    enum Status: String {
+        case error
+        case running
+        case success
+        case warning
+    }
+
+    var title: String
+    var subtitle: String
+    var status: Status
+}
+
 private let jarvisEditableNotchSettingDefaults: [String: Any] = [
     "autoHideInactiveNotchMediaPlayer": false,
     "autoRemoveShelfItems": false,
@@ -89,7 +102,6 @@ private let jarvisEditableNotchSettingDefaults: [String: Any] = [
     "enableDownloadListener": true,
     "enableExtensionFileSharing": true,
     "enableExtensionLiveActivities": true,
-    "enableExtensionLockScreenWidgets": true,
     "enableExtensionNotchExperiences": true,
     "enableExtensionNotchInteractiveWebViews": true,
     "enableExtensionNotchMinimalisticOverrides": true,
@@ -100,12 +112,6 @@ private let jarvisEditableNotchSettingDefaults: [String: Any] = [
     "enableHorizontalMusicGestures": true,
     "enableKeyboardBacklightHUD": true,
     "enableLyrics": false,
-    "enableLockScreenFocusWidget": true,
-    "enableLockScreenLiveActivity": true,
-    "enableLockScreenReminderWidget": true,
-    "enableLockScreenTimerWidget": true,
-    "enableLockScreenWeatherWidget": true,
-    "enableLockSounds": true,
     "enableMicrophoneDetection": true,
     "enableMinimalisticUI": false,
     "enableNoteCharCount": true,
@@ -133,7 +139,6 @@ private let jarvisEditableNotchSettingDefaults: [String: Any] = [
     "extendHoverArea": false,
     "extensionDiagnosticsLoggingEnabled": true,
     "extensionLiveActivityCapacity": 4,
-    "extensionLockScreenWidgetCapacity": 4,
     "extensionNotchExperienceCapacity": 2,
     "externalDisplayStyle": "Standard Notch",
     "fantasticalDefaultView": "mini",
@@ -148,33 +153,6 @@ private let jarvisEditableNotchSettingDefaults: [String: Any] = [
     "inlineHUD": true,
     "lightingEffect": true,
     "localSendSelectedDeviceID": "",
-    "lockScreenCalendarEventLookaheadWindow": "3h",
-    "lockScreenKeepAlbumArtVisibleDuringFullscreenArtwork": false,
-    "lockScreenMusicFullscreenArtworkEnabled": true,
-    "lockScreenMusicFullscreenVideoArtwork": true,
-    "lockScreenMusicMergedAirPlayOutput": true,
-    "lockScreenPanelShowsBorder": false,
-    "lockScreenPanelUsesBlur": true,
-    "lockScreenShowAppIcon": false,
-    "lockScreenShowCalendarCountdown": true,
-    "lockScreenShowCalendarEvent": true,
-    "lockScreenShowCalendarEventAfterStartEnabled": false,
-    "lockScreenShowCalendarStartTimeAfterBegins": true,
-    "lockScreenShowCalendarTimeRemaining": true,
-    "lockScreenTimerVerticalOffset": 0.0,
-    "lockScreenTimerWidgetUsesBlur": false,
-    "lockScreenTimerWidgetWidth": 350.0,
-    "lockScreenUseArtworkLayoutOverFullscreenCanvas": true,
-    "lockScreenWeatherShowsAQI": true,
-    "lockScreenWeatherShowsLocation": true,
-    "lockScreenWeatherShowsSunrise": true,
-    "lockScreenWeatherUsesGaugeTint": false,
-    "lockScreenWeatherVerticalOffset": 0.0,
-    "lockScreenBatteryShowsBatteryGauge": true,
-    "lockScreenBatteryShowsBluetooth": true,
-    "lockScreenBatteryShowsCharging": true,
-    "lockScreenBatteryShowsChargingPercentage": true,
-    "lockScreenBatteryUsesLaptopSymbol": true,
     "lowBatteryHUDDuration": 3,
     "lowBatteryHUDStyle": "standard",
     "lowBatteryHUDThreshold": 20,
@@ -279,6 +257,7 @@ private let jarvisEditableNotchSettingDefaults: [String: Any] = [
 final class JarvisAssistantModel: ObservableObject {
     @Published var phase: JarvisPhase = .disconnected
     @Published var transcript: [JarvisTranscriptTurn] = []
+    @Published var toolActivity: JarvisToolActivity?
     /// Live mic/TTS level in 0...1, streamed from the desktop app while a
     /// conversation is active. Drives orb/visualizer reactivity.
     @Published var audioLevel: Double = 0
@@ -425,7 +404,10 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
     // MARK: - Connection
 
     private func connect() {
-        guard started, let endpoint else { return }
+        guard started, let endpoint else {
+            Logger.log("Jarvis bridge connect skipped: started=\(started), endpointPresent=\(endpoint != nil)", category: .network)
+            return
+        }
         var request = URLRequest(url: URL(string: "ws://127.0.0.1:\(endpoint.port)/notch")!)
         request.setValue("Bearer \(endpoint.token)", forHTTPHeaderField: "Authorization")
         let session = URLSession(configuration: .ephemeral)
@@ -443,6 +425,7 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
         if model.phase == .disconnected {
             model.phase = .idle
         }
+        Logger.log("Jarvis bridge connecting to 127.0.0.1:\(endpoint.port) tokenPresent=\(!endpoint.token.isEmpty)", category: .network)
         send(["type": "hello", "version": 1])
         sendSettingsSnapshot()
         receiveLoop(on: socket)
@@ -458,7 +441,8 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
                     self.reconnectAttempt = 0
                     self.handle(message)
                     self.receiveLoop(on: socket)
-                case .failure:
+                case .failure(let error):
+                    Logger.log("Jarvis bridge receive failed: \(error.localizedDescription)", category: .error)
                     self.handleDisconnect()
                 }
             }
@@ -494,10 +478,18 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
     }
 
     private func send(_ payload: [String: Any]) {
-        guard let socket,
-              let data = try? JSONSerialization.data(withJSONObject: payload),
+        guard let socket else {
+            let type = payload["type"] as? String ?? "unknown"
+            Logger.log("Jarvis bridge dropped outbound \(type): socket is nil", category: .warning)
+            return
+        }
+        guard let data = try? JSONSerialization.data(withJSONObject: payload),
               let text = String(data: data, encoding: .utf8)
-        else { return }
+        else {
+            let type = payload["type"] as? String ?? "unknown"
+            Logger.log("Jarvis bridge dropped outbound \(type): JSON encoding failed", category: .error)
+            return
+        }
         socket.send(.string(text)) { _ in }
     }
 
@@ -535,9 +527,39 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
                     )
                 }
             }
+        case "toolActivity":
+            if let activity = payload["activity"] as? [String: Any],
+               let title = activity["title"] as? String,
+               let statusRaw = activity["status"] as? String,
+               let status = JarvisToolActivity.Status(rawValue: statusRaw)
+            {
+                model.toolActivity = JarvisToolActivity(
+                    title: title,
+                    subtitle: activity["subtitle"] as? String ?? "",
+                    status: status
+                )
+            } else {
+                model.toolActivity = nil
+            }
         case "orbUrl":
             if let raw = payload["url"] as? String {
                 model.orbURL = URL(string: raw)
+            }
+        case "startTimer":
+            let duration = payload["durationSeconds"] as? Double
+                ?? (payload["durationSeconds"] as? Int).map(Double.init)
+                ?? 0
+            let label = payload["label"] as? String ?? "Jarvis Timer"
+            if duration > 0 {
+                TimerManager.shared.adoptExternalTimer(
+                    name: label,
+                    totalDuration: duration,
+                    remaining: duration,
+                    isPaused: false,
+                    playsLocalSound: true
+                )
+            } else {
+                Logger.log("Ignoring startTimer with invalid duration: \(duration)", category: .warning)
             }
         case "conversationEnded":
             applyPhase(.idle)
@@ -552,7 +574,7 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
                 requestPermission(id: id)
             }
         default:
-            break
+            Logger.log("Jarvis bridge received unhandled message type: \(type)", category: .debug)
         }
     }
 

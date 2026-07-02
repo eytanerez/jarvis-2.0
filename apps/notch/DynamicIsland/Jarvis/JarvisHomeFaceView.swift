@@ -14,6 +14,7 @@ struct JarvisHomeFaceView: View {
             JarvisAssistantBridge.shared.toggleConversation()
         } label: {
             JarvisOrbView()
+                .frame(width: 118, height: 118)
                 .scaleEffect(isHovering ? 1.05 : 1.0)
                 .animation(.smooth(duration: 0.2), value: isHovering)
                 .padding(.vertical, 6)

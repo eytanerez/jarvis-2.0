@@ -19,12 +19,20 @@ import { Button } from '@/components/ui/button'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { useResizeObserver } from '@/hooks/use-resize-observer'
 import { useI18n } from '@/i18n'
-import { chatMessageText } from '@/lib/chat-messages'
+import { type ChatMessagePart, chatMessageText } from '@/lib/chat-messages'
 import { SLASH_COMMAND_RE } from '@/lib/chat-runtime'
 import { desktopSlashCommandTakesArgs } from '@/lib/desktop-slash-commands'
 import { DATA_IMAGE_URL_RE } from '@/lib/embedded-images'
 import { triggerHaptic } from '@/lib/haptics'
-import { $notchCommand, type NotchTranscriptTurn, publishNotchStatus, publishNotchTranscript } from '@/lib/notch-link'
+import {
+  $notchCommand,
+  type NotchTranscriptTurn,
+  publishNotchStartTimer,
+  publishNotchStatus,
+  publishNotchToolActivity,
+  publishNotchTranscript
+} from '@/lib/notch-link'
+import { latestToolActivity, TOOL_ACTIVITY_SETTLED_TTL_MS } from '@/lib/tool-activity'
 import { cn } from '@/lib/utils'
 import {
   $composerAttachments,
@@ -53,7 +61,7 @@ import {
   updateQueuedPrompt
 } from '@/store/composer-queue'
 import { $statusItemsBySession } from '@/store/composer-status'
-import { setCockpitMode } from '@/store/jarvis-cockpit'
+import { setCockpitMode, setLiveVoiceTranscript } from '@/store/jarvis-cockpit'
 import { notify } from '@/store/notifications'
 import { $awaitingResponse, $gatewayState, $messages, setSessionPickerOpen } from '@/store/session'
 import { $threadScrolledUp } from '@/store/thread-scroll'
@@ -114,6 +122,54 @@ const COMPOSER_FADE_BACKGROUND =
   'linear-gradient(to bottom, transparent, color-mix(in srgb, var(--dt-background) 10%, transparent))'
 
 const pickPlaceholder = (pool: readonly string[]) => pool[Math.floor(Math.random() * pool.length)]
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value)
+
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
+    } catch {
+      return null
+    }
+  }
+
+  return null
+}
+
+function numberFrom(value: unknown): number | null {
+  const next = typeof value === 'number' ? value : Number(value)
+
+  return Number.isFinite(next) ? next : null
+}
+
+function timerArgsFrom(value: unknown): { durationSeconds: number; label?: string } | null {
+  const args = asRecord(value)
+
+  if (!args) {
+    return null
+  }
+
+  const durationSeconds = numberFrom(args.duration_seconds ?? args.durationSeconds ?? args.seconds)
+
+  if (!durationSeconds || durationSeconds <= 0) {
+    return null
+  }
+
+  const label = typeof args.label === 'string' && args.label.trim() ? args.label.trim() : undefined
+
+  return { durationSeconds, label }
+}
+
+function toolPartRecord(part: ChatMessagePart): Record<string, unknown> | null {
+  const record = part as unknown as Record<string, unknown>
+
+  return record.type === 'tool-call' ? record : null
+}
 
 /** Completion items can carry an `action` (set in use-slash-completions) that
  *  runs a side effect on pick instead of inserting a chip — e.g. the session
@@ -233,6 +289,9 @@ export function ChatBar({
   const dragDepthRef = useRef(0)
   const composingRef = useRef(false) // true during IME composition (CJK input)
   const lastSpokenIdRef = useRef<string | null>(null)
+  const forwardedTimerToolIdsRef = useRef(new Set<string>())
+  const notchToolActivitySignatureRef = useRef('')
+  const notchToolActivityClearTimerRef = useRef<number | null>(null)
 
   const narrow = useMediaQuery('(max-width: 30rem)')
 
@@ -1757,6 +1816,112 @@ export function ChatBar({
     publishNotchStatus(voiceConversationActive ? conversation.status : 'idle')
   }, [voiceConversationActive, conversation.status])
 
+  const visibleLiveTranscript =
+    voiceConversationActive && conversation.status === 'listening' ? conversation.liveTranscript.trim() : ''
+
+  useEffect(() => {
+    setLiveVoiceTranscript(visibleLiveTranscript)
+  }, [visibleLiveTranscript])
+
+  useEffect(() => () => setLiveVoiceTranscript(''), [])
+
+  useEffect(() => {
+    const clearPendingToolActivityTimer = () => {
+      if (notchToolActivityClearTimerRef.current !== null) {
+        window.clearTimeout(notchToolActivityClearTimerRef.current)
+        notchToolActivityClearTimerRef.current = null
+      }
+    }
+
+    const publish = () => {
+      const activity = latestToolActivity($messages.get())
+
+      if (!activity) {
+        clearPendingToolActivityTimer()
+
+        if (notchToolActivitySignatureRef.current) {
+          notchToolActivitySignatureRef.current = ''
+          publishNotchToolActivity(null)
+        }
+
+        return
+      }
+
+      const payload = {
+        status: activity.view.status,
+        subtitle: activity.view.subtitle,
+        title: activity.view.title
+      }
+      const signature = `${activity.id}:${payload.status}:${payload.title}:${payload.subtitle}`
+
+      if (signature !== notchToolActivitySignatureRef.current) {
+        notchToolActivitySignatureRef.current = signature
+        publishNotchToolActivity(payload)
+      }
+
+      clearPendingToolActivityTimer()
+
+      if (activity.view.status !== 'running') {
+        notchToolActivityClearTimerRef.current = window.setTimeout(() => {
+          if (notchToolActivitySignatureRef.current === signature) {
+            notchToolActivitySignatureRef.current = ''
+            publishNotchToolActivity(null)
+          }
+        }, TOOL_ACTIVITY_SETTLED_TTL_MS)
+      }
+    }
+
+    publish()
+    const unsubscribe = $messages.listen(publish)
+
+    return () => {
+      unsubscribe()
+      clearPendingToolActivityTimer()
+      publishNotchToolActivity(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    const forwardCompletedTimers = () => {
+      const messages = $messages.get()
+
+      for (let i = Math.max(0, messages.length - 12); i < messages.length; i++) {
+        const message = messages[i]
+
+        if (message.role !== 'assistant' || message.hidden) {
+          continue
+        }
+
+        for (let j = 0; j < message.parts.length; j++) {
+          const part = toolPartRecord(message.parts[j])
+
+          if (!part || part.toolName !== 'set_timer' || part.result == null || part.isError) {
+            continue
+          }
+
+          const id = typeof part.toolCallId === 'string' ? part.toolCallId : `${message.id}-${j}`
+
+          if (forwardedTimerToolIdsRef.current.has(id)) {
+            continue
+          }
+
+          const timer = timerArgsFrom(part.args)
+
+          if (!timer) {
+            continue
+          }
+
+          forwardedTimerToolIdsRef.current.add(id)
+          publishNotchStartTimer(timer.durationSeconds, timer.label)
+        }
+      }
+    }
+
+    forwardCompletedTimers()
+
+    return $messages.listen(forwardCompletedTimers)
+  }, [])
+
   useEffect(() => {
     if (!voiceConversationActive) {
       return
@@ -1792,6 +1957,15 @@ export function ChatBar({
         })
       }
 
+      if (visibleLiveTranscript) {
+        turns.push({
+          final: false,
+          id: 'live-voice-transcript',
+          role: 'user',
+          text: visibleLiveTranscript
+        })
+      }
+
       publishNotchTranscript(turns.slice(-8))
     }
 
@@ -1811,7 +1985,7 @@ export function ChatBar({
         window.clearTimeout(timer)
       }
     }
-  }, [voiceConversationActive])
+  }, [visibleLiveTranscript, voiceConversationActive])
 
   const contextMenu = (
     <ContextMenu

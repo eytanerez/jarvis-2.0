@@ -65,6 +65,10 @@ struct JarvisAssistantPane: View {
                 transcriptScroll
             }
 
+            if let activity = model.toolActivity {
+                ToolActivityRow(activity: activity)
+            }
+
             HStack {
                 Spacer()
                 Button {
@@ -129,6 +133,57 @@ struct JarvisAssistantPane: View {
                 }
             }
         }
+    }
+}
+
+private struct ToolActivityRow: View {
+    let activity: JarvisToolActivity
+
+    private var iconName: String {
+        switch activity.status {
+        case .running: return "arrow.triangle.2.circlepath"
+        case .error: return "exclamationmark.triangle"
+        case .warning: return "exclamationmark.circle"
+        case .success: return "checkmark.circle"
+        }
+    }
+
+    private var color: Color {
+        switch activity.status {
+        case .running: return .cyan
+        case .error: return .red
+        case .warning: return .yellow
+        case .success: return .green
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: iconName)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(color.opacity(0.9))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(activity.title)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.88))
+                    .lineLimit(1)
+                if !activity.subtitle.isEmpty {
+                    Text(activity.subtitle)
+                        .font(.system(size: 10, weight: .regular, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.52))
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(.white.opacity(0.10), lineWidth: 1)
+        )
     }
 }
 

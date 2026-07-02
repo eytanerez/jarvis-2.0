@@ -3,16 +3,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { NEW_CHAT_ROUTE } from '@/app/routes'
-import { buildToolView, type ToolPart } from '@/components/assistant-ui/tool-fallback-model'
 import { BeveledButton } from '@/components/chrome/beveled-button'
 import { Codicon } from '@/components/ui/codicon'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { useI18n } from '@/i18n'
-import type { ChatMessagePart } from '@/lib/chat-messages'
 import { chatMessageText } from '@/lib/chat-messages'
 import { sessionTitle } from '@/lib/chat-runtime'
+import { latestToolActivity, TOOL_ACTIVITY_SETTLED_TTL_MS, type ToolActivityModel } from '@/lib/tool-activity'
 import { cn } from '@/lib/utils'
-import { useOrbState } from '@/store/jarvis-cockpit'
+import { $liveVoiceTranscript, useOrbState } from '@/store/jarvis-cockpit'
 import { $activeProfile } from '@/store/profile'
 import {
   $activeSessionId,
@@ -25,9 +24,6 @@ import {
   $selectedStoredSessionId,
   $sessions
 } from '@/store/session'
-import { getToolDiff } from '@/store/tool-diffs'
-
-const TOOL_ACTIVITY_SETTLED_TTL_MS = 7_000
 
 type ConnectionTone = 'connecting' | 'offline' | 'online'
 
@@ -75,7 +71,7 @@ function CockpitTopStrip({ onCancel }: { onCancel: () => Promise<void> | void })
       : t.jarvis.newSession
 
   return (
-    <div className="relative z-10 mt-(--titlebar-height) flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--theme-jarvis-stroke)_46%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--theme-jarvis-panel)_46%,transparent),transparent)] px-5 py-3 backdrop-blur-[0.375rem]">
+    <div className="relative z-10 mt-(--titlebar-height) flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--theme-jarvis-stroke)_46%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--theme-jarvis-panel)_46%,transparent),transparent)] px-5 py-2 backdrop-blur-[0.375rem]">
       <span className="jarvis-wordmark text-[0.8125rem]">{t.jarvis.wordmark}</span>
 
       <span className="flex items-center gap-1.5">
@@ -113,8 +109,10 @@ function CockpitTopStrip({ onCancel }: { onCancel: () => Promise<void> | void })
 function CockpitCaptions({ onDismissError }: { onDismissError?: (messageId: string) => void }) {
   const { t } = useI18n()
   const messages = useStore($messages)
+  const liveVoiceTranscript = useStore($liveVoiceTranscript)
 
   let userLine = ''
+  let userPending = false
   let assistantLine = ''
   let assistantPending = false
   let errorId = ''
@@ -146,6 +144,13 @@ function CockpitCaptions({ onDismissError }: { onDismissError?: (messageId: stri
     }
   }
 
+  const liveLine = liveVoiceTranscript.trim()
+
+  if (liveLine) {
+    userLine = liveLine
+    userPending = true
+  }
+
   if (!userLine && !assistantLine && !errorText) {
     return (
       <p aria-live="polite" className="jarvis-tech jarvis-tech-dim text-center">
@@ -157,6 +162,9 @@ function CockpitCaptions({ onDismissError }: { onDismissError?: (messageId: stri
   return (
     <div aria-live="polite" className="mx-auto flex max-w-[46rem] flex-col items-center gap-2 text-center">
       {userLine && <p className="line-clamp-2 text-[0.8125rem] text-(--theme-jarvis-text-dim)">{userLine}</p>}
+      {userLine && userPending && (
+        <span className="jarvis-tech jarvis-tech-dim text-[0.6875rem]">{t.composer.listening}</span>
+      )}
       {assistantLine && (
         <p className="line-clamp-4 text-[0.95rem] leading-relaxed text-(--theme-jarvis-text-tech)">
           {assistantLine}
@@ -191,57 +199,13 @@ function CockpitCaptions({ onDismissError }: { onDismissError?: (messageId: stri
   )
 }
 
-function asToolPart(part: ChatMessagePart): ToolPart | null {
-  if (part.type !== 'tool-call') {
-    return null
-  }
-
-  const record = part as ChatMessagePart & Partial<ToolPart>
-
-  return {
-    args: record.args,
-    isError: Boolean(record.isError),
-    result: record.result,
-    toolCallId: typeof record.toolCallId === 'string' ? record.toolCallId : undefined,
-    toolName: typeof record.toolName === 'string' ? record.toolName : 'tool',
-    type: 'tool-call'
-  }
-}
-
-interface CockpitToolActivityModel {
-  id: string
-  view: ReturnType<typeof buildToolView>
-}
-
 function CockpitToolActivity() {
   const { t } = useI18n()
   const messages = useStore($messages)
 
-  const latestActivity = useMemo<CockpitToolActivityModel | null>(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const message = messages[i]
+  const latestActivity = useMemo<ToolActivityModel | null>(() => latestToolActivity(messages), [messages])
 
-      if (message.role !== 'assistant' || message.hidden) {
-        continue
-      }
-
-      for (let j = message.parts.length - 1; j >= 0; j--) {
-        const part = asToolPart(message.parts[j])
-
-        if (!part) {
-          continue
-        }
-
-        const view = buildToolView(part, part.toolCallId ? getToolDiff(part.toolCallId) : '')
-
-        return { id: part.toolCallId || `${message.id}-${j}`, view }
-      }
-    }
-
-    return null
-  }, [messages])
-
-  const [activity, setActivity] = useState<CockpitToolActivityModel | null>(latestActivity)
+  const [activity, setActivity] = useState<ToolActivityModel | null>(latestActivity)
 
   useEffect(() => {
     if (!latestActivity) {

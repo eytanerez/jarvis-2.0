@@ -500,7 +500,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             deliverImmediately: true
         )
 
-        LockScreenLiveActivityWindowManager.shared.configure(viewModel: vm)
         LockScreenManager.shared.configure(viewModel: vm)
         extensionXPCServiceHost.start()
         extensionRPCServer.start()
@@ -512,6 +511,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Defaults.Keys.migrateCapsLockTintMode()
         Defaults.Keys.migrateThirdPartyDDCIntegration()
         Defaults[.enableLockScreenMediaWidget] = false
+        Defaults[.enableLockScreenLiveActivity] = false
+        Defaults[.enableLockScreenWeatherWidget] = false
+        Defaults[.enableLockScreenFocusWidget] = false
+        Defaults[.enableLockScreenReminderWidget] = false
+        Defaults[.enableLockScreenTimerWidget] = false
+        Defaults[.enableLockSounds] = false
         Defaults[.cachedLockScreenMediaWidgetPreference] = nil
 
         Defaults.publisher(.enableThirdPartyDDCIntegration, options: [])
@@ -830,18 +835,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         previousScreens = NSScreen.screens
-
-        if Defaults[.enableLockScreenWeatherWidget] {
-            LockScreenWeatherManager.shared.prepareLocationAccess()
-            Task { @MainActor in
-                await LockScreenWeatherManager.shared.refresh(force: true)
-            }
-        }
-
-        // Warm up the lock screen timer widget manager so it can observe timer/default
-        // changes immediately instead of waiting for the first lock event.
-        let timerWidgetManager = LockScreenTimerWidgetManager.shared
-        timerWidgetManager.handleLockStateChange(isLocked: LockScreenManager.shared.currentLockStatus)
 
     }
 
@@ -1344,10 +1337,7 @@ final class MediaControlsStateCoordinator {
             Defaults[.cachedLockScreenMediaWidgetPreference] = Defaults[.enableLockScreenMediaWidget]
         }
 
-        if Defaults[.enableLockScreenMediaWidget] {
-            Defaults[.enableLockScreenMediaWidget] = false
-            LockScreenPanelManager.shared.hidePanel()
-        }
+        Defaults[.enableLockScreenMediaWidget] = false
     }
 
     private func restoreLockScreenPanelIfNeeded() {

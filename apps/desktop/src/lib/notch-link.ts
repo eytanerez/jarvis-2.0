@@ -34,6 +34,12 @@ export interface NotchTranscriptTurn {
   final: boolean
 }
 
+export interface NotchToolActivity {
+  title: string
+  subtitle?: string
+  status: 'error' | 'running' | 'success' | 'warning'
+}
+
 const LEVEL_INTERVAL_MS = 33
 
 let commandUnsubscribe: (() => void) | null = null
@@ -137,6 +143,14 @@ export function publishNotchStatus(status: ConversationStatus): void {
 
 export function publishNotchTranscript(turns: NotchTranscriptTurn[]): void {
   bridge()?.publish({ turns, type: 'transcript' })
+}
+
+export function publishNotchToolActivity(activity: NotchToolActivity | null): void {
+  bridge()?.publish({ activity, type: 'toolActivity' })
+}
+
+export function publishNotchStartTimer(durationSeconds: number, label?: string): void {
+  bridge()?.publish({ durationSeconds, label, type: 'startTimer' })
 }
 
 export async function getNotchSettings(): Promise<DesktopNotchSettingsSnapshot> {

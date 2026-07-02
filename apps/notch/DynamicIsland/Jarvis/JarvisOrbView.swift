@@ -19,6 +19,7 @@ struct JarvisOrbView: View {
             NativeOrbGlow(phase: model.phase, level: model.audioLevel)
             if let url = model.orbURL {
                 OrbWebView(url: url)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .allowsHitTesting(false)
             }
         }

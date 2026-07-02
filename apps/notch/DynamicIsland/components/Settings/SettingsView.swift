@@ -479,7 +479,6 @@ struct SettingsView: View {
             // Media & Display
             .media,
             .liveActivities,
-            .lockScreen,
             .devices,
             // System
             .hudAndOSD,
@@ -535,11 +534,15 @@ struct SettingsView: View {
     }
 
     private var searchSuggestions: [SettingsSearchEntry] {
-        Array(searchEntries(matching: searchText).filter { $0.tab != .downloads }.prefix(8))
+        Array(
+            searchEntries(matching: searchText)
+                .filter { $0.tab != .downloads && availableTabs.contains($0.tab) }
+                .prefix(8)
+        )
     }
 
     private func handleSearchSuggestionSelection(_ suggestion: SettingsSearchEntry) {
-        guard suggestion.tab != .downloads else { return }
+        guard suggestion.tab != .downloads, availableTabs.contains(suggestion.tab) else { return }
         highlightCoordinator.focus(on: suggestion)
         selectedTab = suggestion.tab
     }

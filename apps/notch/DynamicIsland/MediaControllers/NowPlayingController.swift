@@ -157,7 +157,7 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
                     .path
 
         else {
-            assertionFailure("Could not find mediaremote-adapter.pl script or framework path")
+            Logger.log("Could not find mediaremote-adapter.pl script or MediaRemoteAdapter.framework path", category: .error)
             return
         }
         
@@ -177,7 +177,7 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
                     .trimmingCharacters(in: .whitespacesAndNewlines),
                   !message.isEmpty
             else { return }
-            print("NowPlayingController [stderr]: \(message)")
+            Logger.log("NowPlayingController adapter stderr: \(message)", category: .error)
         }
         
         self.process = process
@@ -189,7 +189,7 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
                 await self?.processJSONStream()
             }
         } catch {
-            assertionFailure("Failed to launch mediaremote-adapter.pl: \(error)")
+            Logger.log("Failed to launch mediaremote-adapter.pl: \(error.localizedDescription)", category: .error)
         }
     }
 

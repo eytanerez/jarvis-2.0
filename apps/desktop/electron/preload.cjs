@@ -163,6 +163,7 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     // Conversation state pushed out to the native notch (fire-and-forget,
     // high-frequency audio levels included — hence send, not invoke).
     publish: payload => ipcRenderer.send('jarvis:notch:publish', payload),
+    focusMain: () => ipcRenderer.invoke('jarvis:notch:focus-main'),
     getSettings: () => ipcRenderer.invoke('jarvis:notch:settings:get'),
     requestPermission: id => ipcRenderer.invoke('jarvis:notch:permission:request', id),
     setSetting: (key, value) => ipcRenderer.invoke('jarvis:notch:settings:set', { key, value }),

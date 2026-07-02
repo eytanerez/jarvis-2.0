@@ -175,29 +175,6 @@ const SETTING_PAGES: NotchSettingsPageDef[] = [
     ]
   },
   {
-    id: 'lock',
-    label: 'Lock Screen',
-    icon: Lock,
-    settings: [
-      bool('enableLockScreenLiveActivity', 'Lock screen live activities', true),
-      bool('enableLockSounds', 'Lock sounds', true),
-      bool('enableLockScreenWeatherWidget', 'Weather widget', true),
-      bool('enableLockScreenFocusWidget', 'Focus widget', true),
-      bool('enableLockScreenReminderWidget', 'Reminder widget', true),
-      bool('enableLockScreenTimerWidget', 'Timer widget', true),
-      bool('lockScreenWeatherShowsLocation', 'Weather location', true),
-      bool('lockScreenWeatherShowsSunrise', 'Sunrise and sunset', true),
-      bool('lockScreenWeatherShowsAQI', 'Air quality', true),
-      bool('lockScreenShowCalendarEvent', 'Calendar event', true),
-      bool('lockScreenShowCalendarCountdown', 'Calendar countdown', true),
-      bool('lockScreenShowCalendarTimeRemaining', 'Time remaining', true),
-      text('lockScreenCalendarEventLookaheadWindow', 'Calendar lookahead', '3h'),
-      number('lockScreenWeatherVerticalOffset', 'Weather vertical offset', 0, { max: 200, min: -200, step: 1 }),
-      number('lockScreenTimerVerticalOffset', 'Timer vertical offset', 0, { max: 200, min: -200, step: 1 }),
-      number('lockScreenTimerWidgetWidth', 'Timer widget width', 350, { max: 640, min: 220, step: 10 })
-    ]
-  },
-  {
     id: 'devices',
     label: 'Devices',
     icon: Monitor,
@@ -452,7 +429,6 @@ const SETTING_PAGES: NotchSettingsPageDef[] = [
     settings: [
       bool('enableThirdPartyExtensions', 'Third-party extensions', true),
       bool('enableExtensionLiveActivities', 'Live activities', true),
-      bool('enableExtensionLockScreenWidgets', 'Lock screen widgets', true),
       bool('enableExtensionNotchExperiences', 'Notch experiences', true),
       bool('enableExtensionNotchTabs', 'Extension tabs', true),
       bool('enableExtensionNotchMinimalisticOverrides', 'Minimal overrides', true),
@@ -460,7 +436,6 @@ const SETTING_PAGES: NotchSettingsPageDef[] = [
       bool('enableExtensionFileSharing', 'File sharing', true),
       bool('extensionDiagnosticsLoggingEnabled', 'Diagnostics logging', true),
       number('extensionLiveActivityCapacity', 'Live activity capacity', 4, { max: 12, min: 1, step: 1 }),
-      number('extensionLockScreenWidgetCapacity', 'Widget capacity', 4, { max: 12, min: 1, step: 1 }),
       number('extensionNotchExperienceCapacity', 'Experience capacity', 2, { max: 6, min: 1, step: 1 })
     ]
   }

@@ -264,6 +264,55 @@ test('audio levels broadcast without being cached in the snapshot', async () => 
   }
 })
 
+test('tool activity broadcasts live and is cached for reconnecting clients', async () => {
+  const link = makeLink()
+  await link.start()
+
+  try {
+    const early = await connect(link)
+    await early.drainSnapshot()
+
+    const activity = { status: 'running', subtitle: 'Reading files', title: 'Running tool' }
+    link.publish({ activity, type: 'toolActivity' })
+    assert.deepEqual(await early.next(), { activity, type: 'toolActivity' })
+
+    const late = await connect(link)
+    const received = [await late.next(), await late.next(), await late.next(), await late.next(), await late.next()]
+    const snapshotActivity = received.find(message => message.type === 'toolActivity')
+    assert.deepEqual(snapshotActivity, { activity, type: 'toolActivity' })
+
+    link.publish({ activity: null, type: 'toolActivity' })
+    assert.deepEqual(await early.next(), { activity: null, type: 'toolActivity' })
+
+    early.ws.close()
+    late.ws.close()
+  } finally {
+    link.stop()
+  }
+})
+
+test('startTimer publish forwards a one-shot native command without caching it', async () => {
+  const link = makeLink()
+  await link.start()
+
+  try {
+    const client = await connect(link)
+    await client.drainSnapshot()
+
+    link.publish({ durationSeconds: 30, label: 'Tea', type: 'startTimer' })
+    assert.deepEqual(await client.next(), { durationSeconds: 30, label: 'Tea', type: 'startTimer' })
+
+    const late = await connect(link)
+    const kinds = [(await late.next()).type, (await late.next()).type, (await late.next()).type, (await late.next()).type]
+    assert.deepEqual(kinds.sort(), ['orbUrl', 'settingsSnapshot', 'state', 'transcript'])
+
+    client.ws.close()
+    late.ws.close()
+  } finally {
+    link.stop()
+  }
+})
+
 test('resolveNotchAppPath finds the bundle inside a source checkout (installed-app path)', t => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'notch-src-'))
   t.after(() => fs.rmSync(tmp, { force: true, recursive: true }))

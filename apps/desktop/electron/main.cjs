@@ -44,7 +44,7 @@ const { readWindowsUserEnvVar } = require('./windows-user-env.cjs')
 const { readDirForIpc } = require('./fs-read-dir.cjs')
 const { gitRootForIpc } = require('./git-root.cjs')
 const { worktreesForIpc } = require('./git-worktrees.cjs')
-const { OFFICIAL_REPO_HTTPS_URL, isOfficialSshRemote } = require('./update-remote.cjs')
+const { OFFICIAL_REPO_HTTPS_URL, isOfficialRemote } = require('./update-remote.cjs')
 const {
   resolveClientUpdateBase,
   resolveJarvisCliInvocation,
@@ -1485,7 +1485,7 @@ async function resolveHealedBranch(updateRoot, branch) {
   }
 
   const originUrl = await getOriginUrl(updateRoot)
-  const remote = isOfficialSshRemote(originUrl) ? OFFICIAL_REPO_HTTPS_URL : 'origin'
+  const remote = isOfficialRemote(originUrl) ? OFFICIAL_REPO_HTTPS_URL : 'origin'
   const probe = await runGit(['ls-remote', '--exit-code', '--heads', remote, branch], { cwd: updateRoot })
   if (probe.code !== 2) {
     return branch
@@ -1544,7 +1544,7 @@ async function checkUpdates() {
 
   branch = await resolveHealedBranch(updateRoot, branch)
   const originUrl = await getOriginUrl(updateRoot)
-  if (isOfficialSshRemote(originUrl)) {
+  if (isOfficialRemote(originUrl)) {
     const git = args => runGit(args, { cwd: updateRoot }).then(r => r.stdout.trim())
     const [sourceSha, target, dirtyStr, currentBranch] = await Promise.all([
       git(['rev-parse', 'HEAD']),
@@ -5284,7 +5284,16 @@ const sessionWindows = createSessionWindowRegistry()
 function focusWindow(win) {
   if (!win || win.isDestroyed()) return
   if (win.isMinimized()) win.restore()
-  if (!win.isVisible()) win.show()
+
+  if (process.platform === 'darwin') {
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+    win.show()
+    win.setVisibleOnAllWorkspaces(false)
+    app.focus({ steal: true })
+  } else if (!win.isVisible()) {
+    win.show()
+  }
+
   win.focus()
 }
 
@@ -6631,8 +6640,7 @@ function handleDeepLink(url) {
     return
   }
   try {
-    if (mainWindow.isMinimized()) mainWindow.restore()
-    mainWindow.focus()
+    focusWindow(mainWindow)
     mainWindow.webContents.send('jarvis:deep-link', payload)
     rememberLog(`[deeplink] delivered ${kind}/${name}`)
   } catch (err) {
@@ -6680,8 +6688,7 @@ if (!_gotSingleInstanceLock) {
     const url = _extractDeepLink(argv)
     if (url) handleDeepLink(url)
     else if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.focus()
+      focusWindow(mainWindow)
     }
   })
 }
@@ -6726,10 +6733,12 @@ async function startNotchLink() {
       switch (message.type) {
         case 'startConversation':
         case 'endConversation':
+          rememberLog(`[notch] command ${message.type}`)
           forwardNotchCommandToRenderer(message)
           break
         case 'openMainWindow':
         case 'openSettings':
+          rememberLog(`[notch] command ${message.type}`)
           // Surface the window first; the renderer decides what to show.
           if (!mainWindow || mainWindow.isDestroyed()) {
             createWindow()
@@ -6765,6 +6774,16 @@ async function startNotchLink() {
 
 ipcMain.on('jarvis:notch:publish', (_event, payload) => {
   notchLink?.publish(payload)
+})
+
+ipcMain.handle('jarvis:notch:focus-main', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow()
+  } else {
+    focusWindow(mainWindow)
+  }
+
+  return { ok: true }
 })
 
 ipcMain.handle('jarvis:notch:settings:get', () => notchLink?.getSettingsSnapshot() ?? offlineNotchSettingsSnapshot())

@@ -269,6 +269,7 @@ function createNotchLink({
   const state = {
     orbUrl: null,
     phase: 'idle',
+    toolActivity: null,
     transcript: [],
     settings: {
       connected: false,
@@ -294,6 +295,9 @@ function createNotchLink({
     ]
     if (state.orbUrl) {
       messages.push({ type: 'orbUrl', url: state.orbUrl })
+    }
+    if (state.toolActivity) {
+      messages.push({ activity: state.toolActivity, type: 'toolActivity' })
     }
     messages.push({ snapshot: state.settings, type: 'settingsSnapshot' })
     return messages
@@ -364,6 +368,28 @@ function createNotchLink({
           broadcast({ turns: state.transcript, type: 'transcript' })
         }
         break
+      case 'toolActivity':
+        if (payload.activity && typeof payload.activity === 'object' && !Array.isArray(payload.activity)) {
+          state.toolActivity = {
+            status: typeof payload.activity.status === 'string' ? payload.activity.status : 'running',
+            subtitle: typeof payload.activity.subtitle === 'string' ? payload.activity.subtitle : '',
+            title: typeof payload.activity.title === 'string' ? payload.activity.title : 'Tool activity'
+          }
+          broadcast({ activity: state.toolActivity, type: 'toolActivity' })
+        } else {
+          state.toolActivity = null
+          broadcast({ activity: null, type: 'toolActivity' })
+        }
+        break
+      case 'startTimer':
+        if (typeof payload.durationSeconds === 'number' && payload.durationSeconds > 0) {
+          sendToNative({
+            durationSeconds: payload.durationSeconds,
+            label: typeof payload.label === 'string' ? payload.label : '',
+            type: 'startTimer'
+          })
+        }
+        break
       default:
         break
     }
@@ -386,6 +412,7 @@ function createNotchLink({
       case 'endConversation':
       case 'openMainWindow':
       case 'openSettings':
+        log(`[notch] received command ${message.type}`)
         onCommand(message)
         break
       case 'restartNotch':
