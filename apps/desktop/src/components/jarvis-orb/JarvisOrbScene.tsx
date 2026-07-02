@@ -29,6 +29,7 @@ export interface JarvisOrbSceneProps {
    * hold rendering - paired with document-hidden to fully cover Tier 6. */
   paused?: boolean
   reducedMotion?: boolean
+  showBackground?: boolean
   speakingLevel?: number
   state: OrbState
 }
@@ -66,6 +67,7 @@ export function JarvisOrbScene({
   listeningLevel = 0,
   paused = false,
   reducedMotion = false,
+  showBackground = true,
   speakingLevel = 0,
   state
 }: JarvisOrbSceneProps) {
@@ -83,13 +85,13 @@ export function JarvisOrbScene({
     const orbCanvas = orbCanvasRef.current
     const labelLayer = labelLayerRef.current
 
-    if (!container || !bgCanvas || !orbCanvas || !labelLayer) {
+    if (!container || !orbCanvas || !labelLayer || (showBackground && !bgCanvas)) {
       return
     }
 
     const labelLayerEl = labelLayer
     const lowSpec = window.matchMedia('(max-width: 640px)').matches
-    const background = new OrbBackgroundLayer(bgCanvas, lowSpec)
+    const background = showBackground && bgCanvas ? new OrbBackgroundLayer(bgCanvas, lowSpec) : null
     const scene = new OrbSceneLayer(orbCanvas)
     const bridge = new SubagentConstellationBridge()
 
@@ -150,7 +152,7 @@ export function JarvisOrbScene({
 
     function resize() {
       scene.resize()
-      background.resize($orbPerformanceMode.get() ? 0.5 : 1)
+      background?.resize($orbPerformanceMode.get() ? 0.5 : 1)
       hideConstellation = container!.clientWidth < 640
     }
 
@@ -201,7 +203,7 @@ export function JarvisOrbScene({
       const perfMode = $orbPerformanceMode.get()
       frameParity = (frameParity + 1) % 2
 
-      if (!perfMode || frameParity === 0) {
+      if (background && (!perfMode || frameParity === 0)) {
         background.render({
           orbBrightness: lastOrbBrightness,
           orbColor: lastOrbColor,
@@ -248,7 +250,7 @@ export function JarvisOrbScene({
       uninstallDebugConsole?.()
       themeObserver.disconnect()
       resizeObserver.disconnect()
-      background.dispose()
+      background?.dispose()
       scene.dispose()
 
       for (const entry of labelEls.values()) {
@@ -258,12 +260,11 @@ export function JarvisOrbScene({
       labelEls.clear()
     }
     // Mount once; live values flow through propsRef and store .get() reads.
-     
-  }, [])
+  }, [showBackground])
 
   return (
     <div className={cn('jarvis-stage relative isolate overflow-hidden', className)} data-orb-state={state} ref={containerRef}>
-      <canvas aria-hidden="true" className="absolute inset-0 block size-full" ref={bgCanvasRef} />
+      {showBackground ? <canvas aria-hidden="true" className="absolute inset-0 block size-full" ref={bgCanvasRef} /> : null}
       {/* Only the orb + labels recenter when a sidebar opens - the starfield
           background above stays untransformed so it keeps filling the whole
           window edge to edge. */}

@@ -370,16 +370,20 @@ function makeControllableChild() {
 }
 
 test('restartNotch kills the running child and respawns immediately, bypassing backoff', async () => {
-  const spawnedBinaries = []
   const children = []
-  const link = makeLink({
-    spawnImpl: () => {
-      const child = makeControllableChild()
-      spawnedBinaries.push(child)
-      children.push(child)
-      return child
+  // Termination goes through killStaleImpl now (spawnNotchApp launches via
+  // `open`, so `child` is that wrapper, not the real app — killing it
+  // directly wouldn't kill the app; see killNotchProcess in notch.cjs).
+  // This fake reproduces the real causal chain: an external kill-by-name
+  // kills the actual app, which makes `open -W`'s wrapper (the fake child
+  // here) notice and exit — so killing the CURRENT child simulates it.
+  const killStaleImpl = callback => {
+    const current = children.at(-1)
+    if (current && !current.killed) {
+      current.kill('SIGTERM')
     }
-  })
+    callback()
+  }
 
   // No real bundle exists in the test env, so spawnImpl is only reached via
   // resolveNotchAppPath finding a fake one — stub that too.
@@ -391,7 +395,7 @@ test('restartNotch kills the running child and respawns immediately, bypassing b
   const realLink = createNotchLink({
     devServerUrl: 'http://127.0.0.1:5174',
     env: { JARVIS_NOTCH_APP: path.join(fakeBundle, 'Jarvis Notch.app') },
-    killStaleImpl: callback => callback(),
+    killStaleImpl,
     log: () => {},
     spawnImpl: () => {
       const child = makeControllableChild()
@@ -412,8 +416,6 @@ test('restartNotch kills the running child and respawns immediately, bypassing b
     // triggers to land.
     await new Promise(resolve => setImmediate(resolve))
     assert.equal(children.length, 2, 'respawned once after restart, no backoff delay')
-
-    link.stop()
   } finally {
     realLink.stop()
     fs.rmSync(fakeBundle, { force: true, recursive: true })
@@ -497,6 +499,129 @@ test('gives up relaunching after MAX_RELAUNCH_ATTEMPTS consecutive unexpected ex
     // Capped at MAX_RELAUNCH_ATTEMPTS relaunches beyond the first spawn —
     // it must have stopped scheduling more, not kept going for all 8 crashes.
     assert.equal(children.length, 7, '1 initial spawn + 6 relaunches, then it gives up')
+  } finally {
+    link.stop()
+    fs.rmSync(fakeBundle, { force: true, recursive: true })
+  }
+})
+
+test('spawnNotchApp launches via open -n -W (not a direct binary exec), carrying port and token', async () => {
+  const fakeBundle = fs.mkdtempSync(path.join(os.tmpdir(), 'notch-openlaunch-'))
+  const bundlePath = path.join(fakeBundle, 'Jarvis Notch.app', 'Contents', 'MacOS')
+  fs.mkdirSync(bundlePath, { recursive: true })
+  fs.writeFileSync(path.join(bundlePath, 'Jarvis Notch'), '')
+  const appPath = path.join(fakeBundle, 'Jarvis Notch.app')
+
+  let capturedCommand = null
+  let capturedArgs = null
+  const link = createNotchLink({
+    devServerUrl: 'http://127.0.0.1:5174',
+    env: { JARVIS_NOTCH_APP: appPath },
+    killStaleImpl: callback => callback(),
+    log: () => {},
+    spawnImpl: (command, args) => {
+      capturedCommand = command
+      capturedArgs = args
+      return makeControllableChild()
+    }
+  })
+
+  try {
+    await link.start()
+
+    // Direct exec of the binary inside the bundle is exactly what causes the
+    // TCC bundle-misattribution SIGABRT this launch method exists to avoid
+    // (see spawnNotchApp's comment) — assert the fix, not just "it launches".
+    assert.equal(capturedCommand, 'open')
+    assert.notEqual(capturedCommand, path.join(appPath, 'Contents', 'MacOS', 'Jarvis Notch'))
+    assert.equal(capturedArgs[0], '-n')
+    assert.equal(capturedArgs[1], '-W')
+    assert.equal(capturedArgs[2], '-a')
+    assert.equal(capturedArgs[3], appPath)
+    assert.equal(capturedArgs[4], '--args')
+    assert.equal(capturedArgs[5], '--jarvis-port')
+    assert.equal(capturedArgs[6], String(link.port))
+    assert.equal(capturedArgs[7], '--jarvis-token')
+    assert.equal(capturedArgs[8], link.token)
+  } finally {
+    link.stop()
+    fs.rmSync(fakeBundle, { force: true, recursive: true })
+  }
+})
+
+test('a userQuit signal suppresses relaunch, unlike an unsignaled exit which is treated as a crash', async () => {
+  const fakeBundle = fs.mkdtempSync(path.join(os.tmpdir(), 'notch-userquit-'))
+  const bundlePath = path.join(fakeBundle, 'Jarvis Notch.app', 'Contents', 'MacOS')
+  fs.mkdirSync(bundlePath, { recursive: true })
+  fs.writeFileSync(path.join(bundlePath, 'Jarvis Notch'), '')
+
+  const children = []
+  const link = createNotchLink({
+    devServerUrl: 'http://127.0.0.1:5174',
+    env: { JARVIS_NOTCH_APP: path.join(fakeBundle, 'Jarvis Notch.app') },
+    killStaleImpl: callback => callback(),
+    log: () => {},
+    spawnImpl: () => {
+      const child = makeControllableChild()
+      children.push(child)
+      return child
+    }
+  })
+
+  try {
+    await link.start()
+    assert.equal(children.length, 1)
+
+    // `open`'s own exit code is always ~0 regardless of how the launched app
+    // actually exited (verified manually — see notch.cjs's spawnNotchApp
+    // comment), so relaunch-suppression can't key off it. It must key off
+    // the explicit userQuit message instead — send that over the WS link,
+    // exactly like the real notch's Quit button does before terminating.
+    const client = await connect(link)
+    await client.drainSnapshot()
+    client.ws.send(JSON.stringify({ type: 'userQuit' }))
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    children[0].kill('SIGTERM') // open's wrapper "exiting" once the real app quits
+    await new Promise(resolve => setImmediate(resolve))
+
+    assert.equal(children.length, 1, 'signaled quit is not relaunched')
+    client.ws.close()
+  } finally {
+    link.stop()
+    fs.rmSync(fakeBundle, { force: true, recursive: true })
+  }
+})
+
+test('an exit with no userQuit signal is treated as a crash and relaunched', async () => {
+  const fakeBundle = fs.mkdtempSync(path.join(os.tmpdir(), 'notch-crashquit-'))
+  const bundlePath = path.join(fakeBundle, 'Jarvis Notch.app', 'Contents', 'MacOS')
+  fs.mkdirSync(bundlePath, { recursive: true })
+  fs.writeFileSync(path.join(bundlePath, 'Jarvis Notch'), '')
+
+  const children = []
+  const link = createNotchLink({
+    devServerUrl: 'http://127.0.0.1:5174',
+    env: { JARVIS_NOTCH_APP: path.join(fakeBundle, 'Jarvis Notch.app') },
+    killStaleImpl: callback => callback(),
+    log: () => {},
+    spawnImpl: () => {
+      const child = makeControllableChild()
+      children.push(child)
+      return child
+    }
+  })
+
+  try {
+    await link.start()
+    assert.equal(children.length, 1)
+
+    // No userQuit message this time — an unsignaled exit is a crash.
+    children[0].kill('SIGABRT')
+    await new Promise(resolve => setImmediate(resolve))
+    await new Promise(resolve => setTimeout(resolve, 1100)) // first backoff delay (1s)
+
+    assert.equal(children.length, 2, 'unsignaled exit is relaunched')
   } finally {
     link.stop()
     fs.rmSync(fakeBundle, { force: true, recursive: true })

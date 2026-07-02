@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { BrandMark } from '@/components/brand-mark'
 import { Button } from '@/components/ui/button'
@@ -7,12 +7,13 @@ import { writeClipboardText } from '@/components/ui/copy-button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { ErrorIcon, ErrorState } from '@/components/ui/error-state'
 import { Loader } from '@/components/ui/loader'
+import { LogView } from '@/components/ui/log-view'
 import type { DesktopUpdateCommit, DesktopUpdateStage, DesktopUpdateStatus } from '@/global'
 import { useI18n } from '@/i18n'
 import { buildCommitChangelog, type CommitGroup } from '@/lib/commit-changelog'
-import { AlertCircle, Check, CheckCircle2, Copy, Terminal } from '@/lib/icons'
-import { cn } from '@/lib/utils'
+import { AlertCircle, Check, CheckCircle2, ChevronDown, ChevronRight, Copy, Terminal } from '@/lib/icons'
 import { resolveUpdateCopy, type UpdateTarget } from '@/lib/update-copy'
+import { cn } from '@/lib/utils'
 import {
   $backendUpdateApply,
   $backendUpdateChecking,
@@ -33,6 +34,18 @@ import {
 
 function totalItems(groups: readonly CommitGroup[]) {
   return groups.reduce((sum, g) => sum + g.items.length, 0)
+}
+
+function formatElapsed(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000))
+
+  if (seconds < 60) {
+    return `${seconds}s`
+  }
+
+  const minutes = Math.floor(seconds / 60)
+
+  return `${minutes}:${String(seconds - minutes * 60).padStart(2, '0')}`
 }
 
 export function UpdatesOverlay() {
@@ -89,7 +102,7 @@ export function UpdatesOverlay() {
   return (
     <Dialog onOpenChange={handleClose} open={open}>
       <DialogContent
-        className="max-w-sm overflow-hidden border-border/70 p-0 gap-0"
+        className="max-w-lg overflow-hidden border-border/70 p-0 gap-0"
         showCloseButton={phase !== 'applying'}
       >
         {phase === 'applying' && <ApplyingView apply={apply} isBackend={isBackend} />}
@@ -307,11 +320,29 @@ function ApplyingView({ apply, isBackend }: { apply: UpdateApplyState; isBackend
   const u = t.updates
   const label = u.stages[apply.stage as DesktopUpdateStage] ?? u.stages.idle
   const body = isBackend ? u.applyingBodyBackend : u.applyingBody
+  const [logOpen, setLogOpen] = useState(true)
+  const [now, setNow] = useState(() => Date.now())
+  const logEndRef = useRef<HTMLDivElement | null>(null)
 
   const percent =
     typeof apply.percent === 'number' && Number.isFinite(apply.percent)
       ? Math.max(2, Math.min(100, Math.round(apply.percent)))
       : null
+
+  const elapsedAnchor = apply.stageStartedAt ?? apply.startedAt
+  const elapsed = elapsedAnchor ? formatElapsed(now - elapsedAnchor) : ''
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+
+    return () => window.clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    if (logOpen) {
+      logEndRef.current?.scrollIntoView({ block: 'end' })
+    }
+  }, [apply.log.length, logOpen])
 
   return (
     <div className="grid gap-5 px-6 pb-6 pt-7">
@@ -322,14 +353,58 @@ function ApplyingView({ apply, isBackend }: { apply: UpdateApplyState; isBackend
         <DialogDescription className="text-center text-sm">{body}</DialogDescription>
       </div>
 
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn(
-            'h-full rounded-full bg-primary transition-[width] duration-300 ease-out',
-            percent === null && 'w-1/3 animate-pulse'
-          )}
-          style={percent !== null ? { width: `${percent}%` } : undefined}
-        />
+      <div className="grid gap-1.5">
+        <div className="flex min-w-0 items-center justify-between gap-3 text-[0.6875rem] text-muted-foreground">
+          <span className="min-w-0 truncate">
+            {apply.message || label}
+            {elapsed && <span className="tabular-nums"> · {elapsed}</span>}
+          </span>
+          <span className="shrink-0 font-medium tabular-nums text-foreground">
+            {percent !== null ? `${percent}%` : '...'}
+          </span>
+        </div>
+
+        <div className="h-2 overflow-hidden rounded-full bg-muted">
+          <div
+            className={cn(
+              'h-full rounded-full bg-primary transition-[width] duration-300 ease-out',
+              percent === null && 'w-1/3 animate-pulse'
+            )}
+            style={percent !== null ? { width: `${percent}%` } : undefined}
+          />
+        </div>
+      </div>
+
+      <div className="min-w-0">
+        <Button
+          className="-ml-2 text-muted-foreground hover:text-foreground"
+          onClick={() => setLogOpen(v => !v)}
+          size="xs"
+          type="button"
+          variant="ghost"
+        >
+          {logOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+          <span>{logOpen ? u.hideOutput : u.showOutput}</span>
+          <span className="ml-1 tabular-nums">({u.lines(apply.log.length)})</span>
+        </Button>
+
+        {logOpen && (
+          <LogView className="mt-2 max-h-48">
+            {apply.log.length === 0 ? (
+              <div>{u.noOutput}</div>
+            ) : (
+              <>
+                {apply.log.map((entry, i) => (
+                  <div key={`${entry.at}-${i}`}>
+                    <span className="text-muted-foreground/60">[{entry.stage}] </span>
+                    <span>{entry.message}</span>
+                  </div>
+                ))}
+                <div ref={logEndRef} />
+              </>
+            )}
+          </LogView>
+        )}
       </div>
 
       <p className="text-center text-xs text-muted-foreground">{u.applyingClose}</p>

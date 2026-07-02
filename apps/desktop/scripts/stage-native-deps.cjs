@@ -63,6 +63,15 @@ const NATIVE_DEPS = [
       `prebuilds/${TARGET_PLATFORM}-${TARGET_ARCH}/spawn-helper`,
       `prebuilds/${TARGET_PLATFORM}-${TARGET_ARCH}/conpty/*`
     ]
+  },
+  {
+    // electron/notch.cjs's WebSocket server. Pure JS, no native binaries --
+    // dedup hoists it to the workspace root same as node-pty, so it needs
+    // the same treatment (see requireWs() in notch.cjs for the runtime
+    // fallback that reads from here).
+    from: path.join(REPO_ROOT, 'node_modules', 'ws'),
+    to: path.join(STAGE_ROOT, 'ws'),
+    include: ['package.json', 'index.js', 'lib/*.js', 'wrapper.mjs']
   }
 ]
 

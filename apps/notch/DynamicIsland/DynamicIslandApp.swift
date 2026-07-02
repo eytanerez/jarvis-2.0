@@ -51,7 +51,13 @@ struct DynamicNotchApp: App {
             }
             .disabled(JarvisAssistantBridge.shared.model.phase == .disconnected)
             Button("Quit", role: .destructive) {
-                NSApplication.shared.terminate(self)
+                // Tell Jarvis this is a deliberate quit before actually
+                // terminating (see notifyUserQuit's doc comment) — brief
+                // delay so the WS send has time to leave the process.
+                JarvisAssistantBridge.shared.notifyUserQuit()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    NSApplication.shared.terminate(self)
+                }
             }
             .keyboardShortcut(KeyEquivalent("Q"), modifiers: .command)
         }
@@ -824,7 +830,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         updateFeatureShortcutAvailability()
         JarvisAssistantBridge.shared.start(
             activate: { [weak self] in
-                self?.activateJarvisAssistantFromHotkey()
+                self?.showJarvisAssistant()
             },
             deactivate: { [weak self] in
                 self?.dismissJarvisAssistantWhenIdle()
@@ -1140,7 +1146,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func activateJarvisAssistantFromHotkey() {
+    func showJarvisAssistant() {
         closeNotchWorkItem?.cancel()
         closeNotchWorkItem = nil
 
@@ -1154,6 +1160,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             updateWindowSizeForTabSwitch()
         }
+    }
+
+    func activateJarvisAssistantFromHotkey() {
+        showJarvisAssistant()
         JarvisAssistantBridge.shared.activateConversation()
     }
 

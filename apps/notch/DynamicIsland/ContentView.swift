@@ -2110,7 +2110,12 @@ struct ContentView: View {
     }
 
     private func shouldPreventAutoClose() -> Bool {
-        coordinator.firstLaunch || coordinator.currentView == .jarvis || hasAnyActivePopovers() || vm.isAutoCloseSuppressed || SharingStateManager.shared.preventNotchClose || (Defaults[.terminalStickyMode] && coordinator.currentView == .terminal)
+        coordinator.firstLaunch
+            || (coordinator.currentView == .jarvis && jarvisModel.phase.isConversationActive)
+            || hasAnyActivePopovers()
+            || vm.isAutoCloseSuppressed
+            || SharingStateManager.shared.preventNotchClose
+            || (Defaults[.terminalStickyMode] && coordinator.currentView == .terminal)
     }
     
     // Helper to prevent rapid haptic feedback

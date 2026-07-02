@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="Jarvis" width="100%">
 </p>
 
-# Jarvis ☤
+# Jarvis
 
 <p align="center">
   <a href="https://jarvis-agent.nousresearch.com/docs/"><img src="https://img.shields.io/badge/Docs-jarvis--agent.nousresearch.com-FFD700?style=for-the-badge" alt="Documentation"></a>
@@ -18,6 +18,8 @@
 支持任意模型——[Nous Portal](https://portal.nousresearch.com)、[OpenRouter](https://openrouter.ai)（200+ 模型）、[NVIDIA NIM](https://build.nvidia.com)（Nemotron）、[小米 MiMo](https://platform.xiaomimimo.com)、[z.ai/GLM](https://z.ai)、[Kimi/Moonshot](https://platform.moonshot.ai)、[MiniMax](https://www.minimax.io)、[Hugging Face](https://huggingface.co)、OpenAI，或自定义端点。使用 `jarvis model` 即可切换——无需改代码，无锁定。
 
 <table>
+<tr><td><b>Jarvis Brain</b></td><td>跨所有界面复用的一套运行时，内置记忆、技能、提示缓存、子代理委派和定时任务。</td></tr>
+<tr><td><b>Jarvis Desktop + Notch</b></td><td>原生桌面聊天、设置、更新，以及使用同一 Jarvis 身份和运行时的 macOS 刘海配套组件。</td></tr>
 <tr><td><b>真正的终端界面</b></td><td>完整的 TUI，支持多行编辑、斜杠命令自动补全、对话历史、中断重定向和流式工具输出。</td></tr>
 <tr><td><b>随你所在</b></td><td>Telegram、Discord、Slack、WhatsApp、Signal 和 CLI——全部从单个网关进程运行。语音备忘录转写、跨平台对话连续性。</td></tr>
 <tr><td><b>闭环学习</b></td><td>代理管理记忆并定期自我提醒。复杂任务后自动创建技能。技能在使用中自我改进。FTS5 会话搜索配合 LLM 摘要实现跨会话回溯。<a href="https://github.com/plastic-labs/honcho">Honcho</a> 辩证式用户建模。兼容 <a href="https://agentskills.io">agentskills.io</a> 开放标准。</td></tr>

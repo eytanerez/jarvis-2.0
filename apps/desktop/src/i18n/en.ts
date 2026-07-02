@@ -1731,6 +1731,10 @@ export const en: Translations = {
     applyingBodyBackend:
       'The remote backend is applying the update and will restart. Jarvis reconnects automatically when it’s back.',
     applyingClose: 'Jarvis will close to apply the update.',
+    hideOutput: 'Hide update output',
+    showOutput: 'Show update output',
+    lines: count => `${count} line${count === 1 ? '' : 's'}`,
+    noOutput: 'No output yet.',
     errorTitle: 'Update didn’t finish',
     errorBody: 'No worries — nothing was lost. You can try again now.',
     notNow: 'Not now',

@@ -97,6 +97,7 @@ function NotchOrb() {
     <JarvisOrbScene
       className="size-full"
       getLevel={() => levelRef.current}
+      showBackground={false}
       state={PHASE_TO_ORB_STATE[phase]}
     />
   )

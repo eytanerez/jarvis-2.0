@@ -1142,6 +1142,10 @@ export interface Translations {
     applyingBody: string
     applyingBodyBackend: string
     applyingClose: string
+    hideOutput: string
+    showOutput: string
+    lines: (count: number) => string
+    noOutput: string
     errorTitle: string
     errorBody: string
     notNow: string

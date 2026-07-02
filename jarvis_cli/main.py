@@ -255,6 +255,7 @@ if _try_termux_ultrafast_version():
 import argparse
 import hashlib
 import json
+import shlex
 import shutil
 import stat
 import subprocess
@@ -4705,6 +4706,11 @@ def _run_npm_install_deterministic(
     lockfile = cwd / "package-lock.json"
     if lockfile.exists():
         ci_cmd = [npm, "ci", *extra_args]
+        if not capture_output:
+            print(
+                f"  Running: cd {shlex.quote(str(cwd))} && {' '.join(shlex.quote(part) for part in ci_cmd)}",
+                flush=True,
+            )
         ci_result = subprocess.run(
             ci_cmd,
             cwd=cwd,
@@ -4720,6 +4726,11 @@ def _run_npm_install_deterministic(
         # Fall through to `npm install` — lockfile may be out of sync on a
         # WIP fork/branch, or `npm ci` may not be available on very old npm.
     install_cmd = [npm, "install", *extra_args]
+    if not capture_output:
+        print(
+            f"  Running: cd {shlex.quote(str(cwd))} && {' '.join(shlex.quote(part) for part in install_cmd)}",
+            flush=True,
+        )
     return subprocess.run(
         install_cmd,
         cwd=cwd,

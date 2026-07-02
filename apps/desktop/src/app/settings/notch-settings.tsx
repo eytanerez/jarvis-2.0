@@ -121,7 +121,7 @@ const SETTING_PAGES: NotchSettingsPageDef[] = [
     icon: Volume2,
     settings: [
       bool('showStandardMediaControls', 'Media controls tab', true),
-      bool('autoHideInactiveNotchMediaPlayer', 'Auto-hide inactive player', true),
+      bool('autoHideInactiveNotchMediaPlayer', 'Auto-hide inactive player', false),
       select('mediaController', 'Media controller', 'Apple Music', [
         ['Now Playing', 'Now Playing'],
         ['Apple Music', 'Apple Music'],

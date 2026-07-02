@@ -4,7 +4,7 @@
   <img src="assets/banner.png" alt="Jarvis" width="100%">
 </p>
 
-# ہرمیس ایجنٹ ☤ (Jarvis)
+# Jarvis ایجنٹ
 
 <p align="center">
   <a href="https://jarvis-agent.nousresearch.com/docs/"><img src="https://img.shields.io/badge/Docs-jarvis--agent.nousresearch.com-FFD700?style=for-the-badge" alt="Documentation"></a>
@@ -20,6 +20,8 @@
 آپ اپنی مرضی کا کوئی بھی ماڈل استعمال کر سکتے ہیں — [Nous Portal](https://portal.nousresearch.com)، [OpenRouter](https://openrouter.ai) (200 سے زائد ماڈلز)، [NovitaAI](https://novita.ai) (ماڈل API، ایجنٹ سینڈ باکس، اور GPU کلاؤڈ کے لیے اے آئی مقامی کلاؤڈ)، [NVIDIA NIM](https://build.nvidia.com) (Nemotron)، [Xiaomi MiMo](https://platform.xiaomimimo.com)، [z.ai/GLM](https://z.ai)، [Kimi/Moonshot](https://platform.moonshot.ai)، [MiniMax](https://www.minimax.io)، [Hugging Face](https://huggingface.co)، OpenAI، یا اپنا حسب ضرورت اینڈ پوائنٹ (endpoint) استعمال کریں۔ ماڈل تبدیل کرنے کے لیے صرف `jarvis model` استعمال کریں — کسی کوڈ کو تبدیل کرنے کی ضرورت نہیں، کوئی پابندی نہیں۔
 
 <table>
+<tr><td><b>Jarvis Brain</b></td><td>ہر سطح پر استعمال ہونے والا ایک مشترک runtime، جس میں میموری، skills، prompt caching، subagent delegation، اور scheduled work شامل ہیں۔</td></tr>
+<tr><td><b>Jarvis Desktop + Notch</b></td><td>Native desktop chat، settings، updates، اور macOS notch companion، سب ایک ہی Jarvis شناخت اور runtime کے ساتھ۔</td></tr>
 <tr><td><b>حقیقی ٹرمینل انٹرفیس</b></td><td>مکمل TUI جس میں ملٹی لائن ایڈیٹنگ، سلیش-کمانڈ آٹو کمپلیٹ، بات چیت کی ہسٹری، انٹرپٹ اور ری ڈائریکٹ، اور سٹریمنگ ٹول آؤٹ پٹ شامل ہے۔</td></tr>
 <tr><td><b>یہ وہاں موجود ہے جہاں آپ ہیں</b></td><td>ٹیلی گرام، ڈسکارڈ (Discord)، سلیک (Slack)، واٹس ایپ (WhatsApp)، سگنل (Signal)، اور CLI — سب ایک ہی گیٹ وے پروسیس سے کام کرتے ہیں۔ وائس میمو (Voice memo) ٹرانسکرپشن، کراس پلیٹ فارم بات چیت کا تسلسل۔</td></tr>
 <tr><td><b>سیکھنے کا ایک مکمل عمل</b></td><td>ایجنٹ کی اپنی ترتیب دی گئی میموری، جس میں وہ خود کو وقتاً فوقتاً یاد دہانی کرواتا ہے۔ پیچیدہ کاموں کے بعد خود کار طریقے سے مہارت (skill) کی تخلیق۔ استعمال کے دوران مہارتوں میں بہتری۔ LLM سمرائزیشن کے ساتھ FTS5 سیشن سرچ تاکہ پرانے سیشنز کی یاددہانی کی جا سکے۔ <a href="https://github.com/plastic-labs/honcho">Honcho</a> کے ذریعے صارف کی ماڈلنگ۔ <a href="https://agentskills.io">agentskills.io</a> اوپن سٹینڈرڈ کے ساتھ مکمل مطابقت۔</td></tr>
@@ -45,7 +47,7 @@ curl -fsSL https://jarvis-agent.nousresearch.com/install.sh | bash
 
 ### ونڈوز (نیٹو، پاور شیل)
 
-> **توجہ فرمائیں:** مقامی ونڈوز (Native Windows) پر ہرمیس بغیر WSL کے چلتا ہے — CLI، گیٹ وے، TUI، اور ٹولز سب مقامی طور پر کام کرتے ہیں۔ اگر آپ WSL2 استعمال کرنا پسند کرتے ہیں، تو اوپر دی گئی لینکس/میک او ایس کی کمانڈ وہاں بھی کام کرے گی۔ کوئی مسئلہ نظر آیا؟ براہ کرم [مسائل (issues) درج کریں](https://github.com/NousResearch/jarvis-brain/issues)۔
+> **توجہ فرمائیں:** مقامی ونڈوز (Native Windows) پر Jarvis بغیر WSL کے چلتا ہے — CLI، گیٹ وے، TUI، اور ٹولز سب مقامی طور پر کام کرتے ہیں۔ اگر آپ WSL2 استعمال کرنا پسند کرتے ہیں، تو اوپر دی گئی لینکس/میک او ایس کی کمانڈ وہاں بھی کام کرے گی۔ کوئی مسئلہ نظر آیا؟ براہ کرم [مسائل (issues) درج کریں](https://github.com/NousResearch/jarvis-brain/issues)۔
 
 اسے پاور شیل (PowerShell) میں چلائیں:
 
@@ -57,13 +59,13 @@ iex (irm https://jarvis-agent.nousresearch.com/install.ps1)
 
 </div>
 
-انسٹالر سب کچھ خود سنبھالتا ہے: uv، Python 3.11، Node.js، ripgrep، ffmpeg، **اور ایک پورٹ ایبل (portable) گٹ بیش (Git Bash)** (یعنی MinGit، جو `%LOCALAPPDATA%\jarvis\git` میں ان پیک ہوتا ہے — اس کے لیے ایڈمن کی اجازت درکار نہیں، اور یہ سسٹم کے کسی بھی گٹ انسٹال سے بالکل الگ ہے)۔ ہرمیس اس بنڈل شدہ گٹ بیش کو شیل کمانڈز چلانے کے لیے استعمال کرتا ہے۔
+انسٹالر سب کچھ خود سنبھالتا ہے: uv، Python 3.11، Node.js، ripgrep، ffmpeg، **اور ایک پورٹ ایبل (portable) گٹ بیش (Git Bash)** (یعنی MinGit، جو `%LOCALAPPDATA%\jarvis\git` میں ان پیک ہوتا ہے — اس کے لیے ایڈمن کی اجازت درکار نہیں، اور یہ سسٹم کے کسی بھی گٹ انسٹال سے بالکل الگ ہے)۔ Jarvis اس بنڈل شدہ گٹ بیش کو شیل کمانڈز چلانے کے لیے استعمال کرتا ہے۔
 
 اگر آپ کے پاس پہلے سے گٹ (Git) انسٹال ہے، تو انسٹالر اسے شناخت کر لیتا ہے اور اسے ہی استعمال کرتا ہے۔ بصورت دیگر آپ کو صرف ~45MB کے MinGit ڈاؤنلوڈ کی ضرورت ہوگی — یہ آپ کے سسٹم کے گٹ پر کوئی اثر نہیں ڈالے گا۔
 
-> **اینڈرائیڈ (Android) / ٹرمکس (Termux):** ٹیسٹ کیا گیا مینوئل طریقہ [Termux گائیڈ](https://jarvis-agent.nousresearch.com/docs/getting-started/termux) میں موجود ہے۔ ٹرمکس پر ہرمیس ایک مخصوص `.[termux]` ایکسٹرا انسٹال کرتا ہے کیونکہ مکمل `.[all]` ایکسٹرا میں ایسی وائس ڈیپینڈینسیز شامل ہیں جو اینڈرائیڈ کے ساتھ مطابقت نہیں رکھتیں۔
+> **اینڈرائیڈ (Android) / ٹرمکس (Termux):** ٹیسٹ کیا گیا مینوئل طریقہ [Termux گائیڈ](https://jarvis-agent.nousresearch.com/docs/getting-started/termux) میں موجود ہے۔ ٹرمکس پر Jarvis ایک مخصوص `.[termux]` ایکسٹرا انسٹال کرتا ہے کیونکہ مکمل `.[all]` ایکسٹرا میں ایسی وائس ڈیپینڈینسیز شامل ہیں جو اینڈرائیڈ کے ساتھ مطابقت نہیں رکھتیں۔
 >
-> **ونڈوز (Windows):** مقامی ونڈوز کی مکمل سپورٹ موجود ہے — اوپر دی گئی پاور شیل کی کمانڈ سب کچھ انسٹال کر دیتی ہے۔ اگر آپ WSL2 استعمال کرنا چاہتے ہیں، تو لینکس کی کمانڈ وہاں کام کرتی ہے۔ مقامی ونڈوز میں انسٹالیشن `%LOCALAPPDATA%\jarvis` میں ہوتی ہے؛ جبکہ WSL2 میں لینکس کی طرح `~/.jarvis` میں ہوتی ہے۔ ہرمیس کا وہ واحد فیچر جسے فی الحال خاص طور پر WSL2 کی ضرورت ہے وہ براؤزر پر مبنی ڈیش بورڈ چیٹ پین ہے (یہ POSIX PTY استعمال کرتا ہے — کلاسک CLI اور گیٹ وے دونوں مقامی طور پر چلتے ہیں)۔
+> **ونڈوز (Windows):** مقامی ونڈوز کی مکمل سپورٹ موجود ہے — اوپر دی گئی پاور شیل کی کمانڈ سب کچھ انسٹال کر دیتی ہے۔ اگر آپ WSL2 استعمال کرنا چاہتے ہیں، تو لینکس کی کمانڈ وہاں کام کرتی ہے۔ مقامی ونڈوز میں انسٹالیشن `%LOCALAPPDATA%\jarvis` میں ہوتی ہے؛ جبکہ WSL2 میں لینکس کی طرح `~/.jarvis` میں ہوتی ہے۔ Jarvis کا وہ واحد فیچر جسے فی الحال خاص طور پر WSL2 کی ضرورت ہے وہ براؤزر پر مبنی ڈیش بورڈ چیٹ پین ہے (یہ POSIX PTY استعمال کرتا ہے — کلاسک CLI اور گیٹ وے دونوں مقامی طور پر چلتے ہیں)۔
 
 انسٹالیشن کے بعد:
 
@@ -102,7 +104,7 @@ jarvis doctor       # کسی بھی مسئلے کی تشخیص کریں
 
 ## API-کیز اکٹھی کرنے سے بچیں — Nous Portal
 
-ہرمیس آپ کے پسندیدہ پرووائیڈر کے ساتھ کام کرتا ہے — یہ چیز تبدیل نہیں ہو رہی۔ لیکن اگر آپ ماڈل، ویب سرچ، امیج جنریشن، TTS، اور کلاؤڈ براؤزر کے لیے پانچ الگ الگ API کیز جمع نہیں کرنا چاہتے، تو **[Nous Portal](https://portal.nousresearch.com)** ان سب کو ایک ہی سبسکرپشن کے تحت کور کرتا ہے:
+Jarvis آپ کے پسندیدہ پرووائیڈر کے ساتھ کام کرتا ہے — یہ چیز تبدیل نہیں ہو رہی۔ لیکن اگر آپ ماڈل، ویب سرچ، امیج جنریشن، TTS، اور کلاؤڈ براؤزر کے لیے پانچ الگ الگ API کیز جمع نہیں کرنا چاہتے، تو **[Nous Portal](https://portal.nousresearch.com)** ان سب کو ایک ہی سبسکرپشن کے تحت کور کرتا ہے:
 
 - **300+ ماڈلز** — ان میں سے کوئی بھی ماڈل `/model <name>` کے ذریعے منتخب کریں
 - **ٹول گیٹ وے (Tool Gateway)** — ویب سرچ (Firecrawl)، امیج جنریشن (FAL)، ٹیکسٹ ٹو سپیچ (OpenAI)، کلاؤڈ براؤزر (Browser Use)، یہ سب آپ کی سبسکرپشن کے ذریعے چلتے ہیں۔ کسی اضافی اکاؤنٹ کی ضرورت نہیں۔
@@ -125,7 +127,7 @@ jarvis setup --portal
 
 ## CLI بمقابلہ میسجنگ فوری حوالہ
 
-ہرمیس کے دو بنیادی انٹر فیس ہیں: آپ ٹرمینل UI کو `jarvis` کے ساتھ شروع کریں، یا گیٹ وے چلا کر اس کے ساتھ ٹیلی گرام، ڈسکارڈ، سلیک، واٹس ایپ، سگنل، یا ای میل کے ذریعے بات کریں۔ جب آپ کسی بات چیت میں ہوتے ہیں، تو بہت سی سلیش (slash) کمانڈز دونوں انٹرفیسز میں ایک جیسی ہوتی ہیں۔
+Jarvis کے دو بنیادی انٹر فیس ہیں: آپ ٹرمینل UI کو `jarvis` کے ساتھ شروع کریں، یا گیٹ وے چلا کر اس کے ساتھ ٹیلی گرام، ڈسکارڈ، سلیک، واٹس ایپ، سگنل، یا ای میل کے ذریعے بات کریں۔ جب آپ کسی بات چیت میں ہوتے ہیں، تو بہت سی سلیش (slash) کمانڈز دونوں انٹرفیسز میں ایک جیسی ہوتی ہیں۔
 
 <div dir="ltr">
 
@@ -177,7 +179,7 @@ jarvis setup --portal
 
 ## OpenClaw سے منتقلی
 
-اگر آپ OpenClaw سے منتقل ہو رہے ہیں، تو ہرمیس آپ کی سیٹنگز، یادیں (memories)، مہارتیں (skills)، اور API کیز کو خود بخود امپورٹ کر سکتا ہے۔
+اگر آپ OpenClaw سے منتقل ہو رہے ہیں، تو Jarvis آپ کی سیٹنگز، یادیں (memories)، مہارتیں (skills)، اور API کیز کو خود بخود امپورٹ کر سکتا ہے۔
 
 **پہلی بار سیٹ اپ کے دوران:** سیٹ اپ وزرڈ (`jarvis setup`) خود بخود `~/.openclaw` کو پہچان لیتا ہے اور کنفیگریشن شروع ہونے سے پہلے مائیگریٹ (migrate) کرنے کا آپشن دیتا ہے۔
 
@@ -247,8 +249,8 @@ scripts/run_tests.sh
 - 💬 [ڈسکارڈ (Discord)](https://discord.gg/NousResearch)
 - 📚 [سکلز ہب (Skills Hub)](https://agentskills.io)
 - 🐛 [مسائل (Issues)](https://github.com/NousResearch/jarvis-brain/issues)
-- 🔌 [computer-use-linux](https://github.com/avifenesh/computer-use-linux) — ہرمیس اور دیگر MCP ہوسٹس کے لیے لینکس (Linux) ڈیسک ٹاپ کنٹرول MCP سرور، جس میں AT-SPI ایکسیسیبلٹی ٹریز، Wayland/X11 ان پٹ، سکرین شاٹس، اور کمپوزیٹر ونڈو ٹارگیٹنگ شامل ہے۔
-- 🔌 [JarvisClaw](https://github.com/AaronWong1999/jarvisclaw) — کمیونٹی وی چیٹ (WeChat) برج: ہرمیس ایجنٹ اور OpenClaw کو ایک ہی وی چیٹ اکاؤنٹ پر چلائیں۔
+- 🔌 [computer-use-linux](https://github.com/avifenesh/computer-use-linux) — Jarvis اور دیگر MCP ہوسٹس کے لیے لینکس (Linux) ڈیسک ٹاپ کنٹرول MCP سرور، جس میں AT-SPI ایکسیسیبلٹی ٹریز، Wayland/X11 ان پٹ، سکرین شاٹس، اور کمپوزیٹر ونڈو ٹارگیٹنگ شامل ہے۔
+- 🔌 [JarvisClaw](https://github.com/AaronWong1999/jarvisclaw) — کمیونٹی وی چیٹ (WeChat) برج: Jarvis ایجنٹ اور OpenClaw کو ایک ہی وی چیٹ اکاؤنٹ پر چلائیں۔
 
 ---
 

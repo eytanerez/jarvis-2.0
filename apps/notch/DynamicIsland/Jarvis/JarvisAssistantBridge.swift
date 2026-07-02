@@ -60,7 +60,7 @@ struct JarvisTranscriptTurn: Identifiable, Equatable {
 }
 
 private let jarvisEditableNotchSettingDefaults: [String: Any] = [
-    "autoHideInactiveNotchMediaPlayer": true,
+    "autoHideInactiveNotchMediaPlayer": false,
     "autoRemoveShelfItems": false,
     "autoStartStatsMonitoring": true,
     "autoScrollToNextEvent": true,
@@ -362,14 +362,19 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
         if model.phase.isConversationActive {
             send(["type": "endConversation"])
         } else {
-            activationHandler?()
-            send(["type": "startConversation"])
+            startConversation()
         }
     }
 
     /// Kept for call-site compatibility with the original bridge.
     func activateConversation() {
-        toggleConversation()
+        startConversation()
+    }
+
+    func startConversation() {
+        guard !model.phase.isConversationActive else { return }
+        activationHandler?()
+        send(["type": "startConversation"])
     }
 
     /// Focuses the Jarvis desktop app on the current conversation.
@@ -383,6 +388,19 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
     /// the live WS credentials.
     func restartNotch() {
         send(["type": "restartNotch"])
+    }
+
+    /// Called right before a user-initiated quit (the Quit menu item).
+    /// Jarvis launches the notch via `open`, whose own exit status doesn't
+    /// reflect how the launched app actually exited, so it can't tell "quit
+    /// on purpose" from "crashed" just from that — this explicit signal is
+    /// what makes the difference so Jarvis doesn't spend a minute trying to
+    /// relaunch something you closed intentionally. Fire-and-forget over a
+    /// loopback WebSocket is fast, but sending is asynchronous — callers
+    /// must give it a brief moment (see the Quit button) before actually
+    /// terminating, or the frame may never leave the process.
+    func notifyUserQuit() {
+        send(["type": "userQuit"])
     }
 
     func openJarvisSettings() {

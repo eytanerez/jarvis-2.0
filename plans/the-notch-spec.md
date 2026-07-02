@@ -313,3 +313,68 @@ Every phase in this doc is now done. What landed this session, on top of the
   after verification (`release/` is gitignored, reproducible via `npm run
   pack`). The whole notch integration — Phases 1 through 4 — is functionally
   complete.
+
+## Two real runtime bugs found and fixed (2026-07-02, session 3)
+
+Reported by Eytan: "settings open fine but the notch doesn't launch" on his
+**installed** `/Applications/Jarvis.app` (not a dev build). Root-caused via
+`~/.jarvis/logs/desktop.log` and direct binary testing — neither bug was
+caught by the unit/typecheck/pack verification in earlier sessions because
+none of it exercises the actual runtime spawn path against a real bundle.
+
+1. **`Cannot find module 'ws'`.** `ws` (added as a plain `dependency` for the
+   WS server) gets hoisted by npm workspaces to the repo root's
+   `node_modules/ws`, invisible to electron-builder's file collector once
+   `files:` is set — the exact class of bug `stage-native-deps.cjs` already
+   exists to fix for `node-pty`. Fix: added `ws` to `stage-native-deps.cjs`'s
+   `NATIVE_DEPS` list (pure JS, no native binaries, so it's simpler than
+   node-pty's per-arch prebuilds) and added `requireWs()` in `notch.cjs`
+   mirroring `main.cjs`'s existing node-pty fallback pattern (try normal
+   `require('ws')`, fall back to `resources/native-deps/ws` on failure).
+
+2. **The notch SIGABRTs immediately when launched via `child_process.spawn()`
+   directly on the binary inside the bundle** (confirmed via `log stream`:
+   `"This app has crashed because it attempted to access privacy-sensitive
+   data without a usage description... NSBluetoothAlwaysUsageDescription"` —
+   even though that key IS present in the bundle's Info.plist). Root cause:
+   TCC misattributes "responsible process" for a directly-spawned child of
+   Electron, so it checks the wrong bundle's Info.plist. Launching via
+   `open -n -a <path> --args ...` (going through LaunchServices) resolves the
+   bundle correctly and does not crash — confirmed by direct testing (`open
+   -n` alone survived 5+ seconds; the direct binary exec crashed every time,
+   `exit 134`, within ~1s). Fix, in `notch.cjs`'s `spawnNotchApp()`:
+   - Launch via `open -n -W -a <appPath> --args --jarvis-port <p> --jarvis-token <t>`.
+     `-W` makes `open` block for as long as the app runs, so its own 'exit'
+     still correlates with the real app's lifetime (needed to keep the
+     existing exit-driven backoff/relaunch logic working).
+   - BUT `open`'s own exit *code* is always ~0 regardless of how the target
+     actually exited (verified directly: SIGKILLing the target mid-run still
+     produced `open` exit 0) — it no longer distinguishes "quit on purpose"
+     from "crashed". Replaced that check with an explicit signal: the notch's
+     Quit button now calls `JarvisAssistantBridge.notifyUserQuit()` (sends
+     `{"type": "userQuit"}`) with a 150ms delay before actually terminating
+     (to give the WS send time to leave the process), and `notch.cjs` tracks
+     a `userQuitRequested` flag consumed by the exit handler instead of
+     checking `code === 0`.
+   - `child.kill()` no longer terminates the real app either (it only kills
+     the `open` wrapper) — `stop()`/`restartNotch()` now go through a shared
+     `killNotchProcess()` helper (`pkill -x "Jarvis Notch"`, same mechanism
+     already used for the stale-instance cleanup on `start()`).
+   - Added tests for all three behaviors (open-based launch args,
+     userQuit-suppresses-relaunch, unsignaled-exit-still-relaunches) — full
+     suite is 18/18 in `notch.test.cjs`, 229/231 repo-wide (2 pre-existing
+     unrelated Windows-only failures).
+   - **Verified against the real compiled binary**, not just mocks: direct
+     `spawnNotchApp()` via `notch.cjs` kept the real `Jarvis Notch` process
+     alive 5+ seconds (previously crashed within ~1s every time).
+
+**Deployed:** Eytan chose a direct rebuild+reinstall. Notch rebuilt in
+Release configuration (not just Debug — sanity-checked the Release binary
+independently survives the `open`-launch fix too), `npm run pack` from
+`apps/desktop` (unsigned local `--dir` build — no Developer ID cert
+configured locally, expected), old `/Applications/Jarvis.app` replaced with
+the fresh one, relaunched. Confirmed via `~/.jarvis/logs/desktop.log`:
+`[notch] client connected (protocol v1)` — single connect event, no
+reconnect churn, notch process held the same PID for 10+ seconds after
+launch (previously crash-looped and gave up within ~90s). Both bugs
+confirmed fixed on the actual installed app, not just in isolated testing.

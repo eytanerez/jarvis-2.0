@@ -15,6 +15,7 @@
     "install:web": "npm install --workspace web",
     "install:tui": "npm install --workspace ui-tui",
     "install:desktop": "npm install --workspace apps/desktop",
+    "notch:build": "npm run notch:build --workspace apps/desktop",
     "audit:root": "npm audit --workspaces=false",
     "audit:web": "npm audit --workspace web",
     "audit:tui": "npm audit --workspace ui-tui",

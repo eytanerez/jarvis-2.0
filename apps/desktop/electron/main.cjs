@@ -1939,10 +1939,19 @@ async function handOffWindowsBootstrapRecovery(reason) {
 }
 
 // Spawn a command and stream each output line to the update progress channel.
-function runStreamedUpdate(command, args, { cwd, env, stage } = {}) {
+function runStreamedUpdate(command, args, { cwd, env, stage, percent } = {}) {
   return new Promise(resolve => {
     let child
+    const startedAt = Date.now()
+    const stageName = stage || 'update'
+    const commandLine = [command, ...args].map(shellQuote).join(' ')
+    const cwdPrefix = cwd ? `cd ${shellQuote(cwd)} && ` : ''
     try {
+      emitUpdateProgress({
+        stage: stageName,
+        message: `Running: ${cwdPrefix}${commandLine}`,
+        percent: typeof percent === 'number' ? percent : null
+      })
       child = spawn(
         command,
         args,
@@ -1953,19 +1962,67 @@ function runStreamedUpdate(command, args, { cwd, env, stage } = {}) {
         })
       )
     } catch (err) {
+      emitUpdateProgress({
+        stage: stageName,
+        message: `Failed to start: ${cwdPrefix}${commandLine}`,
+        percent: typeof percent === 'number' ? percent : null,
+        error: err.message
+      })
       resolve({ code: 1, error: err.message })
       return
     }
-    const emitLines = chunk => {
-      for (const line of chunk.toString().split('\n')) {
+    const buffers = { stderr: '', stdout: '' }
+    const emitLines = (chunk, stream) => {
+      buffers[stream] += chunk.toString()
+      const lines = buffers[stream].split(/\r?\n/)
+      buffers[stream] = lines.pop() || ''
+      for (const line of lines) {
         const trimmed = line.trim()
-        if (trimmed) emitUpdateProgress({ stage, message: trimmed, percent: null })
+        if (trimmed) {
+          emitUpdateProgress({
+            stage: stageName,
+            message: trimmed,
+            percent: typeof percent === 'number' ? percent : null
+          })
+        }
       }
     }
-    child.stdout.on('data', emitLines)
-    child.stderr.on('data', emitLines)
-    child.once('error', err => resolve({ code: 1, error: err.message }))
-    child.once('exit', code => resolve({ code }))
+    const flushLines = () => {
+      for (const stream of ['stdout', 'stderr']) {
+        const trimmed = buffers[stream].trim()
+        if (trimmed) {
+          emitUpdateProgress({
+            stage: stageName,
+            message: trimmed,
+            percent: typeof percent === 'number' ? percent : null
+          })
+        }
+        buffers[stream] = ''
+      }
+    }
+    child.stdout.on('data', chunk => emitLines(chunk, 'stdout'))
+    child.stderr.on('data', chunk => emitLines(chunk, 'stderr'))
+    child.once('error', err => {
+      flushLines()
+      emitUpdateProgress({
+        stage: stageName,
+        message: `Command failed to run after ${Math.round((Date.now() - startedAt) / 1000)}s: ${err.message}`,
+        percent: typeof percent === 'number' ? percent : null,
+        error: err.message
+      })
+      resolve({ code: 1, error: err.message })
+    })
+    child.once('exit', code => {
+      flushLines()
+      const seconds = Math.round((Date.now() - startedAt) / 1000)
+      const status = code === 0 ? 'finished' : `exited ${code ?? 'unknown'}`
+      emitUpdateProgress({
+        stage: stageName,
+        message: `Command ${status} after ${seconds}s`,
+        percent: typeof percent === 'number' ? percent : null
+      })
+      resolve({ code })
+    })
   })
 }
 
@@ -2068,12 +2125,14 @@ async function applyUpdatesPosixInApp() {
     const updated = await runStreamedUpdate(jarvis.command, [...jarvis.args, 'update', '--yes', ...branchArgs], {
       cwd: updateRoot,
       env,
-      stage: 'update'
+      stage: 'update',
+      percent: 10
     })
     if (updated.code !== 0) {
       emitUpdateProgress({ stage: 'error', message: 'Jarvis update failed.', error: updated.error || 'update-failed' })
       return { ok: false, error: 'jarvis update failed' }
     }
+    emitUpdateProgress({ stage: 'update', message: 'Jarvis source update finished.', percent: 55 })
   }
 
   emitUpdateProgress({ stage: 'rebuild', message: 'Rebuilding the desktop app…', percent: 60 })
@@ -2092,7 +2151,7 @@ async function applyUpdatesPosixInApp() {
     if (attempt > 0) {
       emitUpdateProgress({ stage: 'rebuild', message: 'Retrying the desktop rebuild…', percent: 60 })
     }
-    return runStreamedUpdate(jarvis.command, desktopArgs, { cwd: updateRoot, env, stage: 'rebuild' })
+    return runStreamedUpdate(jarvis.command, desktopArgs, { cwd: updateRoot, env, stage: 'rebuild', percent: 60 })
   })
   if (rebuilt.code !== 0) {
     emitUpdateProgress({
@@ -2102,6 +2161,7 @@ async function applyUpdatesPosixInApp() {
     })
     return { ok: false, backendUpdated: true, error: 'desktop rebuild failed' }
   }
+  emitUpdateProgress({ stage: 'rebuild', message: 'Desktop rebuild finished.', percent: 90 })
 
   const rebuiltApp = [
     path.join(updateRoot, 'apps', 'desktop', 'release', 'mac-arm64', 'Jarvis.app'),

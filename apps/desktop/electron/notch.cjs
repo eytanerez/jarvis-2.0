@@ -40,6 +40,27 @@ const RELAUNCH_MAX_DELAY_MS = 30_000
 // so the user always has a manual way back in.
 const MAX_RELAUNCH_ATTEMPTS = 6
 
+/**
+ * `require('ws')` normally resolves fine (dev mode; also packaged builds
+ * where it happens to land in this package's own node_modules). But npm
+ * workspace dedup hoists it to the repo root's node_modules when nothing
+ * conflicts, which is out of reach of electron-builder's file collector once
+ * `files:` is set in package.json (same class of bug stage-native-deps.cjs
+ * already exists to fix for node-pty) — a packaged app then throws "Cannot
+ * find module 'ws'" the first time this runs. Mirror that fix: ship a copy
+ * under resources/native-deps/ws/ (see scripts/stage-native-deps.cjs) and
+ * fall back to it when the normal require fails.
+ */
+function requireWs() {
+  try {
+    return require('ws')
+  } catch (firstError) {
+    const resourcesPath = process.resourcesPath
+    if (!resourcesPath) throw firstError
+    return require(path.join(resourcesPath, 'native-deps', 'ws'))
+  }
+}
+
 // Static files the notch's embedded orb page may fetch from the renderer dist.
 // Everything else 404s, and any path escaping the dist directory is refused.
 const ORB_STATIC_TYPES = {
@@ -229,6 +250,19 @@ function createNotchLink({
   let relaunchAttempt = 0
   let buildAttempted = false
   let restartRequested = false
+  let userQuitRequested = false
+
+  // Terminates the actual "Jarvis Notch" process by name. The Swift app is
+  // launched via `open` (see spawnNotchApp — required to avoid a TCC
+  // bundle-resolution crash when spawned directly), so the tracked `child`
+  // handle is the `open` wrapper, not the app itself; killing `child` would
+  // only kill that wrapper and leave the real app running. Exact-name match
+  // so nothing else can be caught. Shared by the stale-instance cleanup on
+  // start() and by stop()/restartNotch()'s termination.
+  function killNotchProcess(callback) {
+    const kill = killStaleImpl || (cb => execFile('pkill', ['-x', 'Jarvis Notch'], () => cb()))
+    kill(callback)
+  }
 
   // Latest conversation state, replayed to every new client so a notch that
   // (re)connects mid-conversation renders the right thing immediately.
@@ -362,6 +396,13 @@ function createNotchLink({
         // can restart it correctly.
         restartNotch()
         break
+      case 'userQuit':
+        // Sent right before the notch's own Quit menu item terminates it.
+        // open's own exit status doesn't distinguish "quit on purpose" from
+        // "crashed" (see spawnNotchApp), so this explicit signal is what
+        // does — consumed by the exit handler instead of an exit code.
+        userQuitRequested = true
+        break
       case 'settingsSnapshot':
         updateSettingsSnapshot(message.snapshot)
         break
@@ -375,7 +416,7 @@ function createNotchLink({
 
   async function startServer() {
     // Lazy-required so unit tests can inject a fake without loading ws.
-    const { WebSocketServer } = WebSocketServerImpl ? { WebSocketServer: WebSocketServerImpl } : require('ws')
+    const { WebSocketServer } = WebSocketServerImpl ? { WebSocketServer: WebSocketServerImpl } : requireWs()
 
     httpServer = http.createServer((req, res) => {
       // The HTTP surface serves the orb page + assets (built app; dev uses the
@@ -469,11 +510,26 @@ function createNotchLink({
       return
     }
 
-    const binary = path.join(appPath, 'Contents', 'MacOS', 'Jarvis Notch')
-    child = spawnImpl(binary, ['--jarvis-port', String(port), '--jarvis-token', token], {
-      detached: false,
-      stdio: 'ignore'
-    })
+    // Launched via `open -W`, not a direct exec of the binary inside the
+    // bundle: a directly-spawned child of Electron gets misattributed for
+    // TCC's "responsible process" resolution, so the OS checks the WRONG
+    // Info.plist for usage-description strings and the app immediately
+    // SIGABRTs on its first privacy-sensitive API call (Bluetooth, in
+    // practice) — even though the real Info.plist has the right keys.
+    // Launching through LaunchServices (what `open` does) resolves the
+    // bundle correctly. `-n` forces a fresh instance; `-W` makes `open`
+    // itself block for as long as the launched app runs, so its own 'exit'
+    // still fires when the real app quits — but `open`'s exit CODE reflects
+    // whether the launch request succeeded, not how the app later exited,
+    // so code/signal below are diagnostic only. Termination and "was this
+    // deliberate" are handled explicitly: killNotchProcess() (not
+    // child.kill(), which would only kill the `open` wrapper) and the
+    // restartRequested/userQuitRequested flags, not exit codes.
+    child = spawnImpl(
+      'open',
+      ['-n', '-W', '-a', appPath, '--args', '--jarvis-port', String(port), '--jarvis-token', token],
+      { detached: false, stdio: 'ignore' }
+    )
 
     child.once('error', error => {
       log(`[notch] failed to launch: ${error.message}`)
@@ -499,8 +555,9 @@ function createNotchLink({
 
       // The notch has no reason to exit while Jarvis runs (its Quit menu item
       // is a user action we honor by NOT relaunching on clean exits).
-      if (code === 0) {
-        log('[notch] exited cleanly — not relaunching')
+      if (userQuitRequested) {
+        userQuitRequested = false
+        log('[notch] exited cleanly (user quit) — not relaunching')
         return
       }
 
@@ -549,7 +606,7 @@ function createNotchLink({
     }
 
     restartRequested = true
-    child.kill('SIGTERM')
+    killNotchProcess(() => {})
   }
 
   return {
@@ -578,9 +635,8 @@ function createNotchLink({
 
       // A stale notch from a previous Jarvis run (crash, force-quit, dev
       // restart) holds a dead port+token — replace it, don't stack a second
-      // notch on top. Exact-name match so nothing else can be caught.
-      const killStale = killStaleImpl || (callback => execFile('pkill', ['-x', 'Jarvis Notch'], () => callback()))
-      await new Promise(resolve => killStale(resolve))
+      // notch on top.
+      await new Promise(resolve => killNotchProcess(resolve))
 
       spawnNotchApp()
     },
@@ -591,7 +647,7 @@ function createNotchLink({
         relaunchTimer = null
       }
       if (child && !child.killed) {
-        child.kill('SIGTERM')
+        killNotchProcess(() => {})
       }
       child = null
       state.settings = { connected: false, permissions: state.settings.permissions, values: state.settings.values }

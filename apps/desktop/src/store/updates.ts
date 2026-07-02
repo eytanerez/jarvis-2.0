@@ -13,8 +13,8 @@ import type {
   DesktopUpdateStatus,
   DesktopVersionInfo
 } from '@/global'
-import { checkJarvisUpdate, getActionStatus, updateJarvis } from '@/jarvis'
 import { translateNow } from '@/i18n'
+import { checkJarvisUpdate, getActionStatus, updateJarvis } from '@/jarvis'
 import { persistString, storedString } from '@/lib/storage'
 import { dismissNotification, notify } from '@/store/notifications'
 import { $connection } from '@/store/session'
@@ -26,6 +26,8 @@ export interface UpdateApplyState {
   message: string
   percent: number | null
   error: string | null
+  startedAt: number | null
+  stageStartedAt: number | null
   /** When the stage is 'manual': the exact command the user should run
    *  (CLI install with no staged updater). */
   command: string | null
@@ -38,6 +40,8 @@ const IDLE: UpdateApplyState = {
   message: '',
   percent: null,
   error: null,
+  startedAt: null,
+  stageStartedAt: null,
   command: null,
   log: []
 }
@@ -57,11 +61,13 @@ export type UpdateTarget = 'client' | 'backend'
 export const $updateOverlayTarget = atom<UpdateTarget>('client')
 
 export const setUpdateOverlayOpen = (open: boolean) => $updateOverlayOpen.set(open)
+
 export const openUpdateOverlayFor = (target: UpdateTarget) => {
   $updateOverlayTarget.set(target)
   $updateOverlayOpen.set(true)
   void (target === 'backend' ? checkBackendUpdates() : checkUpdates())
 }
+
 export const resetUpdateApplyState = () => {
   $updateApply.set(IDLE)
   $backendUpdateApply.set(IDLE)
@@ -312,7 +318,16 @@ export async function applyUpdates(opts: DesktopUpdateApplyOptions = {}): Promis
   }
 
   dismissNotification(UPDATE_TOAST_ID)
-  $updateApply.set({ ...IDLE, applying: true, stage: 'prepare', message: 'Starting update…' })
+  const now = Date.now()
+  $updateApply.set({
+    ...IDLE,
+    applying: true,
+    stage: 'prepare',
+    message: 'Starting update…',
+    percent: 2,
+    startedAt: now,
+    stageStartedAt: now
+  })
 
   try {
     const result = await bridge.apply(opts)
@@ -321,12 +336,16 @@ export async function applyUpdates(opts: DesktopUpdateApplyOptions = {}): Promis
     // `jarvis update` themselves. Land on a dedicated manual state so the
     // overlay shows the command + copy button instead of a dead retry loop.
     if (result?.manual) {
+      const current = $updateApply.get()
       $updateApply.set({
         ...IDLE,
         applying: false,
         stage: 'manual',
         message: result.command ?? 'jarvis update',
-        command: result.command ?? 'jarvis update'
+        command: result.command ?? 'jarvis update',
+        log: current.log,
+        startedAt: current.startedAt,
+        stageStartedAt: current.stageStartedAt
       })
     }
 
@@ -345,6 +364,7 @@ const BACKEND_RETURN_MAX_ATTEMPTS = 40
 async function waitForBackendReturn(): Promise<boolean> {
   for (let attempt = 0; attempt < BACKEND_RETURN_MAX_ATTEMPTS; attempt += 1) {
     await new Promise(resolve => globalThis.setTimeout(resolve, BACKEND_RETURN_POLL_MS))
+
     try {
       await checkJarvisUpdate()
 
@@ -379,11 +399,15 @@ function finishBackendApply(returned: boolean): DesktopUpdateApplyResult {
 
 export async function applyBackendUpdate(): Promise<DesktopUpdateApplyResult> {
   dismissNotification(UPDATE_TOAST_ID)
+  const now = Date.now()
   $backendUpdateApply.set({
     ...IDLE,
     applying: true,
     stage: 'prepare',
-    message: translateNow('updates.applyStatus.preparing')
+    message: translateNow('updates.applyStatus.preparing'),
+    percent: 5,
+    startedAt: now,
+    stageStartedAt: now
   })
 
   try {
@@ -392,30 +416,63 @@ export async function applyBackendUpdate(): Promise<DesktopUpdateApplyResult> {
     if (!started.ok) {
       const message = (started as { message?: string }).message || translateNow('updates.applyStatus.notAvailable')
       const command = (started as { update_command?: string }).update_command || 'jarvis update'
-      $backendUpdateApply.set({ ...IDLE, applying: false, stage: 'manual', message, command })
+      const current = $backendUpdateApply.get()
+      $backendUpdateApply.set({
+        ...IDLE,
+        applying: false,
+        stage: 'manual',
+        message,
+        command,
+        log: current.log,
+        startedAt: current.startedAt,
+        stageStartedAt: current.stageStartedAt
+      })
 
       return { ok: false, error: 'manual', manual: true, message, command }
     }
 
+    const pullStartedAt = Date.now()
     $backendUpdateApply.set({
       ...IDLE,
       applying: true,
       stage: 'pull',
-      message: translateNow('updates.applyStatus.pulling')
+      message: translateNow('updates.applyStatus.pulling'),
+      percent: 25,
+      startedAt: now,
+      stageStartedAt: pullStartedAt
     })
 
     let last: Awaited<ReturnType<typeof getActionStatus>> | null = null
+    let seenLineCount = 0
+
     for (let attempt = 0; attempt < 30; attempt += 1) {
       await new Promise(resolve => globalThis.setTimeout(resolve, 1500))
+
       try {
         last = await getActionStatus(started.name, 200)
+        const freshLines = last.lines.slice(seenLineCount).filter(Boolean)
+        seenLineCount = last.lines.length
+
+        if (freshLines.length > 0) {
+          const current = $backendUpdateApply.get()
+          const at = Date.now()
+          const entries = freshLines.map(line => ({ at, message: line, stage: current.stage }))
+          $backendUpdateApply.set({
+            ...current,
+            message: freshLines.at(-1) ?? current.message,
+            log: [...current.log, ...entries].slice(-50)
+          })
+        }
       } catch {
         // The dashboard restarts mid-update, dropping this connection — expected, not a failure.
+        const current = $backendUpdateApply.get()
         $backendUpdateApply.set({
-          ...$backendUpdateApply.get(),
+          ...current,
           applying: true,
           stage: 'restart',
-          message: translateNow('updates.applyStatus.restarting')
+          message: translateNow('updates.applyStatus.restarting'),
+          percent: 90,
+          stageStartedAt: current.stage === 'restart' ? current.stageStartedAt : Date.now()
         })
 
         return finishBackendApply(await waitForBackendReturn())
@@ -427,12 +484,16 @@ export async function applyBackendUpdate(): Promise<DesktopUpdateApplyResult> {
     }
 
     const ok = !!last && (last.exit_code ?? 1) === 0
+
     if (ok) {
+      const current = $backendUpdateApply.get()
       $backendUpdateApply.set({
-        ...$backendUpdateApply.get(),
+        ...current,
         applying: true,
         stage: 'restart',
-        message: translateNow('updates.applyStatus.restarting')
+        message: translateNow('updates.applyStatus.restarting'),
+        percent: 90,
+        stageStartedAt: current.stage === 'restart' ? current.stageStartedAt : Date.now()
       })
 
       return finishBackendApply(await waitForBackendReturn())
@@ -463,15 +524,24 @@ export async function applyBackendUpdate(): Promise<DesktopUpdateApplyResult> {
 
 function ingestProgress(payload: DesktopUpdateProgress): void {
   const current = $updateApply.get()
-  const log = [...current.log, { stage: payload.stage, message: payload.message, at: payload.at }].slice(-50)
+  const at = typeof payload.at === 'number' && Number.isFinite(payload.at) ? payload.at : Date.now()
+
+  const log = payload.message
+    ? [...current.log, { stage: payload.stage, message: payload.message, at }].slice(-50)
+    : current.log
+
   const terminal = payload.stage === 'error' || payload.stage === 'restart' || payload.stage === 'manual'
+  const stageChanged = payload.stage !== current.stage
 
   $updateApply.set({
     applying: !terminal,
     stage: payload.stage,
-    message: payload.message,
-    percent: payload.percent,
+    message: payload.message || current.message,
+    percent:
+      typeof payload.percent === 'number' && Number.isFinite(payload.percent) ? payload.percent : current.percent,
     error: payload.error,
+    startedAt: current.startedAt ?? at,
+    stageStartedAt: stageChanged ? at : (current.stageStartedAt ?? at),
     // 'manual' carries the command to run in its message field.
     command: payload.stage === 'manual' ? payload.message : current.command,
     log
@@ -509,7 +579,9 @@ export function startUpdatePoller(): void {
     if (conn?.mode === lastConnectionMode) {
       return
     }
+
     lastConnectionMode = conn?.mode
+
     if (conn?.mode === 'remote') {
       void checkBackendUpdates()
     }

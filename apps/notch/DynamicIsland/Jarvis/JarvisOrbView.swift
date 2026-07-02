@@ -7,6 +7,7 @@
  * the notch never shows a blank hole.
  */
 
+import AppKit
 import SwiftUI
 import WebKit
 
@@ -39,7 +40,11 @@ private struct OrbWebView: NSViewRepresentable {
         let configuration = WKWebViewConfiguration()
         configuration.processPool = OrbWebViewPool.processPool
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.setValue(false, forKey: "drawsBackground")
+        webView.wantsLayer = true
+        webView.layer?.backgroundColor = NSColor.clear.cgColor
+        if #available(macOS 12.0, *) {
+            webView.underPageBackgroundColor = .clear
+        }
         webView.load(URLRequest(url: url))
         return webView
     }

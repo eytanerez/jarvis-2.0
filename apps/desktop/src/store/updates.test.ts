@@ -49,6 +49,7 @@ const {
   $backendUpdateApply,
   reportBackendContract
 } = await import('./updates')
+
 const { setConnection } = await import('./session')
 
 const status = (over: Partial<DesktopUpdateStatus> = {}): DesktopUpdateStatus => ({
@@ -237,6 +238,8 @@ describe('applyBackendUpdate recovery', () => {
       message: '',
       percent: null,
       error: null,
+      startedAt: null,
+      stageStartedAt: null,
       command: null,
       log: []
     })

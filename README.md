@@ -23,6 +23,7 @@ Use any model you want — [Nous Portal](https://portal.nousresearch.com), [Open
 
 <table>
 <tr><td><b>Jarvis Brain</b></td><td>One reusable runtime across every surface, with memory, skills, prompt caching, sub-brain delegation, and scheduled work.</td></tr>
+<tr><td><b>Jarvis Desktop + Notch</b></td><td>Native desktop chat, settings, updates, and a macOS notch companion using the same Jarvis identity and runtime.</td></tr>
 <tr><td><b>Terminal-grade control</b></td><td>Full TUI with multiline editing, slash-command autocomplete, conversation history, interrupt-and-redirect, and streaming tool output.</td></tr>
 <tr><td><b>Everywhere interface</b></td><td>Telegram, Discord, Slack, WhatsApp, Signal, desktop, and CLI from one gateway. Voice memo transcription and cross-platform conversation continuity included.</td></tr>
 <tr><td><b>Closed learning loop</b></td><td>Brain-curated memory, autonomous skill creation, skill self-improvement, FTS5 session search, LLM recall summaries, and optional <a href="https://github.com/plastic-labs/honcho">Honcho</a> user modeling.</td></tr>
