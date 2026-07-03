@@ -5,7 +5,7 @@ import { warmupVoiceModels } from '@/jarvis'
 import { beginVoiceLatencyTurn, cancelVoiceLatencyTurn, markVoiceLatency } from '@/lib/voice-latency'
 import { playSpeechText, prefetchSpeechText, stopVoicePlayback } from '@/lib/voice-playback'
 import { classifyVoiceSignoff } from '@/lib/voice-signoff'
-import { setMicSignal } from '@/store/jarvis-cockpit'
+import { setMicSignal, setVoiceSpeaking, setVoiceTranscribing } from '@/store/jarvis-cockpit'
 import { notify, notifyError } from '@/store/notifications'
 
 import { useMicRecorder } from './use-mic-recorder'
@@ -49,7 +49,7 @@ interface VoiceConversationOptions {
 // engine degrades to fewer updates instead of a backlog. (The old
 // implementation used the browser SpeechRecognition API, which is a stub in
 // Electron — no Google speech backend — so captions were permanently empty.)
-const PARTIAL_TRANSCRIBE_INTERVAL_MS = 1_500
+const PARTIAL_TRANSCRIBE_INTERVAL_MS = 900
 
 export function useVoiceConversation({
   busy,
@@ -86,6 +86,10 @@ export function useVoiceConversation({
   const silentTurnCountRef = useRef(0)
   const spokenSourceLengthRef = useRef(0)
   const speechBufferRef = useRef('')
+  // Whether the current reply has dispatched its first spoken chunk yet -
+  // the first chunk is allowed to break at an earlier soft boundary so the
+  // assistant starts talking sooner; later chunks keep whole sentences.
+  const firstChunkTakenRef = useRef(false)
   // Live-caption loop state: the interval handle, a single-in-flight latch,
   // and a generation counter that invalidates stale partial results after
   // the loop stops (the final transcript must never be overwritten by a
@@ -122,7 +126,21 @@ export function useVoiceConversation({
     setMicSignal(status === 'listening', level)
   }, [level, status])
 
-  useEffect(() => () => setMicSignal(false, 0), [])
+  // Bridge the STT window into the orb's thinking state - between "user went
+  // quiet" and "turn submitted" no session store is busy yet, and without this
+  // the orb visibly drops back to idle for the transcription round-trip.
+  useEffect(() => {
+    setVoiceTranscribing(status === 'transcribing')
+  }, [status])
+
+  useEffect(
+    () => () => {
+      setMicSignal(false, 0)
+      setVoiceTranscribing(false)
+      setVoiceSpeaking(false)
+    },
+    []
+  )
 
   useEffect(() => {
     if (!enabled || !subscribeToResponse) {
@@ -225,6 +243,7 @@ export function useVoiceConversation({
     responseIdRef.current = null
     spokenSourceLengthRef.current = 0
     speechBufferRef.current = ''
+    firstChunkTakenRef.current = false
   }
 
   const noteSilentTurn = useCallback(() => {
@@ -271,23 +290,34 @@ export function useVoiceConversation({
 
       if (!peek) {
         speechBufferRef.current = buffer.slice(sentence[1].length).trim()
+        firstChunkTakenRef.current = true
       }
 
       return chunk
     }
 
-    if (!force && buffer.length > 220) {
+    // Soft (clause) boundary. The reply's first chunk gets much looser
+    // thresholds: time-to-first-sound is the latency the user actually feels,
+    // so a long opening sentence starts speaking at its first comma instead
+    // of waiting for the period. Follow-up chunks keep whole sentences - the
+    // pipeline is already ahead by then and prosody matters more than speed.
+    const minBuffer = firstChunkTakenRef.current ? 220 : 110
+    const searchTo = firstChunkTakenRef.current ? 180 : 100
+    const minBoundary = firstChunkTakenRef.current ? 80 : 36
+
+    if (!force && buffer.length > minBuffer) {
       const softBoundary = Math.max(
-        buffer.lastIndexOf(', ', 180),
-        buffer.lastIndexOf('; ', 180),
-        buffer.lastIndexOf(': ', 180)
+        buffer.lastIndexOf(', ', searchTo),
+        buffer.lastIndexOf('; ', searchTo),
+        buffer.lastIndexOf(': ', searchTo)
       )
 
-      if (softBoundary > 80) {
+      if (softBoundary > minBoundary) {
         const chunk = buffer.slice(0, softBoundary + 1).trim()
 
         if (!peek) {
           speechBufferRef.current = buffer.slice(softBoundary + 1).trim()
+          firstChunkTakenRef.current = true
         }
 
         return chunk
@@ -300,6 +330,7 @@ export function useVoiceConversation({
 
     if (!peek) {
       speechBufferRef.current = ''
+      firstChunkTakenRef.current = true
     }
 
     return buffer
@@ -479,6 +510,10 @@ export function useVoiceConversation({
   const speak = useCallback(
     async (text: string) => {
       setStatus('speaking')
+      // Held true across ALL chunks of this reply (cleared by the pump's
+      // completion branches / interrupt / end) so the orb doesn't drop out of
+      // its speaking mood during the beat between sentence chunks.
+      setVoiceSpeaking(true)
 
       try {
         await playSpeechText(text, { source: 'voice-conversation' })
@@ -544,6 +579,7 @@ export function useVoiceConversation({
     silentTurnCountRef.current = 0
     submittedTurnCountRef.current = 0
     awaitingSpokenResponseRef.current = false
+    setVoiceSpeaking(false)
     resetSpeechBuffer()
     consumePendingResponse()
     setMuted(false)
@@ -576,6 +612,7 @@ export function useVoiceConversation({
     }
 
     awaitingSpokenResponseRef.current = false
+    setVoiceSpeaking(false)
     resetSpeechBuffer()
     consumePendingResponse()
     stopVoicePlayback()
@@ -590,6 +627,10 @@ export function useVoiceConversation({
         clearTurnTimeout()
         handle.cancel()
         stopLiveTranscript(true)
+        // Muting stops the pump effect, so the whole-reply speaking hold
+        // would never get cleared - drop it now; any chunk still audibly
+        // playing keeps the orb speaking via $voicePlayback itself.
+        setVoiceSpeaking(false)
         setStatus('idle')
       } else if (enabledRef.current && !busyRef.current && statusRef.current === 'idle') {
         pendingStartRef.current = true
@@ -676,6 +717,7 @@ export function useVoiceConversation({
         if (!response.pending && !busy) {
           cancelVoiceLatencyTurn()
           awaitingSpokenResponseRef.current = false
+          setVoiceSpeaking(false)
           consumePendingResponse()
           resetSpeechBuffer()
           pendingStartRef.current = true
@@ -688,6 +730,7 @@ export function useVoiceConversation({
       if (!busy && status === 'thinking') {
         cancelVoiceLatencyTurn()
         awaitingSpokenResponseRef.current = false
+        setVoiceSpeaking(false)
         resetSpeechBuffer()
         pendingStartRef.current = true
         setStatus('idle')

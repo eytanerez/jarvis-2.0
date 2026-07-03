@@ -57,7 +57,10 @@ const MAX_HTTP_BODY_BYTES = 16 * 1024 * 1024
 const RPC_ALLOWED_METHODS = new Set([
   'approval.respond',
   'clarify.respond',
+  'image.attach_bytes',
+  'image.detach',
   'model.options',
+  'pdf.attach',
   'prompt.submit',
   'session.active_list',
   'session.create',

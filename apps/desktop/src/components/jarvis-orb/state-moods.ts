@@ -91,20 +91,28 @@ export const MOOD_TARGETS: Record<OrbState, MoodTarget> = {
     haloScale: 1.5,
     jagged: 0.08,
     ringsActive: 0,
-    sizePulse: 0.65,
+    // Almost entirely level-gated (see OrbSceneLayer's sizeScale) - this is
+    // the "mouth" of the orb, so it pulses with the actual TTS envelope and
+    // rests still between words instead of wobbling constantly.
+    sizePulse: 0.8,
     spinSpeed: 0.55
   },
+  // Thinking sits between listening (0.6 churn) and its old frantic self
+  // (1.6/0.85) - the helix rings and cycling color already carry the
+  // "working on it" identity, and during voice turns the orb passes through
+  // thinking on EVERY turn, so a violent churn/spin spike here made each
+  // state change read as the orb going haywire rather than settling.
   thinking: {
     ampBase: 0.95,
     approvalRing: 0,
     brightness: 1.25,
-    churn: 1.6,
+    churn: 1.15,
     colorMode: 'cycle',
     haloScale: 1.4,
     jagged: 0.15,
     ringsActive: 1,
     sizePulse: 0,
-    spinSpeed: 0.85
+    spinSpeed: 0.65
   },
   toolUse: {
     ampBase: 0.95,

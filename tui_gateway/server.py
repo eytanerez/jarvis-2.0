@@ -5514,7 +5514,19 @@ def _(rid, params: dict) -> dict:
     if err:
         return err
     history = list(session.get("history", []))
-    db = _get_db()
+    db = None
+    close_db = False
+    profile_home = session.get("profile_home")
+    if profile_home:
+        try:
+            from jarvis_state import SessionDB
+
+            db = SessionDB(db_path=Path(str(profile_home)) / "state.db")
+            close_db = True
+        except Exception:
+            db = None
+    if db is None:
+        db = _get_db()
     if db is not None and session.get("session_key"):
         try:
             history = db.get_messages_as_conversation(
@@ -5522,6 +5534,12 @@ def _(rid, params: dict) -> dict:
             )
         except Exception:
             pass
+        finally:
+            if close_db:
+                try:
+                    db.close()
+                except Exception:
+                    pass
     return _ok(
         rid,
         {

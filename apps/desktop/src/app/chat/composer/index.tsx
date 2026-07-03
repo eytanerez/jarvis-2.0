@@ -2068,6 +2068,11 @@ export function ChatBar({
           void conversation.end()
         },
         onInterruptSpeech: conversation.interruptSpeech,
+        onOpenChat: () => {
+          setCockpitMode('classic')
+          setVoiceConversationActive(false)
+          void conversation.end()
+        },
         onStart: () => {
           // Voice IS the orb cockpit - resuming it from classic/chat view
           // should bring the orb back up rather than leaving you staring at

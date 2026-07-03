@@ -1030,6 +1030,7 @@ export interface Translations {
     newSessionPlaceholders: readonly string[]
     followUpPlaceholders: readonly string[]
     startVoice: string
+    chatMode: string
     queueMessage: string
     steer: string
     stop: string

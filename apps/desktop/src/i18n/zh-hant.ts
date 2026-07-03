@@ -1638,6 +1638,7 @@ export const zhHant = defineLocale({
       '調整或繼續'
     ],
     startVoice: '開始語音對話',
+    chatMode: '切換到聊天',
     queueMessage: '排隊訊息',
     stop: '停止',
     send: '傳送',

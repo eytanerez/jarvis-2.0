@@ -1555,6 +1555,7 @@ export const en: Translations = {
       'Adjust or continue'
     ],
     startVoice: 'Start voice conversation',
+    chatMode: 'Switch to chat',
     queueMessage: 'Queue message',
     steer: 'Steer the current run',
     stop: 'Stop',

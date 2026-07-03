@@ -4,7 +4,7 @@ import { KbdCombo } from '@/components/ui/kbd'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { AudioLines, Layers3, Loader2, Square, SteeringWheel } from '@/lib/icons'
+import { AudioLines, Layers3, Loader2, MessageSquareText, Square, SteeringWheel } from '@/lib/icons'
 import { formatCombo } from '@/lib/keybinds/combo'
 import { cn } from '@/lib/utils'
 
@@ -34,6 +34,7 @@ interface ConversationProps {
   status: ConversationStatus
   onEnd: () => void
   onInterruptSpeech: () => void
+  onOpenChat: () => void
   onStart: () => void
   onStopTurn: () => void
   onToggleMute: () => void
@@ -150,6 +151,7 @@ function ConversationPill({
   muted,
   onEnd,
   onInterruptSpeech,
+  onOpenChat,
   onStopTurn,
   onToggleMute,
   status
@@ -187,6 +189,22 @@ function ConversationPill({
           variant="ghost"
         >
           <Codicon name={muted ? 'mic-off' : 'mic'} size="1rem" />
+        </Button>
+      </Tip>
+      <Tip label={c.chatMode}>
+        <Button
+          aria-label={c.chatMode}
+          className={cn(GHOST_ICON_BTN, 'p-0')}
+          disabled={disabled}
+          onClick={() => {
+            triggerHaptic('open')
+            onOpenChat()
+          }}
+          size="icon"
+          type="button"
+          variant="ghost"
+        >
+          <MessageSquareText size={16} />
         </Button>
       </Tip>
       {(listening || speaking) && (

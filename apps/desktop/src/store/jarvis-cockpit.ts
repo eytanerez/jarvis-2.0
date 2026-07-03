@@ -47,9 +47,39 @@ export function setLiveVoiceTranscript(text: string): void {
   }
 }
 
+// Voice-loop phase signals, published by use-voice-conversation.
+//
+// $voiceSpeaking stays true for the WHOLE spoken reply, not per audio chunk -
+// playback drops to 'idle' for a beat between every sentence (chunk ended,
+// next one still synthesizing), and without this hold the orb slammed through
+// speaking -> thinking -> speaking on every sentence boundary, which read as
+// the orb "going crazy" mid-reply.
+//
+// $voiceTranscribing covers the STT window right after the user stops talking,
+// when neither $busy nor $awaitingResponse is set yet - otherwise the orb
+// flashes idle-blue between amber (listening) and the thinking state.
+
+export const $voiceSpeaking = atom(false)
+export const $voiceTranscribing = atom(false)
+
+export function setVoiceSpeaking(active: boolean): void {
+  if ($voiceSpeaking.get() !== active) {
+    $voiceSpeaking.set(active)
+  }
+}
+
+export function setVoiceTranscribing(active: boolean): void {
+  if ($voiceTranscribing.get() !== active) {
+    $voiceTranscribing.set(active)
+  }
+}
+
 // Orb-state signals derived from existing gateway/session stores.
 
-export const $orbSpeaking = computed($voicePlayback, playback => playback.status === 'speaking')
+export const $orbSpeaking = computed(
+  [$voicePlayback, $voiceSpeaking],
+  (playback, voiceSpeaking) => playback.status === 'speaking' || voiceSpeaking
+)
 
 export const $orbAwaitingApproval = computed(
   [$approvalRequest, $sudoRequest, $secretRequest, $clarifyRequest],
@@ -94,7 +124,10 @@ export const $orbError = computed($messages, messages => {
   return false
 })
 
-export const $orbThinking = computed([$awaitingResponse, $busy], (awaiting, busy) => awaiting || busy)
+export const $orbThinking = computed(
+  [$awaitingResponse, $busy, $voiceTranscribing],
+  (awaiting, busy, transcribing) => awaiting || busy || transcribing
+)
 
 export interface OrbStateInputs {
   awaitingApproval: boolean
