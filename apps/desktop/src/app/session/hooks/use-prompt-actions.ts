@@ -326,6 +326,9 @@ interface PromptActionsOptions {
 interface SubmitTextOptions {
   attachments?: ComposerAttachment[]
   fromQueue?: boolean
+  /** Turn arrived via the voice loop — the gateway appends a spoken-reply
+   * cue so the answer is speech-shaped (short, no markdown). */
+  fromVoice?: boolean
 }
 
 /** Everything a slash handler needs about the invocation it's serving. */
@@ -705,7 +708,9 @@ export function usePromptActions({
         let submitErr: unknown = null
 
         try {
-          await withSessionBusyRetry(() => requestGateway('prompt.submit', { session_id: sessionId, text }))
+          await withSessionBusyRetry(() =>
+            requestGateway('prompt.submit', { session_id: sessionId, text, voice: options?.fromVoice === true })
+          )
         } catch (firstErr) {
           if (isSessionNotFoundError(firstErr) && selectedStoredSessionIdRef.current) {
             // Re-register the session in the gateway and get a fresh live ID.
@@ -717,7 +722,9 @@ export function usePromptActions({
 
             if (recoveredId) {
               activeSessionIdRef.current = recoveredId
-              await withSessionBusyRetry(() => requestGateway('prompt.submit', { session_id: recoveredId, text }))
+              await withSessionBusyRetry(() =>
+                requestGateway('prompt.submit', { session_id: recoveredId, text, voice: options?.fromVoice === true })
+              )
             } else {
               submitErr = firstErr
             }
@@ -1361,13 +1368,13 @@ export function usePromptActions({
   )
 
   const transcribeVoiceAudio = useCallback(
-    async (audio: Blob) => {
+    async (audio: Blob, options?: { partial?: boolean }) => {
       if (!sttEnabled) {
         throw new Error(copy.sttDisabled)
       }
 
       const dataUrl = await blobToDataUrl(audio)
-      const result = await transcribeAudio(dataUrl, audio.type)
+      const result = await transcribeAudio(dataUrl, audio.type, options)
 
       return result.transcript
     },

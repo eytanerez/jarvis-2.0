@@ -35,6 +35,19 @@ export interface MicRecording {
   heardSpeech: boolean
 }
 
+/** Audio captured so far in the in-progress recording (see `snapshot`). */
+export interface MicSnapshot {
+  audio: Blob
+  durationMs: number
+  heardSpeech: boolean
+}
+
+// MediaRecorder timeslice. Chunked delivery is what makes mid-recording
+// snapshots possible: concatenating the chunks of one recorder yields a valid
+// container (the header rides in the first chunk), which is exactly what the
+// live partial-transcription loop posts to the STT endpoint.
+const RECORDER_TIMESLICE_MS = 500
+
 export interface MicRecorderErrorCopy {
   microphoneAccessDenied: string
   microphoneConstraintsUnsupported: string
@@ -49,6 +62,9 @@ interface MicRecorderHandle {
   start: (options?: MicRecorderOptions) => Promise<void>
   stop: () => Promise<MicRecording | null>
   cancel: () => void
+  /** Audio-so-far of the in-progress recording, or null when idle/empty.
+   * Non-destructive: the recording keeps accumulating. */
+  snapshot: () => MicSnapshot | null
 }
 
 function micError(error: unknown, copy: MicRecorderErrorCopy): Error {
@@ -305,9 +321,23 @@ export function useMicRecorder(copy: MicRecorderErrorCopy): {
       resolver?.(null)
     }
 
-    recorder.start()
+    recorder.start(RECORDER_TIMESLICE_MS)
     setRecording(true)
     startMeter(stream, options)
+  }
+
+  const snapshot: MicRecorderHandle['snapshot'] = () => {
+    const recorder = recorderRef.current
+
+    if (!recorder || recorder.state === 'inactive' || !chunksRef.current.length) {
+      return null
+    }
+
+    return {
+      audio: new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' }),
+      durationMs: Date.now() - startedAtRef.current,
+      heardSpeech: heardSpeechRef.current
+    }
   }
 
   const stop: MicRecorderHandle['stop'] = () =>
@@ -341,7 +371,7 @@ export function useMicRecorder(copy: MicRecorderErrorCopy): {
     resolver?.(null)
   }
 
-  const handle: MicRecorderHandle = { start, stop, cancel }
+  const handle: MicRecorderHandle = { start, stop, cancel, snapshot }
 
   return { handle, level, recording }
 }

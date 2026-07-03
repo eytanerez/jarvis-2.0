@@ -1218,13 +1218,15 @@ extension Defaults.Keys {
     static let enableNoteCharCount = Key<Bool>("enableNoteCharCount", default: true)
     static let savedNotes = Key<[NoteItem]>("savedNotes", default: [])
     
-    // Helper to determine the default media controller based on macOS version
+    // Default media controller: the universal NowPlaying controller. On
+    // macOS ≥ 15.4 it runs through the bundled mediaremote-adapter (verified
+    // working on macOS 26 with Spotify); MusicManager's deprecation check
+    // still falls back to Apple Music if the adapter genuinely can't run.
+    // App-specific AppleScript controllers (Spotify/Apple Music) need a
+    // per-app Automation permission grant and silently show nothing until
+    // it's given, so they are opt-in choices, not the default.
     static var defaultMediaController: MediaControllerType {
-        if #available(macOS 15.4, *) {
-            return .appleMusic
-        } else {
-            return .nowPlaying
-        }
+        .nowPlaying
     }
     
     // Migration helper to convert from legacy enableGradient Boolean to new ProgressBarStyle enum

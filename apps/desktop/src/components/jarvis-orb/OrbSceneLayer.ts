@@ -126,7 +126,16 @@ export class OrbSceneLayer {
   private pings: Ping[] = []
   private lastWaveAt = 0
 
-  constructor(private canvas: HTMLCanvasElement) {
+  // Camera pull-back. The default frames the orb with generous clearance for
+  // the app backdrop; small embeds (the notch's web views) pass a closer
+  // distance so the sphere fills their tiny viewport instead.
+  private cameraDistance: number
+
+  constructor(
+    private canvas: HTMLCanvasElement,
+    options?: { cameraDistance?: number }
+  ) {
+    this.cameraDistance = options?.cameraDistance ?? 6.4
     const gl = canvas.getContext('webgl2', { alpha: true, antialias: true, premultipliedAlpha: false })
 
     if (!gl) {
@@ -319,7 +328,7 @@ export class OrbSceneLayer {
     // bigger on screen - fills more of the viewport instead of floating small
     // in the middle. Orbit radii top out around 2.6, so this still leaves
     // comfortable clearance before the near plane.
-    const eye: Vec3 = [0, 0, 6.4]
+    const eye: Vec3 = [0, 0, this.cameraDistance]
     const view = lookAt4(eye, [0, 0, 0], [0, 1, 0])
     const aspect = width / Math.max(1, height)
     const proj = perspective4((42 * Math.PI) / 180, aspect, 0.1, 20)

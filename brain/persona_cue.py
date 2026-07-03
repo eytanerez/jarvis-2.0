@@ -63,6 +63,33 @@ TONAL_CHECKPOINT = (
 )
 
 
+# Appended to the API-bound copy of the current turn's user message when the
+# turn arrived via the desktop voice loop (gateway sets
+# ``agent._voice_turn_active`` per turn from prompt.submit's ``voice`` flag).
+# The reply is read aloud by TTS sentence-by-sentence, so long formatted
+# answers are both slow to hear and unpleasant — this asks for speech-shaped
+# output without changing what the agent actually does.
+SPOKEN_REPLY_CUE = (
+    "[Voice turn - the user spoke this aloud and your reply will be read "
+    "out by text-to-speech. Answer the way you would speak: lead with the "
+    "answer, keep it to a few short sentences, plain conversational words. "
+    "No markdown, no bullet lists, no headings, no code blocks, no tables. "
+    "If the work genuinely produced details worth reading, keep the spoken "
+    "reply to a sentence or two and say the rest is in the chat.]"
+)
+
+
+def append_spoken_reply_cue(content: str) -> str:
+    """Return ``content`` with the spoken-reply cue appended (idempotent).
+
+    Same contract as :func:`append_voice_cue`: string content only, applied
+    to the API-bound copy of a message, never to stored history.
+    """
+    if SPOKEN_REPLY_CUE in content:
+        return content
+    return f"{content}\n\n{SPOKEN_REPLY_CUE}"
+
+
 def should_apply_persona_cue(agent: Any) -> bool:
     """Whether this session gets the persona push.
 

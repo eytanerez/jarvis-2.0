@@ -26,6 +26,39 @@ export interface ToolActivityModel {
   view: ReturnType<typeof buildToolView>
 }
 
+/**
+ * Every tool call of the current turn (the latest visible assistant
+ * message), in execution order — the voice cockpit renders these as a feed
+ * so tool work is visible outside the chat thread.
+ */
+export function currentTurnToolActivities(messages: ChatMessage[]): ToolActivityModel[] {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]
+
+    if (message.role !== 'assistant' || message.hidden) {
+      continue
+    }
+
+    const activities: ToolActivityModel[] = []
+
+    for (let j = 0; j < message.parts.length; j++) {
+      const part = asToolPart(message.parts[j])
+
+      if (!part) {
+        continue
+      }
+
+      const view = buildToolView(part, part.toolCallId ? getToolDiff(part.toolCallId) : '')
+
+      activities.push({ id: part.toolCallId || `${message.id}-${j}`, view })
+    }
+
+    return activities
+  }
+
+  return []
+}
+
 export function latestToolActivity(messages: ChatMessage[]): ToolActivityModel | null {
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i]

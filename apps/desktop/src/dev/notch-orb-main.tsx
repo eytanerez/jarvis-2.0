@@ -28,6 +28,16 @@ const PHASE_TO_ORB_STATE: Record<NotchPhase, OrbState> = {
 
 const RECONNECT_DELAY_MS = 2_000
 
+// The camera distance that makes the sphere fill a small square viewport
+// (`fill=1`, used by every notch surface). The imported styles.css paints the
+// app's body gradient, which reads as a grey disc behind the orb inside the
+// notch's circular clip — inline styles win over any stylesheet, so force the
+// page transparent here.
+const FILL_CAMERA_DISTANCE = 3.4
+
+document.documentElement.style.background = 'transparent'
+document.body.style.background = 'transparent'
+
 function NotchOrb() {
   const [phase, setPhase] = useState<NotchPhase>('idle')
   const levelRef = useRef(0)
@@ -93,8 +103,11 @@ function NotchOrb() {
     }
   }, [])
 
+  const fill = new URLSearchParams(window.location.search).get('fill') === '1'
+
   return (
     <JarvisOrbScene
+      cameraDistance={fill ? FILL_CAMERA_DISTANCE : undefined}
       className="size-full"
       getLevel={() => levelRef.current}
       showBackground={false}

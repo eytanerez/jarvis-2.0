@@ -26,7 +26,7 @@ interface VoiceConversationOptions {
   enabled: boolean
   onFatalError?: () => void
   onSubmit: (text: string) => Promise<void> | void
-  onTranscribeAudio?: (audio: Blob) => Promise<string>
+  onTranscribeAudio?: (audio: Blob, options?: { partial?: boolean }) => Promise<string>
   /** Called when a turn is classified as a conversational sign-off (see
    * `classifyVoiceSignoff`) - the conversation is winding down gracefully,
    * not erroring out. Callers should treat this the same as ending the
@@ -43,44 +43,13 @@ interface VoiceConversationOptions {
   subscribeToResponse?: (onChange: () => void) => () => void
 }
 
-interface BrowserSpeechRecognitionAlternative {
-  transcript: string
-}
-
-interface BrowserSpeechRecognitionResult {
-  readonly length: number
-  readonly isFinal: boolean
-  [index: number]: BrowserSpeechRecognitionAlternative | undefined
-}
-
-interface BrowserSpeechRecognitionEvent extends Event {
-  readonly results: {
-    readonly length: number
-    [index: number]: BrowserSpeechRecognitionResult | undefined
-  }
-}
-
-interface BrowserSpeechRecognition extends EventTarget {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  onend: (() => void) | null
-  onerror: (() => void) | null
-  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null
-  start: () => void
-  stop: () => void
-}
-
-type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition
-
-function speechRecognitionConstructor(): BrowserSpeechRecognitionConstructor | null {
-  const speechWindow = window as Window & {
-    SpeechRecognition?: BrowserSpeechRecognitionConstructor
-    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor
-  }
-
-  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null
-}
+// How often the live-caption loop posts the audio-so-far for a partial
+// transcription while the user is talking. One request in flight at a time;
+// a tick that finds the previous one still running is skipped, so a slow
+// engine degrades to fewer updates instead of a backlog. (The old
+// implementation used the browser SpeechRecognition API, which is a stub in
+// Electron — no Google speech backend — so captions were permanently empty.)
+const PARTIAL_TRANSCRIBE_INTERVAL_MS = 1_500
 
 export function useVoiceConversation({
   busy,
@@ -117,7 +86,13 @@ export function useVoiceConversation({
   const silentTurnCountRef = useRef(0)
   const spokenSourceLengthRef = useRef(0)
   const speechBufferRef = useRef('')
-  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null)
+  // Live-caption loop state: the interval handle, a single-in-flight latch,
+  // and a generation counter that invalidates stale partial results after
+  // the loop stops (the final transcript must never be overwritten by a
+  // slower partial that resolves late).
+  const partialTimerRef = useRef<number | null>(null)
+  const partialInFlightRef = useRef(false)
+  const partialGenerationRef = useRef(0)
   const warmupInFlightRef = useRef(false)
   const warmupStartedAtRef = useRef(0)
   const enabledRef = useRef(enabled)
@@ -187,19 +162,11 @@ export function useVoiceConversation({
   }, [])
 
   const stopLiveTranscript = useCallback((clear = false) => {
-    const recognition = recognitionRef.current
-    recognitionRef.current = null
+    partialGenerationRef.current += 1
 
-    if (recognition) {
-      recognition.onend = null
-      recognition.onerror = null
-      recognition.onresult = null
-
-      try {
-        recognition.stop()
-      } catch {
-        // Best-effort UI transcript only.
-      }
+    if (partialTimerRef.current !== null) {
+      window.clearInterval(partialTimerRef.current)
+      partialTimerRef.current = null
     }
 
     if (clear) {
@@ -207,47 +174,52 @@ export function useVoiceConversation({
     }
   }, [])
 
+  // Real as-you-speak captions: post the recorder's audio-so-far to the STT
+  // endpoint (`partial: true`) on an interval and surface whatever comes
+  // back. Best-effort by design — errors and busy-drops just mean the
+  // caption lags a tick; the turn's final transcription is untouched.
   const startLiveTranscript = useCallback(() => {
     stopLiveTranscript(true)
 
-    const Recognition = speechRecognitionConstructor()
-
-    if (!Recognition) {
+    if (!onTranscribeAudio) {
       return
     }
 
-    try {
-      const recognition = new Recognition()
-      recognition.continuous = true
-      recognition.interimResults = true
-      recognition.lang = navigator.language || 'en-US'
+    const generation = partialGenerationRef.current
 
-      recognition.onresult = event => {
-        let transcript = ''
-
-        for (let i = 0; i < event.results.length; i += 1) {
-          transcript = `${transcript}${event.results[i]?.[0]?.transcript ?? ''}`
-        }
-
-        setLiveTranscript(transcript.replace(/\s+/g, ' ').trim())
+    partialTimerRef.current = window.setInterval(() => {
+      if (partialInFlightRef.current) {
+        return
       }
 
-      recognition.onerror = () => {
-        recognitionRef.current = null
+      const snap = handle.snapshot()
+
+      if (!snap || !snap.heardSpeech) {
+        return
       }
 
-      recognition.onend = () => {
-        if (recognitionRef.current === recognition) {
-          recognitionRef.current = null
-        }
-      }
+      partialInFlightRef.current = true
 
-      recognitionRef.current = recognition
-      recognition.start()
-    } catch {
-      recognitionRef.current = null
-    }
-  }, [stopLiveTranscript])
+      onTranscribeAudio(snap.audio, { partial: true })
+        .then(text => {
+          if (partialGenerationRef.current !== generation) {
+            return
+          }
+
+          const cleaned = text.replace(/\s+/g, ' ').trim()
+
+          // Empty = the engine was busy or heard nothing yet; keep the
+          // previous caption rather than flickering it away.
+          if (cleaned) {
+            setLiveTranscript(cleaned)
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          partialInFlightRef.current = false
+        })
+    }, PARTIAL_TRANSCRIBE_INTERVAL_MS)
+  }, [handle, onTranscribeAudio, stopLiveTranscript])
 
   const resetSpeechBuffer = () => {
     responseIdRef.current = null

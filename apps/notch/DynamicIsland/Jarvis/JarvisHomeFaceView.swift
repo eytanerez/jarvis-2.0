@@ -13,6 +13,8 @@ struct JarvisHomeFaceView: View {
         Button {
             JarvisAssistantBridge.shared.toggleConversation()
         } label: {
+            // Fixed 118pt: the home card is short, so an aspect-fit fill
+            // shrinks the orb to the card height instead of growing it.
             JarvisOrbView()
                 .frame(width: 118, height: 118)
                 .scaleEffect(isHovering ? 1.05 : 1.0)

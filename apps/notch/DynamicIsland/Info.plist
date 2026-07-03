@@ -11,8 +11,6 @@
 	<string>Jarvis needs permission to control Spotify and Apple Music so the notch can show what's playing and respond to play/pause/skip.</string>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>Jarvis uses Apple Music to fetch animated artwork for the lock screen wallpaper.</string>
-	<key>NSAudioCaptureUsageDescription</key>
-	<string>Jarvis needs audio capture permission to display the real-time music waveform visualizer.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Jarvis needs microphone access so you can speak commands with Option-Space.</string>
 	<key>NSScreenCaptureUsageDescription</key>

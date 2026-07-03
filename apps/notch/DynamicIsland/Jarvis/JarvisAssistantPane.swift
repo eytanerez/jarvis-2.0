@@ -26,7 +26,8 @@ struct JarvisAssistantPane: View {
                 JarvisAssistantBridge.shared.toggleConversation()
             } label: {
                 JarvisOrbView()
-                    .frame(width: 118, height: 118)
+                    .aspectRatio(1, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
@@ -87,8 +88,6 @@ struct JarvisAssistantPane: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.white.opacity(0.92))
-                .disabled(model.phase == .disconnected)
-                .opacity(model.phase == .disconnected ? 0.45 : 1)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)

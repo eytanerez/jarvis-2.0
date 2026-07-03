@@ -31,7 +31,21 @@ const SIGNOFF_LEAD_WORDS = new Set([
   'yep',
   'yup',
   'sure',
-  'well'
+  'well',
+  // Declining an offer is a common way to close ("no thanks", "nope, that's
+  // all", "nah I'm good") — the command-verb veto still catches "no, delete
+  // it" style corrections because the remainder is judged on its own.
+  'no',
+  'nope',
+  'nah',
+  // "I'm ok thanks" / "I'm good, thanks" — the contraction token from
+  // tokenize() keeps the apostrophe; "good"/"fine" cover the middle word of
+  // those closers (a "good/fine" leading into an instruction still hits the
+  // command-verb veto on the remainder).
+  "i'm",
+  'im',
+  'good',
+  'fine'
 ])
 
 /** A sign-off phrase must actually be present, as the trailing part of the
@@ -53,9 +67,22 @@ const SIGNOFF_CORE_PHRASES = [
   'awesome',
   "that's all",
   "that's it",
+  "that's everything",
+  "that'll be all",
+  'that will be all',
+  'nothing else',
   'all set',
+  "i'm all set",
+  'all good',
   "we're good",
+  "we're done",
   "i'm good",
+  "i'm okay",
+  "i'm ok",
+  "i'm fine",
+  "i'm done",
+  'no thanks',
+  'no thank you',
   'appreciate it',
   'much appreciated',
   'nice one',

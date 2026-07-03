@@ -745,13 +745,22 @@ export function getActionStatus(name: string, lines = 200): Promise<ActionStatus
   })
 }
 
-export function transcribeAudio(dataUrl: string, mimeType?: string): Promise<AudioTranscriptionResponse> {
+export function transcribeAudio(
+  dataUrl: string,
+  mimeType?: string,
+  options?: { partial?: boolean }
+): Promise<AudioTranscriptionResponse> {
   return window.jarvisDesktop.api<AudioTranscriptionResponse>({
     path: '/api/audio/transcribe',
     method: 'POST',
     body: {
       data_url: dataUrl,
-      mime_type: mimeType
+      mime_type: mimeType,
+      // Live caption request for the audio-so-far of an in-progress turn.
+      // The server treats these as best-effort: dropped (empty transcript)
+      // rather than queued when the STT engine is busy, so they can never
+      // delay the turn's final transcription.
+      partial: options?.partial === true
     }
   })
 }

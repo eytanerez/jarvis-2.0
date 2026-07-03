@@ -719,6 +719,11 @@ class TelegramOnboardingApply(BaseModel):
 class AudioTranscriptionRequest(BaseModel):
     data_url: str
     mime_type: Optional[str] = None
+    # Live-caption request for the audio-so-far of an in-progress voice turn.
+    # Best-effort: dropped with an empty transcript (rather than queued) when
+    # a transcription is already running, so partials can never delay the
+    # turn's final transcription.
+    partial: bool = False
 
 
 class ManagedFileUpload(BaseModel):
@@ -752,6 +757,11 @@ _AUDIO_MIME_EXTENSIONS: Dict[str, str] = {
     "video/webm": ".webm",
 }
 _MAX_TRANSCRIPTION_UPLOAD_BYTES = 25 * 1024 * 1024
+
+# Serializes /api/audio/transcribe work (the local Whisper model is a single
+# shared instance). Final transcriptions queue on it; partial live-caption
+# requests check `.locked()` and bail instead of queueing.
+_transcription_lock = asyncio.Lock()
 
 
 def _audio_extension_for_mime(mime_type: str) -> str:
@@ -2635,24 +2645,34 @@ async def transcribe_audio_upload(payload: AudioTranscriptionRequest):
     if len(audio_bytes) > _MAX_TRANSCRIPTION_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="Audio recording is too large")
 
+    # Serialize STT work. Finals wait their turn; partials are best-effort
+    # live captions and are dropped immediately when the engine is busy so
+    # they never queue up behind (or in front of) a final transcription.
+    if payload.partial and _transcription_lock.locked():
+        return {"ok": True, "transcript": "", "provider": None, "busy": True}
+
     temp_path = ""
     try:
-        suffix = _audio_extension_for_mime(mime_type)
-        with tempfile.NamedTemporaryFile(
-            prefix="jarvis-desktop-voice-",
-            suffix=suffix,
-            delete=False,
-        ) as tmp:
-            tmp.write(audio_bytes)
-            temp_path = tmp.name
+        async with _transcription_lock:
+            suffix = _audio_extension_for_mime(mime_type)
+            with tempfile.NamedTemporaryFile(
+                prefix="jarvis-desktop-voice-",
+                suffix=suffix,
+                delete=False,
+            ) as tmp:
+                tmp.write(audio_bytes)
+                temp_path = tmp.name
 
-        from tools.transcription_tools import transcribe_audio
+            from tools.transcription_tools import transcribe_audio
 
-        loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(None, transcribe_audio, temp_path)
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(None, transcribe_audio, temp_path)
     except HTTPException:
         raise
     except Exception as exc:
+        if payload.partial:
+            # Captions are cosmetic - never surface their failures as errors.
+            return {"ok": True, "transcript": "", "provider": None}
         _log.exception("Desktop voice transcription failed")
         raise HTTPException(status_code=500, detail=f"Transcription failed: {exc}")
     finally:
@@ -2663,6 +2683,8 @@ async def transcribe_audio_upload(payload: AudioTranscriptionRequest):
                 pass
 
     if not result.get("success"):
+        if payload.partial:
+            return {"ok": True, "transcript": "", "provider": result.get("provider")}
         raise HTTPException(
             status_code=400,
             detail=result.get("error") or "Transcription failed",
@@ -2793,9 +2815,26 @@ async def speak_text(payload: TTSSpeakRequest):
         raise HTTPException(status_code=400, detail="Text is required")
 
     try:
-        from tools.tts_tool import text_to_speech_tool
+        from tools.tts_tool import _get_provider, _load_tts_config, text_to_speech_tool
+
+        # Local engines synthesize WAV natively; the default .mp3 output path
+        # forces an ffmpeg transcode per sentence chunk, which is pure added
+        # latency in the voice loop (the renderer's <audio> plays WAV fine).
+        output_path = None
+        try:
+            if _get_provider(_load_tts_config()) == "kokoro":
+                import uuid
+
+                output_path = os.path.join(
+                    tempfile.gettempdir(), f"jarvis-speak-{uuid.uuid4().hex}.wav"
+                )
+        except Exception:
+            output_path = None
+
         loop = asyncio.get_running_loop()
-        result_json = await loop.run_in_executor(None, text_to_speech_tool, text)
+        result_json = await loop.run_in_executor(
+            None, text_to_speech_tool, text, output_path
+        )
     except Exception as exc:
         _log.exception("Desktop voice TTS failed")
         raise HTTPException(status_code=500, detail=f"Speech synthesis failed: {exc}")

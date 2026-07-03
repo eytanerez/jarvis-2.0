@@ -13,13 +13,16 @@ import {
   useState
 } from 'react'
 
+import { useNavigate } from 'react-router-dom'
+
+import { NEW_CHAT_ROUTE } from '@/app/routes'
 import { jarvisDirectiveFormatter, type SlashChipKind } from '@/components/assistant-ui/directive-text'
 import { composerFill, composerSurfaceGlass } from '@/components/chat/composer-dock'
 import { Button } from '@/components/ui/button'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { useResizeObserver } from '@/hooks/use-resize-observer'
 import { useI18n } from '@/i18n'
-import { type ChatMessagePart, chatMessageText } from '@/lib/chat-messages'
+import { type ChatMessage, type ChatMessagePart, chatMessageText } from '@/lib/chat-messages'
 import { SLASH_COMMAND_RE } from '@/lib/chat-runtime'
 import { desktopSlashCommandTakesArgs } from '@/lib/desktop-slash-commands'
 import { DATA_IMAGE_URL_RE } from '@/lib/embedded-images'
@@ -120,6 +123,27 @@ const COMPOSER_SINGLE_LINE_MAX_PX = 36
 
 const COMPOSER_FADE_BACKGROUND =
   'linear-gradient(to bottom, transparent, color-mix(in srgb, var(--dt-background) 10%, transparent))'
+
+// A voice conversation opened against a session that's been idle this long is
+// almost always a new topic — rotate to a fresh session so a casual "set a
+// timer" doesn't get appended to (and answered in the context of) yesterday's
+// thread. Purely local check: adds zero latency to the start path.
+const VOICE_SESSION_STALE_MS = 30 * 60 * 1000
+
+/** Epoch-ms of the newest message that carries a timestamp, or null. The
+ * gateway stamps messages in epoch seconds while local fallbacks use
+ * Date.now() ms — normalize on magnitude. */
+function lastMessageTimestampMs(messages: ChatMessage[]): number | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const ts = messages[i].timestamp
+
+    if (typeof ts === 'number' && ts > 0) {
+      return ts < 1e12 ? ts * 1000 : ts
+    }
+  }
+
+  return null
+}
 
 const pickPlaceholder = (pool: readonly string[]) => pool[Math.floor(Math.random() * pool.length)]
 
@@ -1781,6 +1805,32 @@ export function ChatBar({
     subscribeToResponse
   })
 
+  // Session freshness gate for voice starts (both the composer button and
+  // the notch orb): a conversation opened against a long-idle thread rotates
+  // to a fresh session first. Never rotates away from a running task, and a
+  // thread whose messages carry no timestamps is left alone (unknown age).
+  const navigate = useNavigate()
+
+  const rotateStaleSessionForVoice = useCallback(() => {
+    if (busy || awaitingResponse) {
+      return
+    }
+
+    const messages = $messages.get()
+
+    if (!messages.length) {
+      return
+    }
+
+    const lastAt = lastMessageTimestampMs(messages)
+
+    if (lastAt === null || Date.now() - lastAt < VOICE_SESSION_STALE_MS) {
+      return
+    }
+
+    navigate(NEW_CHAT_ROUTE)
+  }, [awaitingResponse, busy, navigate])
+
   // --- Native notch bridge --------------------------------------------------
   // The notch's orb click arrives as a command; it drives the exact same
   // start/end handlers as the composer's own voice controls so the two entry
@@ -1799,6 +1849,7 @@ export function ChatBar({
 
       if (!voiceConversationActive) {
         // Same as the voice button: voice IS the orb cockpit.
+        rotateStaleSessionForVoice()
         setCockpitMode('orb')
         setVoiceConversationActive(true)
       }
@@ -1810,7 +1861,7 @@ export function ChatBar({
         void conversation.end()
       }
     }
-  }, [notchCommand, voiceConversationActive, conversation])
+  }, [notchCommand, voiceConversationActive, conversation, rotateStaleSessionForVoice])
 
   useEffect(() => {
     publishNotchStatus(voiceConversationActive ? conversation.status : 'idle')
@@ -2021,6 +2072,7 @@ export function ChatBar({
           // Voice IS the orb cockpit - resuming it from classic/chat view
           // should bring the orb back up rather than leaving you staring at
           // the scrolling thread while talking.
+          rotateStaleSessionForVoice()
           setCockpitMode('orb')
           setVoiceConversationActive(true)
         },

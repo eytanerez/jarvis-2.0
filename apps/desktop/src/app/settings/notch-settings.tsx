@@ -129,7 +129,6 @@ const SETTING_PAGES: NotchSettingsPageDef[] = [
         ['Amazon Music', 'Amazon Music']
       ]),
       bool('coloredSpectrogram', 'Artwork-colored visualizer', true),
-      bool('enableRealTimeWaveform', 'Real-time waveform', false),
       bool('useMusicVisualizer', 'Music visualizer', true),
       bool('enableLyrics', 'Lyrics', false),
       bool('showLiveCanvasInDynamicIsland', 'Live canvas art', false),

@@ -179,6 +179,18 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
       return () => ipcRenderer.removeListener('jarvis:notch:settings', listener)
     }
   },
+  mobile: {
+    enable: enabled => ipcRenderer.invoke('jarvis:mobile:enable', enabled),
+    getState: () => ipcRenderer.invoke('jarvis:mobile:state'),
+    pair: () => ipcRenderer.invoke('jarvis:mobile:pair'),
+    revoke: id => ipcRenderer.invoke('jarvis:mobile:revoke', id),
+    setRelayUrl: url => ipcRenderer.invoke('jarvis:mobile:relay:set', url),
+    onState: callback => {
+      const listener = (_event, state) => callback(state)
+      ipcRenderer.on('jarvis:mobile:state', listener)
+      return () => ipcRenderer.removeListener('jarvis:mobile:state', listener)
+    }
+  },
   launchAtLogin: {
     get: () => ipcRenderer.invoke('jarvis:launchAtLogin:get'),
     set: enabled => ipcRenderer.invoke('jarvis:launchAtLogin:set', enabled)

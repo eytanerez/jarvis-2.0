@@ -744,6 +744,17 @@ def run_conversation(
                     if isinstance(_cue_base, str) and _cue_base.strip():
                         api_msg["content"] = append_voice_cue(_cue_base)
 
+                # Spoken-turn cue — the gateway flags turns that arrived via
+                # the desktop voice loop (prompt.submit ``voice: true``);
+                # replies to those are read aloud by TTS, so ask for
+                # speech-shaped output. Same API-copy-only contract as the
+                # persona cue above.
+                if getattr(agent, "_voice_turn_active", False):
+                    from brain.persona_cue import append_spoken_reply_cue
+                    _spoken_base = api_msg.get("content", "")
+                    if isinstance(_spoken_base, str) and _spoken_base.strip():
+                        api_msg["content"] = append_spoken_reply_cue(_spoken_base)
+
             # For ALL assistant messages, pass reasoning back to the API
             # This ensures multi-turn reasoning context is preserved
             agent._copy_reasoning_content_for_api(msg, api_msg)

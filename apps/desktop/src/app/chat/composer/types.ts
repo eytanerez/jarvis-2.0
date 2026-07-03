@@ -56,7 +56,7 @@ export interface ChatBarProps {
     value: string,
     options?: { attachments?: ComposerAttachment[]; fromQueue?: boolean; fromVoice?: boolean }
   ) => Promise<boolean> | boolean
-  onTranscribeAudio?: (audio: Blob) => Promise<string>
+  onTranscribeAudio?: (audio: Blob, options?: { partial?: boolean }) => Promise<string>
 }
 
 export type VoiceStatus = 'idle' | 'recording' | 'transcribing'

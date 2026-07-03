@@ -13,14 +13,21 @@ import WebKit
 
 struct JarvisOrbView: View {
     @ObservedObject private var model = JarvisAssistantBridge.shared.model
+    @State private var webOrbReady = false
 
     var body: some View {
         ZStack {
-            NativeOrbGlow(phase: model.phase, level: model.audioLevel)
+            // The orb page is fully transparent, so once it has loaded the
+            // native glow must go away — otherwise it bleeds through behind
+            // the rendered sphere.
+            if !webOrbReady || model.orbURL == nil {
+                NativeOrbGlow(phase: model.phase, level: model.audioLevel)
+            }
             if let url = model.orbURL {
-                OrbWebView(url: url)
+                OrbWebView(url: url, isReady: $webOrbReady)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .allowsHitTesting(false)
+                    .opacity(webOrbReady ? 1 : 0)
             }
         }
         .clipShape(Circle())
@@ -36,16 +43,27 @@ private enum OrbWebViewPool {
 
 private struct OrbWebView: NSViewRepresentable {
     let url: URL
+    @Binding var isReady: Bool
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isReady: $isReady)
+    }
 
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.processPool = OrbWebViewPool.processPool
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = context.coordinator
         webView.wantsLayer = true
         webView.layer?.backgroundColor = NSColor.clear.cgColor
         if #available(macOS 12.0, *) {
             webView.underPageBackgroundColor = .clear
         }
+        // On macOS, WKWebView composites its own opaque backdrop behind the
+        // page regardless of the layer/underPage colors above — that backdrop
+        // is the grey disc that shows through the transparent orb page. The
+        // only switch for it is the private `drawsBackground` property.
+        webView.setValue(false, forKey: "drawsBackground")
         webView.load(URLRequest(url: url))
         return webView
     }
@@ -53,6 +71,31 @@ private struct OrbWebView: NSViewRepresentable {
     func updateNSView(_ webView: WKWebView, context: Context) {
         if webView.url != url {
             webView.load(URLRequest(url: url))
+        }
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        private let isReady: Binding<Bool>
+
+        init(isReady: Binding<Bool>) {
+            self.isReady = isReady
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            isReady.wrappedValue = true
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            isReady.wrappedValue = false
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            isReady.wrappedValue = false
+        }
+
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            isReady.wrappedValue = false
+            webView.reload()
         }
     }
 }

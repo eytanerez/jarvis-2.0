@@ -7,10 +7,11 @@ import {
 import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
 import type * as React from 'react'
-import { Suspense, useCallback, useMemo, useRef } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 
 import { JarvisCockpit } from '@/app/jarvis/cockpit'
+import { NEW_CHAT_ROUTE } from '@/app/routes'
 import { Thread } from '@/components/assistant-ui/thread'
 import { Backdrop } from '@/components/Backdrop'
 import { BeveledButton } from '@/components/chrome/beveled-button'
@@ -53,7 +54,12 @@ import { isSecondaryWindow } from '@/store/windows'
 import type { ModelOptionsResponse } from '@/types/jarvis'
 
 import { routeSessionId } from '../routes'
-import { titlebarHeaderBaseClass, titlebarHeaderShadowClass, titlebarHeaderTitleClass } from '../shell/titlebar'
+import {
+  titlebarHeaderBaseClass,
+  titlebarHeaderDragClass,
+  titlebarHeaderShadowClass,
+  titlebarHeaderTitleClass
+} from '../shell/titlebar'
 
 import { ChatDropOverlay } from './chat-drop-overlay'
 import { ChatSwapOverlay } from './chat-swap-overlay'
@@ -94,7 +100,7 @@ interface ChatViewProps extends Omit<React.ComponentProps<'div'>, 'onSubmit'> {
   onReload: (parentId: string | null) => Promise<void>
   onRestoreToMessage?: (messageId: string) => Promise<void>
   onRetryResume: (sessionId: string) => void
-  onTranscribeAudio?: (audio: Blob) => Promise<string>
+  onTranscribeAudio?: (audio: Blob, options?: { partial?: boolean }) => Promise<string>
   onDismissError?: (messageId: string) => void
 }
 
@@ -132,39 +138,44 @@ function ChatHeader({
 
   // Secondary windows (new-session scratch, subagent watch, cmd-click pop-out)
   // are compact side panels — they drop the session-actions header + border
-  // entirely. A brand-new draft has nothing to pin/delete/rename either.
-  if (isSecondaryWindow() || (!selectedSessionId && !activeSessionId && !isRoutedSessionView)) {
+  // entirely.
+  if (isSecondaryWindow()) {
     return null
   }
 
+  const showSessionMenu = selectedSessionId || activeSessionId || isRoutedSessionView
+
   return (
     <header className={cn(titlebarHeaderBaseClass, isRoutedSessionView && titlebarHeaderShadowClass)}>
-      <div
-        className={titlebarHeaderTitleClass}
-        style={{
-          maxWidth:
-            'calc(100vw - var(--titlebar-content-inset,0px) - var(--titlebar-tools-right) - var(--titlebar-tools-width) - 1.5rem)'
-        }}
-      >
-        <SessionActionsMenu
-          align="start"
-          onDelete={selectedSessionId ? onDeleteSelectedSession : undefined}
-          onPin={selectedSessionId ? onToggleSelectedPin : undefined}
-          pinned={selectedIsPinned}
-          sessionId={selectedSessionId || activeSessionId || ''}
-          sideOffset={8}
-          title={title}
+      <div aria-hidden="true" className={titlebarHeaderDragClass} />
+      {showSessionMenu && (
+        <div
+          className={titlebarHeaderTitleClass}
+          style={{
+            maxWidth:
+              'calc(100vw - var(--titlebar-content-inset,0px) - var(--titlebar-tools-right) - var(--titlebar-tools-width) - 1.5rem)'
+          }}
         >
-          <Button
-            className="pointer-events-auto flex h-6 min-w-0 max-w-full gap-1 overflow-hidden border border-transparent bg-transparent px-2 py-0 text-(--ui-text-secondary) hover:border-(--ui-stroke-tertiary) hover:bg-(--ui-control-hover-background) hover:text-foreground data-[state=open]:border-(--ui-stroke-tertiary) data-[state=open]:bg-(--ui-control-active-background) [-webkit-app-region:no-drag]"
-            type="button"
-            variant="ghost"
+          <SessionActionsMenu
+            align="start"
+            onDelete={selectedSessionId ? onDeleteSelectedSession : undefined}
+            onPin={selectedSessionId ? onToggleSelectedPin : undefined}
+            pinned={selectedIsPinned}
+            sessionId={selectedSessionId || activeSessionId || ''}
+            sideOffset={8}
+            title={title}
           >
-            <h2 className="min-w-0 flex-1 truncate text-[0.75rem] font-medium leading-none">{title}</h2>
-            <Codicon className="shrink-0 text-(--ui-text-tertiary)" name="chevron-down" size="0.8125rem" />
-          </Button>
-        </SessionActionsMenu>
-      </div>
+            <Button
+              className="pointer-events-auto flex h-6 min-w-0 max-w-full gap-1 overflow-hidden border border-transparent bg-transparent px-2 py-0 text-(--ui-text-secondary) hover:border-(--ui-stroke-tertiary) hover:bg-(--ui-control-hover-background) hover:text-foreground data-[state=open]:border-(--ui-stroke-tertiary) data-[state=open]:bg-(--ui-control-active-background) [-webkit-app-region:no-drag]"
+              type="button"
+              variant="ghost"
+            >
+              <h2 className="min-w-0 flex-1 truncate text-[0.75rem] font-medium leading-none">{title}</h2>
+              <Codicon className="shrink-0 text-(--ui-text-tertiary)" name="chevron-down" size="0.8125rem" />
+            </Button>
+          </SessionActionsMenu>
+        </div>
+      )}
     </header>
   )
 }
@@ -353,6 +364,17 @@ export function ChatView({
   // the composer below stays mounted so text/voice input is unchanged. Classic
   // mode restores the original thread for parity/debugging.
   const showCockpit = cockpitMode === 'orb' && showChatBar
+
+  // Every fresh chat starts on the voice/orb surface. Classic mode is only
+  // ever entered by typing (submitFromChatBar below) or the explicit toggle,
+  // and doesn't leak from the previous session into a new one. Typed submits
+  // are safe: they flip to classic before the router moves off NEW_CHAT_ROUTE,
+  // and this only fires when moving back onto it.
+  useEffect(() => {
+    if (location.pathname === NEW_CHAT_ROUTE && $cockpitMode.get() === 'classic') {
+      setCockpitMode('orb')
+    }
+  }, [location.pathname])
   const threadKey = selectedSessionId || activeSessionId || (isRoutedSessionView ? location.pathname : 'new')
 
   const modelOptionsQuery = useQuery<ModelOptionsResponse>({

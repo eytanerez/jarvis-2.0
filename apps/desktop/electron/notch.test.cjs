@@ -91,7 +91,8 @@ test('isAuthorized accepts the token via header or query, rejects everything els
 
 test('buildOrbUrl points at the dev server and carries port + token', () => {
   const url = buildOrbUrl({ devServerUrl: 'http://127.0.0.1:5174/', port: 4321, token: 'tok' })
-  assert.equal(url, 'http://127.0.0.1:5174/notch-orb.html?port=4321&token=tok')
+  // fill=1 zooms the orb to fill the notch's small square web views.
+  assert.equal(url, 'http://127.0.0.1:5174/notch-orb.html?port=4321&token=tok&fill=1')
 
   // No dev server (packaged, Phase 4 pending): no orb URL — the notch shows
   // its native glow instead of a broken web view.
@@ -349,13 +350,13 @@ test('buildOrbUrl falls back to link-served dist when no dev server runs', t => 
   fs.writeFileSync(path.join(tmp, 'notch-orb.html'), '<html></html>')
   assert.equal(
     buildOrbUrl({ devServerUrl: null, port: 9, rendererDistDir: tmp, token: 't' }),
-    'http://127.0.0.1:9/notch-orb.html?port=9&token=t'
+    'http://127.0.0.1:9/notch-orb.html?port=9&token=t&fill=1'
   )
 
   // Dev server still wins when present.
   assert.equal(
     buildOrbUrl({ devServerUrl: 'http://127.0.0.1:5174', port: 9, rendererDistDir: tmp, token: 't' }),
-    'http://127.0.0.1:5174/notch-orb.html?port=9&token=t'
+    'http://127.0.0.1:5174/notch-orb.html?port=9&token=t&fill=1'
   )
 })
 

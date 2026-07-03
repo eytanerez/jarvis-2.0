@@ -919,6 +919,9 @@ struct SettingsView: View {
 
     private func isTabVisible(_ tab: SettingsTab) -> Bool {
         switch tab {
+        case .lockScreen:
+            // Lock-screen functionality is removed in Jarvis.
+            return false
         case .timer, .stats, .clipboard, .colorPicker, .shelf, .notes, .terminal:
             return !enableMinimalisticUI
         default:
@@ -2923,19 +2926,10 @@ struct Media: View {
                 Text("Media playback live activity")
             }
 
-            Section {
-                Defaults.Toggle(key: .enableRealTimeWaveform) {
-                    HStack {
-                        Text("Enable real-time waveform")
-                        customBadge(text: "Beta")
-                    }
-                }
-                .settingsHighlight(id: highlightID("Enable real-time waveform"))
-            } header: {
-                Text("Music Visualizer")
-            } footer: {
-                Text("When enabled, the music visualizer displays real-time audio spectrum data synced to your music. Requires macOS 14.2+ and uses minimal CPU/GPU resources via the Accelerate framework.")
-            }
+            // Real-time waveform (system-audio tap) removed in Jarvis: it was
+            // the only feature that put "Jarvis Notch" under macOS's System
+            // Audio Recording permission. The visualizer's animated mode
+            // needs no capture.
 
             Section {
                 Defaults.Toggle(key: .enableLockScreenMediaWidget) {

@@ -99,6 +99,103 @@ test('stageNotch on macOS with a built bundle copies it into the stage dir, pref
   assert.equal(fs.existsSync(path.join(stageDest, 'Contents', 'MacOS', 'Jarvis Notch')), true)
 })
 
+test('stageNotch rebuilds when a source file is newer than the built binary', t => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'stage-notch-'))
+  t.after(() => fs.rmSync(tempRoot, { force: true, recursive: true }))
+
+  const stageRoot = path.join(tempRoot, 'build', 'notch')
+  const stageDest = path.join(stageRoot, 'Jarvis Notch.app')
+  const notchRoot = path.join(tempRoot, 'apps', 'notch')
+  const bundle = makeFakeBundle(notchRoot, 'Release')
+
+  // Binary built "an hour ago"; a Swift source touched now.
+  const binary = path.join(bundle, 'Contents', 'MacOS', 'Jarvis Notch')
+  const past = new Date(Date.now() - 60 * 60 * 1000)
+  fs.utimesSync(binary, past, past)
+  fs.mkdirSync(path.join(notchRoot, 'DynamicIsland'), { recursive: true })
+  fs.writeFileSync(path.join(notchRoot, 'DynamicIsland', 'Fresh.swift'), 'struct Fresh {}')
+
+  const rebuilds = []
+  const result = stageNotch({
+    notchRoot,
+    platform: 'darwin',
+    rebuild: root => {
+      rebuilds.push(root)
+      // Simulate the rebuild refreshing the binary.
+      fs.writeFileSync(binary, 'rebuilt')
+    },
+    stageDest,
+    stageRoot
+  })
+
+  assert.deepEqual(rebuilds, [notchRoot])
+  assert.equal(result.staged, true)
+  assert.equal(result.rebuilt, true)
+  assert.equal(fs.readFileSync(path.join(stageDest, 'Contents', 'MacOS', 'Jarvis Notch'), 'utf8'), 'rebuilt')
+})
+
+test('stageNotch does not rebuild when the binary is newer than every source', t => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'stage-notch-'))
+  t.after(() => fs.rmSync(tempRoot, { force: true, recursive: true }))
+
+  const stageRoot = path.join(tempRoot, 'build', 'notch')
+  const notchRoot = path.join(tempRoot, 'apps', 'notch')
+  const bundle = makeFakeBundle(notchRoot, 'Release')
+
+  // Source older than the binary.
+  const past = new Date(Date.now() - 60 * 60 * 1000)
+  fs.mkdirSync(path.join(notchRoot, 'DynamicIsland'), { recursive: true })
+  const source = path.join(notchRoot, 'DynamicIsland', 'Old.swift')
+  fs.writeFileSync(source, 'struct Old {}')
+  fs.utimesSync(source, past, past)
+  fs.writeFileSync(path.join(bundle, 'Contents', 'MacOS', 'Jarvis Notch'), 'current')
+
+  const result = stageNotch({
+    notchRoot,
+    platform: 'darwin',
+    rebuild: () => assert.fail('must not rebuild a fresh bundle'),
+    stageDest: path.join(stageRoot, 'Jarvis Notch.app'),
+    stageRoot
+  })
+
+  assert.equal(result.staged, true)
+  assert.equal(result.rebuilt, false)
+})
+
+test('stageNotch stages the stale bundle with a warning when the rebuild fails', t => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'stage-notch-'))
+  t.after(() => fs.rmSync(tempRoot, { force: true, recursive: true }))
+
+  const stageRoot = path.join(tempRoot, 'build', 'notch')
+  const stageDest = path.join(stageRoot, 'Jarvis Notch.app')
+  const notchRoot = path.join(tempRoot, 'apps', 'notch')
+  const bundle = makeFakeBundle(notchRoot, 'Release')
+
+  const past = new Date(Date.now() - 60 * 60 * 1000)
+  const binary = path.join(bundle, 'Contents', 'MacOS', 'Jarvis Notch')
+  fs.utimesSync(binary, past, past)
+  fs.mkdirSync(path.join(notchRoot, 'DynamicIsland'), { recursive: true })
+  fs.writeFileSync(path.join(notchRoot, 'DynamicIsland', 'Fresh.swift'), 'struct Fresh {}')
+
+  const warnings = []
+  const result = stageNotch({
+    notchRoot,
+    platform: 'darwin',
+    rebuild: () => {
+      throw new Error('xcodebuild exploded')
+    },
+    stageDest,
+    stageRoot,
+    warn: msg => warnings.push(msg)
+  })
+
+  assert.equal(result.staged, true)
+  assert.equal(result.rebuilt, false)
+  assert.equal(warnings.length, 1)
+  assert.match(warnings[0], /STALE/)
+  assert.equal(fs.existsSync(path.join(stageDest, 'Contents', 'MacOS', 'Jarvis Notch')), true)
+})
+
 test('stageNotch clears a stale prior stage before restaging', t => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'stage-notch-'))
   t.after(() => fs.rmSync(tempRoot, { force: true, recursive: true }))

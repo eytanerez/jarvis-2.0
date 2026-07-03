@@ -15,6 +15,10 @@ import type { OrbGetLevel, OrbState } from './types'
 export type { OrbState } from './types'
 
 export interface JarvisOrbSceneProps {
+  /** Camera pull-back for the orb layer. Omit for the app backdrop's default
+   * framing; small embeds (notch web views) pass a closer distance so the
+   * sphere fills the viewport. */
+  cameraDistance?: number
   className?: string
   /** Horizontal pixel offset that recenters the orb (and its halo/rings/
    * constellation/labels) within the visible content area when a sidebar
@@ -61,6 +65,7 @@ interface LabelEntry {
  * its own props change (state/reducedMotion/paused), never at frame rate.
  */
 export function JarvisOrbScene({
+  cameraDistance,
   className,
   centerOffsetPx = 0,
   getLevel,
@@ -92,7 +97,7 @@ export function JarvisOrbScene({
     const labelLayerEl = labelLayer
     const lowSpec = window.matchMedia('(max-width: 640px)').matches
     const background = showBackground && bgCanvas ? new OrbBackgroundLayer(bgCanvas, lowSpec) : null
-    const scene = new OrbSceneLayer(orbCanvas)
+    const scene = new OrbSceneLayer(orbCanvas, { cameraDistance })
     const bridge = new SubagentConstellationBridge()
 
     let colors = readColors(container)
@@ -260,7 +265,9 @@ export function JarvisOrbScene({
       labelEls.clear()
     }
     // Mount once; live values flow through propsRef and store .get() reads.
-  }, [showBackground])
+    // cameraDistance only varies between hosts (app vs notch embed), never
+    // within a mounted scene, so remounting on change is fine.
+  }, [showBackground, cameraDistance])
 
   return (
     <div className={cn('jarvis-stage relative isolate overflow-hidden', className)} data-orb-state={state} ref={containerRef}>

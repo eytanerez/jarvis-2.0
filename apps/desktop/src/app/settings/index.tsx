@@ -1,4 +1,4 @@
-import { IconDownload, IconRefresh, IconUpload } from '@tabler/icons-react'
+import { IconDeviceMobile, IconDownload, IconRefresh, IconUpload } from '@tabler/icons-react'
 import { useRef } from 'react'
 
 import { Tip } from '@/components/ui/tooltip'
@@ -20,6 +20,7 @@ import { SECTIONS } from './constants'
 import { GatewaySettings } from './gateway-settings'
 import { KEYS_VIEWS, KeysSettings, type KeysView } from './keys-settings'
 import { McpSettings } from './mcp-settings'
+import { MobileSettings } from './mobile-settings'
 import { NotchSettings } from './notch-settings'
 import { NotificationsSettings } from './notifications-settings'
 import { PROVIDER_VIEWS, ProvidersSettings, type ProviderView } from './providers-settings'
@@ -34,6 +35,7 @@ const SETTINGS_VIEWS: readonly SettingsViewId[] = [
   'mcp',
   'notifications',
   'notch',
+  'mobile',
   'sessions',
   'about'
 ]
@@ -116,6 +118,12 @@ export function SettingsView({ gateway, onClose, onConfigSaved, onMainModelChang
             icon={PanelBottom}
             label="The Notch"
             onClick={() => setActiveView('notch')}
+          />
+          <OverlayNavItem
+            active={activeView === 'mobile'}
+            icon={IconDeviceMobile}
+            label="Linked Devices"
+            onClick={() => setActiveView('mobile')}
           />
           <div className="my-2 h-px bg-border/30" />
           <OverlayNavItem
@@ -245,6 +253,8 @@ export function SettingsView({ gateway, onClose, onConfigSaved, onMainModelChang
             <NotificationsSettings />
           ) : activeView === 'notch' ? (
             <NotchSettings />
+          ) : activeView === 'mobile' ? (
+            <MobileSettings />
           ) : (
             <SessionsSettings />
           )}

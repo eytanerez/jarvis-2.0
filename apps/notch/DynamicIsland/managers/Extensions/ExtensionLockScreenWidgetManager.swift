@@ -35,7 +35,9 @@ final class ExtensionLockScreenWidgetManager: ObservableObject {
     private let currentProcessID = ProcessInfo.processInfo.processIdentifier
 
     private init() {
-        activeWidgets = eventBridge.loadPersistedLockScreenWidgets()
+        // Lock-screen widgets are removed in Jarvis — never resurrect
+        // persisted ones from a previous run.
+        activeWidgets = Defaults[.enableExtensionLockScreenWidgets] ? eventBridge.loadPersistedLockScreenWidgets() : []
         sortWidgets()
         presentationController = ExtensionLockScreenWidgetPresentationController(manager: self)
         presentationController.activate()
@@ -51,6 +53,10 @@ final class ExtensionLockScreenWidgetManager: ObservableObject {
     }
 
     func present(descriptor: AtollLockScreenWidgetDescriptor, bundleIdentifier: String) throws {
+        guard Defaults[.enableExtensionLockScreenWidgets] else {
+            logDiagnostics("Rejected lock screen widget \(descriptor.id) from \(bundleIdentifier): lock-screen widgets are disabled in Jarvis")
+            throw ExtensionValidationError.unauthorized
+        }
         guard authorizationManager.canProcessLockScreenRequest(from: bundleIdentifier) else {
             logDiagnostics("Rejected lock screen widget \(descriptor.id) from \(bundleIdentifier): scope disabled or bundle unauthorized")
             throw ExtensionValidationError.unauthorized

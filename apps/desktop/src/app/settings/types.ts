@@ -9,6 +9,7 @@ export type SettingsView =
   | 'gateway'
   | 'keys'
   | 'mcp'
+  | 'mobile'
   | 'notch'
   | 'notifications'
   | 'providers'

@@ -91,6 +91,56 @@ describe('classifyVoiceSignoff - look-alikes', () => {
   })
 })
 
+describe('classifyVoiceSignoff - closing acknowledgements (assistant asked, user declines/wraps)', () => {
+  it('"I\'m ok thanks" IS a sign-off', () => {
+    expect(signoff("I'm ok thanks")).toBe(true)
+  })
+
+  it('"I\'m good, thanks" IS a sign-off', () => {
+    expect(signoff("I'm good, thanks")).toBe(true)
+  })
+
+  it('"no thanks" IS a sign-off', () => {
+    expect(signoff('no thanks')).toBe(true)
+  })
+
+  it('"nope, that\'s all" IS a sign-off', () => {
+    expect(signoff("nope, that's all")).toBe(true)
+  })
+
+  it('"nah I\'m good" IS a sign-off', () => {
+    expect(signoff("nah I'm good")).toBe(true)
+  })
+
+  it('"that\'s all" IS a sign-off', () => {
+    expect(signoff("that's all")).toBe(true)
+  })
+
+  it('"nothing else" IS a sign-off', () => {
+    expect(signoff('nothing else')).toBe(true)
+  })
+
+  it('"that\'ll be all" IS a sign-off', () => {
+    expect(signoff("that'll be all")).toBe(true)
+  })
+
+  it('"I\'m done" IS a sign-off', () => {
+    expect(signoff("I'm done")).toBe(true)
+  })
+
+  it('"no, delete it" is a correction, not a sign-off', () => {
+    expect(signoff('no, delete it')).toBe(false)
+  })
+
+  it('"no, use the other file" is a correction, not a sign-off', () => {
+    expect(signoff('no, use the other file')).toBe(false)
+  })
+
+  it('"I\'m trying to fix the login bug" is not a sign-off', () => {
+    expect(signoff("I'm trying to fix the login bug")).toBe(false)
+  })
+})
+
 describe('classifyVoiceSignoff - length and edge cases', () => {
   it('empty transcript is not a sign-off', () => {
     expect(signoff('')).toBe(false)

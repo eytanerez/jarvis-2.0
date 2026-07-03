@@ -679,7 +679,7 @@ struct ContentView: View {
             .sensoryFeedback(.alignment, trigger: haptics)
             .contextMenu {
                 Button("Settings") {
-                    SettingsWindowController.shared.showWindow()
+                    JarvisAssistantBridge.shared.openSettingsPreferringJarvis()
                 }
 //                Button("Edit") { // Doesnt work....
 //                    let dn = DynamicNotch(content: EditPanelView())

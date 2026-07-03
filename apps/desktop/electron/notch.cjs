@@ -168,11 +168,11 @@ function resolveNotchBuildScript(sourceRoots = []) {
 function buildOrbUrl({ devServerUrl, port, rendererDistDir = null, token }) {
   if (devServerUrl) {
     const base = devServerUrl.endsWith('/') ? devServerUrl.slice(0, -1) : devServerUrl
-    return `${base}/notch-orb.html?port=${port}&token=${encodeURIComponent(token)}`
+    return `${base}/notch-orb.html?port=${port}&token=${encodeURIComponent(token)}&fill=1`
   }
 
   if (rendererDistDir && fs.existsSync(path.join(rendererDistDir, 'notch-orb.html'))) {
-    return `http://127.0.0.1:${port}/notch-orb.html?port=${port}&token=${encodeURIComponent(token)}`
+    return `http://127.0.0.1:${port}/notch-orb.html?port=${port}&token=${encodeURIComponent(token)}&fill=1`
   }
 
   return null

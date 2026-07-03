@@ -517,7 +517,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Defaults[.enableLockScreenReminderWidget] = false
         Defaults[.enableLockScreenTimerWidget] = false
         Defaults[.enableLockSounds] = false
+        Defaults[.enableExtensionLockScreenWidgets] = false
+        Defaults[.lockScreenMusicFullscreenArtworkEnabled] = false
         Defaults[.cachedLockScreenMediaWidgetPreference] = nil
+        // The real-time waveform is the only feature that taps system audio,
+        // which makes macOS list "Jarvis Notch" under System Audio Recording.
+        // Removed in Jarvis: the music spectrum falls back to its animated
+        // (non-capturing) mode and the permission is never requested.
+        Defaults[.enableRealTimeWaveform] = false
 
         Defaults.publisher(.enableThirdPartyDDCIntegration, options: [])
             .sink { _ in

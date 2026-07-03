@@ -6079,6 +6079,9 @@ def _(rid, params: dict) -> dict:
 @method("prompt.submit")
 def _(rid, params: dict) -> dict:
     sid, text = params.get("session_id", ""), params.get("text", "")
+    # Turns from the desktop voice loop get a spoken-reply cue on the
+    # API-bound copy of the message (see brain/persona_cue.SPOKEN_REPLY_CUE).
+    voice_turn = bool(params.get("voice"))
     truncate_user_ordinal = params.get("truncate_before_user_ordinal")
     session, err = _sess_nowait(params, rid)
     if err:
@@ -6117,6 +6120,7 @@ def _(rid, params: dict) -> dict:
                     print(f"[tui_gateway] prompt.submit: replace_messages failed: {exc}", file=sys.stderr)
         session["running"] = True
         session["last_active"] = time.time()
+        session["voice_turn"] = voice_turn
         _start_inflight_turn(session, text)
 
     # Persist the DB row lazily, now that the user has actually sent a message.
@@ -6350,6 +6354,11 @@ def _run_prompt_submit(rid, sid: str, session: dict, text: Any) -> None:
         if not isinstance(session.get("inflight_turn"), dict):
             _start_inflight_turn(session, text)
     agent = session["agent"]
+    # Per-turn spoken-reply flag, consumed by brain/conversation_loop's
+    # API-copy build. pop() so a chained/goal-continuation turn (which
+    # re-enters _run_prompt_submit without going through prompt.submit)
+    # never inherits it.
+    agent._voice_turn_active = bool(session.pop("voice_turn", False))
     _emit("message.start", sid)
 
     def run():
@@ -6700,6 +6709,8 @@ def _run_prompt_submit(rid, sid: str, session: dict, text: Any) -> None:
             if home_token is not None:
                 reset_jarvis_home_override(home_token)
             _clear_session_context(session_tokens)
+            # Spoken-reply cue is strictly per-turn.
+            agent._voice_turn_active = False
             with session["history_lock"]:
                 session["running"] = False
                 session["last_active"] = time.time()

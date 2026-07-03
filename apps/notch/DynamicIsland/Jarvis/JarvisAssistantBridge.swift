@@ -119,7 +119,6 @@ private let jarvisEditableNotchSettingDefaults: [String: Any] = [
     "enableNotePinning": true,
     "enableNoteSearch": false,
     "enableNotes": false,
-    "enableRealTimeWaveform": false,
     "enableReminderLiveActivity": true,
     "enableSafariDownloads": true,
     "enableShadow": true,
@@ -352,7 +351,41 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
     func startConversation() {
         guard !model.phase.isConversationActive else { return }
         activationHandler?()
-        send(["type": "startConversation"])
+        if model.phase == .disconnected {
+            // No live link — go through LaunchServices instead. The deep link
+            // launches Jarvis if it isn't running and starts a voice
+            // conversation once the renderer is up, so the orb click always
+            // does something.
+            openJarvisDeepLink("jarvis://notch/talk")
+        } else {
+            send(["type": "startConversation"])
+        }
+    }
+
+    /// Opens a jarvis:// deep link via LaunchServices — works even when the
+    /// WS link is down, and activates (or launches) the Jarvis app.
+    private func openJarvisDeepLink(_ link: String) {
+        guard let url = URL(string: link) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    /// Brings the Jarvis desktop app frontmost. Electron's own
+    /// `app.focus({steal: true})` is refused by macOS 14+ cooperative
+    /// activation (a background app can't take focus from whatever the user
+    /// is using), but the notch owns the user's click, so it is the process
+    /// allowed to hand activation over.
+    private func activateJarvisApp() {
+        guard
+            let app = NSRunningApplication.runningApplications(
+                withBundleIdentifier: "com.nousresearch.jarvis"
+            ).first
+        else { return }
+        if #available(macOS 14.0, *) {
+            NSApplication.shared.yieldActivation(to: app)
+            app.activate()
+        } else {
+            app.activate(options: [.activateIgnoringOtherApps])
+        }
     }
 
     /// Focuses the Jarvis desktop app on the current conversation. The notch
@@ -361,7 +394,20 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
     /// comes to front behind the still-open notch and it looks like nothing
     /// happened.
     func openJarvisApp() {
-        send(["type": "openMainWindow"])
+        if model.phase == .disconnected {
+            // handleDeepLink in the desktop app focuses the main window for
+            // any jarvis:// link; "focus" is not a routed kind, so focusing
+            // is all it does — and LaunchServices launches Jarvis first if
+            // needed.
+            openJarvisDeepLink("jarvis://focus")
+        } else {
+            // The WS message un-hides/raises the window; the native
+            // activation below is what actually makes Jarvis the frontmost
+            // app (Electron can't take focus itself under cooperative
+            // activation).
+            send(["type": "openMainWindow"])
+            activateJarvisApp()
+        }
         deactivationHandler?()
     }
 
@@ -390,14 +436,16 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
         send(["type": "openSettings"])
     }
 
-    /// Settings live in the Jarvis app (Settings → The Notch). The native
-    /// settings window remains only as the offline fallback so the notch is
-    /// never unconfigurable while Jarvis is closed.
+    /// Settings live in the Jarvis app (Settings → The Notch). Always land
+    /// there: when the WS link is down the deep link launches/activates
+    /// Jarvis via LaunchServices instead of opening the old native settings
+    /// window on top of whatever the user is doing.
     func openSettingsPreferringJarvis() {
         if model.phase == .disconnected {
-            SettingsWindowController.shared.showWindow()
+            openJarvisDeepLink("jarvis://notch/settings")
         } else {
             send(["type": "openSettings"])
+            activateJarvisApp()
         }
     }
 
@@ -415,16 +463,12 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
         let socket = session.webSocketTask(with: request)
         self.socket = socket
         socket.resume()
-        // Optimistic: a live socket means Jarvis is reachable, so drop the
-        // offline styling immediately rather than waiting on the renderer to
-        // broadcast its first "state" message (which only happens once the
-        // chat view has mounted — leaving the UI stuck showing "Offline",
-        // and intents like Open Jarvis silently blocked, until then).
-        // handleDisconnect() corrects this back to .disconnected if the
-        // connection actually fails.
-        if model.phase == .disconnected {
-            model.phase = .idle
-        }
+        // No optimistic phase flip here: the server pushes its state snapshot
+        // the moment a connection is accepted, so the first inbound message
+        // (see receiveLoop) proves the link is real within milliseconds.
+        // Flipping to .idle before that made a failed handshake look
+        // connected and every user intent silently vanished into the dead
+        // socket.
         Logger.log("Jarvis bridge connecting to 127.0.0.1:\(endpoint.port) tokenPresent=\(!endpoint.token.isEmpty)", category: .network)
         send(["type": "hello", "version": 1])
         sendSettingsSnapshot()
@@ -439,6 +483,13 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
                 switch result {
                 case .success(let message):
                     self.reconnectAttempt = 0
+                    // First inbound message = handshake genuinely succeeded;
+                    // only now leave the offline state. The server's
+                    // connect-time snapshot arrives immediately after accept,
+                    // and its "state" message then sets the real phase.
+                    if self.model.phase == .disconnected {
+                        self.model.phase = .idle
+                    }
                     self.handle(message)
                     self.receiveLoop(on: socket)
                 case .failure(let error):
@@ -472,7 +523,17 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
         pingTimer?.invalidate()
         pingTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.socket?.sendPing { _ in }
+                guard let self, let socket = self.socket else { return }
+                socket.sendPing { [weak self] error in
+                    guard error != nil else { return }
+                    // Keep-alive failure = dead socket. Reconnect instead of
+                    // letting the UI look connected forever.
+                    Task { @MainActor [weak self] in
+                        guard let self, self.socket === socket else { return }
+                        Logger.log("Jarvis bridge ping failed; reconnecting", category: .warning)
+                        self.handleDisconnect()
+                    }
+                }
             }
         }
     }
@@ -490,7 +551,18 @@ final class JarvisAssistantBridge: NSObject, ObservableObject {
             Logger.log("Jarvis bridge dropped outbound \(type): JSON encoding failed", category: .error)
             return
         }
-        socket.send(.string(text)) { _ in }
+        let type = payload["type"] as? String ?? "unknown"
+        socket.send(.string(text)) { [weak self] error in
+            guard let error else { return }
+            // A failed send means the socket is dead even though it looked
+            // live — surface it and tear down so reconnect kicks in instead
+            // of silently dropping every user intent.
+            Task { @MainActor [weak self] in
+                guard let self, self.socket === socket else { return }
+                Logger.log("Jarvis bridge send \(type) failed: \(error.localizedDescription)", category: .error)
+                self.handleDisconnect()
+            }
+        }
     }
 
     // MARK: - Inbound messages

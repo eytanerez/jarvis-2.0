@@ -133,6 +133,17 @@ declare global {
         onCommand: (callback: (message: { type: string }) => void) => () => void
         onSettings: (callback: (snapshot: DesktopNotchSettingsSnapshot) => void) => () => void
       }
+      // Linked iPhone bridge (electron/mobile-bridge.cjs): QR pairing,
+      // per-device tokens, LAN + cloud-relay reachability. Absent on older
+      // preloads.
+      mobile?: {
+        enable: (enabled: boolean) => Promise<DesktopMobileState>
+        getState: () => Promise<DesktopMobileState>
+        pair: () => Promise<DesktopMobilePairing>
+        revoke: (id: string) => Promise<{ ok: boolean }>
+        setRelayUrl: (url: string | null) => Promise<DesktopMobileState>
+        onState: (callback: (state: DesktopMobileState) => void) => () => void
+      }
       // OS login item for Jarvis itself — the notch companion only runs while
       // Jarvis does, so this is what makes the notch "always there" across
       // reboots. Backed by Electron's app.get/setLoginItemSettings.
@@ -155,6 +166,35 @@ export interface DesktopNotchSettingsSnapshot {
   connected: boolean
   values: Record<string, unknown>
   permissions: DesktopNotchPermission[]
+}
+
+export interface DesktopMobileDevice {
+  connected: boolean
+  createdAt: string
+  id: string
+  lastSeenAt: string | null
+  model: string
+  name: string
+  revoked: boolean
+}
+
+export interface DesktopMobileState {
+  devices: DesktopMobileDevice[]
+  enabled: boolean
+  error?: string
+  hostId: string | null
+  hostName?: string
+  lanPort: number | null
+  lanUrls: string[]
+  relay: { connected: boolean; url: string | null }
+}
+
+export interface DesktopMobilePairing {
+  error?: string
+  expiresAt?: number
+  ok: boolean
+  pairingId?: string
+  url?: string
 }
 
 export interface DesktopMarketplaceSearchItem {

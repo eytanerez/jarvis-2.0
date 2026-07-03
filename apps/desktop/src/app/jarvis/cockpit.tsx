@@ -9,7 +9,7 @@ import { useMediaQuery } from '@/hooks/use-media-query'
 import { useI18n } from '@/i18n'
 import { chatMessageText } from '@/lib/chat-messages'
 import { sessionTitle } from '@/lib/chat-runtime'
-import { latestToolActivity, TOOL_ACTIVITY_SETTLED_TTL_MS, type ToolActivityModel } from '@/lib/tool-activity'
+import { currentTurnToolActivities, TOOL_ACTIVITY_SETTLED_TTL_MS, type ToolActivityModel } from '@/lib/tool-activity'
 import { cn } from '@/lib/utils'
 import { $liveVoiceTranscript, useOrbState } from '@/store/jarvis-cockpit'
 import { $activeProfile } from '@/store/profile'
@@ -71,7 +71,9 @@ function CockpitTopStrip({ onCancel }: { onCancel: () => Promise<void> | void })
       : t.jarvis.newSession
 
   return (
-    <div className="relative z-10 mt-(--titlebar-height) flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--theme-jarvis-stroke)_46%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--theme-jarvis-panel)_46%,transparent),transparent)] px-5 py-2 backdrop-blur-[0.375rem]">
+    // No titlebar offset here: ChatView reserves the titlebar row above the
+    // runtime area, even before a session exists.
+    <div className="relative z-10 flex items-center gap-4 border-b border-[color-mix(in_srgb,var(--theme-jarvis-stroke)_46%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--theme-jarvis-panel)_46%,transparent),transparent)] px-5 py-2 backdrop-blur-[0.375rem]">
       <span className="jarvis-wordmark text-[0.8125rem]">{t.jarvis.wordmark}</span>
 
       <span className="flex items-center gap-1.5">
@@ -199,53 +201,92 @@ function CockpitCaptions({ onDismissError }: { onDismissError?: (messageId: stri
   )
 }
 
+// How many of the current turn's tool calls the feed shows at once — enough
+// to follow multi-step work without covering the orb.
+const TOOL_FEED_MAX_ROWS = 4
+
+function toolStatusIcon(status: string): string {
+  if (status === 'running') {
+    return 'loading'
+  }
+
+  if (status === 'error' || status === 'warning') {
+    return 'warning'
+  }
+
+  return 'check'
+}
+
+// The current turn's tool calls as a feed (not just the latest one), so
+// commands and their progress are visible from the voice screen exactly like
+// they are in the chat thread. Settled feeds linger briefly, then clear.
 function CockpitToolActivity() {
   const { t } = useI18n()
   const messages = useStore($messages)
 
-  const latestActivity = useMemo<ToolActivityModel | null>(() => latestToolActivity(messages), [messages])
-
-  const [activity, setActivity] = useState<ToolActivityModel | null>(latestActivity)
+  const activities = useMemo<ToolActivityModel[]>(() => currentTurnToolActivities(messages), [messages])
+  // Signature keeps the hide-timer effect from restarting on every streamed
+  // token — it only reacts when a tool call appears or changes status.
+  const signature = activities.map(activity => `${activity.id}:${activity.view.status}`).join('|')
+  const running = activities.some(activity => activity.view.status === 'running')
+  const [visible, setVisible] = useState(activities.length > 0)
 
   useEffect(() => {
-    if (!latestActivity) {
-      setActivity(null)
+    if (!signature) {
+      setVisible(false)
 
       return
     }
 
-    setActivity(latestActivity)
+    setVisible(true)
 
-    if (latestActivity.view.status === 'running') {
+    if (running) {
       return
     }
 
-    const timeout = window.setTimeout(() => {
-      setActivity(current => (current?.id === latestActivity.id ? null : current))
-    }, TOOL_ACTIVITY_SETTLED_TTL_MS)
+    const timeout = window.setTimeout(() => setVisible(false), TOOL_ACTIVITY_SETTLED_TTL_MS)
 
     return () => window.clearTimeout(timeout)
-  }, [latestActivity])
+  }, [signature, running])
 
-  if (!activity) {
+  if (!visible || !activities.length) {
     return null
   }
 
-  const icon = activity.view.status === 'running' ? 'loading' : activity.view.status === 'error' ? 'warning' : 'check'
+  const shown = activities.slice(-TOOL_FEED_MAX_ROWS)
+  const hiddenCount = activities.length - shown.length
 
   return (
     <section
       aria-label={t.jarvis.toolActivity}
-      className="mx-auto flex w-full max-w-[46rem] items-center gap-3 rounded-md border border-[color-mix(in_srgb,var(--theme-jarvis-stroke)_78%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,#fff_5%,transparent),transparent),color-mix(in_srgb,var(--theme-jarvis-panel)_78%,#02040a)] px-3 py-2 shadow-[inset_0_0.0625rem_0_color-mix(in_srgb,#fff_7%,transparent),0_0_1.5rem_color-mix(in_srgb,var(--theme-orb-glow)_10%,transparent)]"
+      className="mx-auto flex w-full max-w-[46rem] flex-col gap-1.5 rounded-md border border-[color-mix(in_srgb,var(--theme-jarvis-stroke)_78%,transparent)] bg-[linear-gradient(180deg,color-mix(in_srgb,#fff_5%,transparent),transparent),color-mix(in_srgb,var(--theme-jarvis-panel)_78%,#02040a)] px-3 py-2 shadow-[inset_0_0.0625rem_0_color-mix(in_srgb,#fff_7%,transparent),0_0_1.5rem_color-mix(in_srgb,var(--theme-orb-glow)_10%,transparent)]"
     >
-      <Codicon className="text-(--theme-orb-ring)" name={icon} size="0.875rem" />
-      <div className="min-w-0 flex-1">
-        <p className="jarvis-tech text-(--theme-jarvis-text-tech)">{activity.view.title}</p>
-        {activity.view.subtitle && (
-          <p className="truncate text-[0.75rem] text-(--theme-jarvis-text-dim)">{activity.view.subtitle}</p>
-        )}
-      </div>
-      {activity.view.countLabel && <span className="jarvis-tech jarvis-tech-dim">{activity.view.countLabel}</span>}
+      {hiddenCount > 0 && <span className="jarvis-tech jarvis-tech-dim text-[0.6875rem]">+{hiddenCount}</span>}
+      {shown.map(activity => (
+        <div className="flex items-center gap-3" key={activity.id}>
+          <Codicon
+            className={cn(
+              activity.view.status === 'running' ? 'text-(--theme-orb-ring)' : 'text-(--theme-jarvis-text-dim)'
+            )}
+            name={toolStatusIcon(activity.view.status)}
+            size="0.875rem"
+          />
+          <div className="flex min-w-0 flex-1 items-baseline gap-2">
+            <p
+              className={cn(
+                'jarvis-tech shrink-0',
+                activity.view.status === 'running' ? 'text-(--theme-jarvis-text-tech)' : 'jarvis-tech-dim'
+              )}
+            >
+              {activity.view.title}
+            </p>
+            {activity.view.subtitle && (
+              <p className="truncate text-[0.75rem] text-(--theme-jarvis-text-dim)">{activity.view.subtitle}</p>
+            )}
+          </div>
+          {activity.view.countLabel && <span className="jarvis-tech jarvis-tech-dim">{activity.view.countLabel}</span>}
+        </div>
+      ))}
     </section>
   )
 }

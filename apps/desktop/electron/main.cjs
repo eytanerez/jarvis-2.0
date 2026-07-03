@@ -39,6 +39,7 @@ const { waitForDashboardPort } = require('./backend-ready.cjs')
 const { serializeJsonBody, setJsonRequestHeaders } = require('./oauth-net-request.cjs')
 const { fetchMarketplaceThemes, searchMarketplaceThemes } = require('./vscode-marketplace.cjs')
 const { createNotchLink } = require('./notch.cjs')
+const { createMobileBridge } = require('./mobile-bridge.cjs')
 const { buildDesktopBackendEnv, normalizeJarvisHomeRoot } = require('./backend-env.cjs')
 const { readWindowsUserEnvVar } = require('./windows-user-env.cjs')
 const { readDirForIpc } = require('./fs-read-dir.cjs')
@@ -357,6 +358,9 @@ const WINDOW_BUTTON_POSITION = {
 // non-macOS platforms.
 const NATIVE_OVERLAY_BUTTON_WIDTH = 144
 const APP_ICON_PATHS = [
+  path.join(process.resourcesPath || '', 'icon.icns'),
+  path.join(process.resourcesPath || '', 'icon.ico'),
+  path.join(process.resourcesPath || '', 'app.asar.unpacked', 'dist', 'apple-touch-icon.png'),
   path.join(APP_ROOT, 'public', 'apple-touch-icon.png'),
   path.join(APP_ROOT, 'dist', 'apple-touch-icon.png'),
   path.join(unpackedPathFor(APP_ROOT), 'dist', 'apple-touch-icon.png')
@@ -5395,9 +5399,6 @@ function createWindow() {
 
   if (IS_MAC) {
     mainWindow.setWindowButtonPosition?.(WINDOW_BUTTON_POSITION)
-    if (icon) {
-      app.dock?.setIcon(icon)
-    }
   }
 
   if (!IS_MAC) {
@@ -6808,6 +6809,77 @@ ipcMain.handle('jarvis:notch:restart', () => {
   return { ok: true }
 })
 
+// --- Jarvis Mobile link ------------------------------------------------------
+// The linked-iPhone bridge (mobile-bridge.cjs): LAN WS server + cloud relay
+// uplink, QR pairing, per-device tokens, and an allowlisted proxy into the
+// loopback dashboard. Off until the user enables it in Settings → Linked
+// Devices; the enabled flag persists in ~/.jarvis/mobile-link.json.
+
+let mobileBridge = null
+
+function forwardMobileStateToRenderer(state) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send('jarvis:mobile:state', state)
+}
+
+function offlineMobileState() {
+  return { devices: [], enabled: false, hostId: null, lanPort: null, lanUrls: [], relay: { connected: false, url: null } }
+}
+
+async function startMobileBridge() {
+  if (mobileBridge) return mobileBridge
+
+  mobileBridge = createMobileBridge({
+    getDashboard: async () => {
+      try {
+        const connection = await startJarvis()
+        return connection ? { baseUrl: connection.baseUrl, token: connection.token } : null
+      } catch {
+        return null
+      }
+    },
+    jarvisHome: JARVIS_HOME,
+    log: rememberLog,
+    onDevicesChanged: () => forwardMobileStateToRenderer(mobileBridge?.getState() ?? offlineMobileState()),
+    onStatusChanged: state => forwardMobileStateToRenderer(state)
+  })
+
+  try {
+    await mobileBridge.start()
+  } catch (error) {
+    rememberLog(`[mobile] bridge failed to start: ${error.message}`)
+    mobileBridge = null
+  }
+
+  return mobileBridge
+}
+
+ipcMain.handle('jarvis:mobile:state', () => mobileBridge?.getState() ?? offlineMobileState())
+
+ipcMain.handle('jarvis:mobile:enable', async (_event, enabled) => {
+  const bridge = await startMobileBridge()
+  if (!bridge) return { error: 'bridge-unavailable', ...offlineMobileState() }
+  return bridge.setEnabled(Boolean(enabled))
+})
+
+ipcMain.handle('jarvis:mobile:pair', () => {
+  if (!mobileBridge) return { error: 'bridge-unavailable', ok: false }
+  try {
+    return { ok: true, ...mobileBridge.createPairing() }
+  } catch (error) {
+    return { error: error.message, ok: false }
+  }
+})
+
+ipcMain.handle('jarvis:mobile:revoke', (_event, id) => ({
+  ok: Boolean(typeof id === 'string' && id && mobileBridge?.revokeDevice(id))
+}))
+
+ipcMain.handle('jarvis:mobile:relay:set', (_event, url) => {
+  if (!mobileBridge) return offlineMobileState()
+  return mobileBridge.setRelayUrl(typeof url === 'string' ? url : null)
+})
+
 ipcMain.handle('jarvis:launchAtLogin:get', () => ({
   enabled: getLaunchAtLogin(),
   supported: supportsLoginItemSettings()
@@ -6832,6 +6904,7 @@ app.whenReady().then(() => {
   registerPowerResumeListeners()
   createWindow()
   startNotchLink().catch(error => rememberLog(`[notch] start failed: ${error.message}`))
+  startMobileBridge().catch(error => rememberLog(`[mobile] start failed: ${error.message}`))
   startLaunchAtLoginDefault()
 
   // Win/Linux cold start: the launching jarvis:// URL is in our own argv.
@@ -6904,6 +6977,10 @@ app.on('before-quit', () => {
   if (notchLink) {
     notchLink.stop()
     notchLink = null
+  }
+  if (mobileBridge) {
+    mobileBridge.stop()
+    mobileBridge = null
   }
   stopAllPoolBackends()
 })

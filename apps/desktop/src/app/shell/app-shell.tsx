@@ -110,18 +110,19 @@ export function AppShell({
     ? 0
     : titlebarControls.left + TITLEBAR_HEIGHT + Math.round(TITLEBAR_HEIGHT / 2)
 
-  // The static system cluster (haptics, profiles, settings, right-sidebar) is
-  // hardcoded in TitlebarControls. Pane-supplied tools (preview's group) render
-  // in a separate cluster anchored further left.
+  // The static system cluster (haptics, keybinds, settings, right-sidebar,
+  // Jarvis menu) is hardcoded in TitlebarControls. Pane-supplied tools
+  // (preview's group) render in a separate cluster anchored further left.
   //
   // Width math has to include the `gap-x-1` (0.25rem) between buttons:
   // N buttons + (N - 1) inner gaps, plus one extra 0.25rem of breathing room
   // between the pane-tool cluster and the system cluster so they don't sit
   // flush against each other. Modeled as N gaps (N - 1 inner + 1 trailing)
   // to keep the formula generic for any pane-tool count.
-  const SYSTEM_TOOL_COUNT = 4
+  const SYSTEM_ICON_TOOL_COUNT = 4
+  const TITLEBAR_MENU_BUTTON_WIDTH = '4.125rem'
   const paneToolCount = titlebarTools?.filter(tool => !tool.hidden).length ?? 0
-  const systemToolsWidth = `calc(${SYSTEM_TOOL_COUNT} * (var(--titlebar-control-size) + 0.25rem))`
+  const systemToolsWidth = `calc(${SYSTEM_ICON_TOOL_COUNT} * (var(--titlebar-control-size) + 0.25rem) + ${TITLEBAR_MENU_BUTTON_WIDTH})`
 
   const fileBrowserWidth =
     fileBrowserWidthOverride !== undefined ? `${fileBrowserWidthOverride}px` : FILE_BROWSER_DEFAULT_WIDTH
@@ -175,13 +176,15 @@ export function AppShell({
 
       <main className="relative z-3 flex min-h-0 w-full flex-1 flex-col overflow-hidden transition-none">
         <PaneShell className="min-h-0 flex-1">
+          {/* One full-width drag strip: the whole titlebar row moves the
+              window, exactly like a native macOS titlebar. Electron computes
+              draggable regions by rect subtraction, so every interactive
+              element carves itself out — the global `button { no-drag }`
+              rule in styles.css, the titlebar tool clusters, and the
+              right-rail tabs all mark [-webkit-app-region:no-drag]. */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute left-0 top-0 z-1 h-(--titlebar-height) w-(--titlebar-controls-left) [-webkit-app-region:drag]"
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute top-0 z-1 h-(--titlebar-height) left-[calc(var(--titlebar-controls-left)+(var(--titlebar-control-size)*2)+0.75rem)] right-[calc(var(--titlebar-tools-right)+var(--titlebar-tools-width)+0.75rem)] [-webkit-app-region:drag]"
+            className="pointer-events-none absolute inset-x-0 top-0 z-1 h-(--titlebar-height) [-webkit-app-region:drag]"
           />
 
           {children}

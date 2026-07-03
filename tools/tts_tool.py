@@ -2264,6 +2264,13 @@ def _generate_kokoro_tts(text: str, output_path: str, tts_config: Dict[str, Any]
 
     kokoro = _kokoro_model_cache[cache_key]
 
+    # kokoro-onnx phonemizes line-by-line and asserts the phonemizer returned
+    # one output per input line — multi-line text (markdown lists, paragraph
+    # breaks in a voice reply) trips "number of lines in input and output
+    # must be equal". Speech has no line breaks; collapse all whitespace runs
+    # to single spaces before synthesis.
+    text = re.sub(r"\s+", " ", text).strip()
+
     # Generate audio — returns (float32 samples in [-1, 1], sample_rate).
     samples, sample_rate = kokoro.create(text, voice=voice, speed=speed, lang=lang)
 

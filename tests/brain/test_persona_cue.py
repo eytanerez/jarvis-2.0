@@ -85,19 +85,22 @@ class TestCueContent:
 
     def test_contains_positive_direction(self):
         # Not just a ban-list — the model needs something to aim at.
-        assert "Earn the smirk" in VOICE_CUE
+        # (Persona rewritten 2026-07-02 to the plain direct-assistant voice.)
+        assert "be direct, plain, and useful" in VOICE_CUE
 
     def test_contains_concrete_voice_examples(self):
         # At least a few one-liners lifted from SOUL.md ride next to
         # generation — concrete examples are the strongest priming signal.
-        assert "It's always the config file" in VOICE_CUE
-        assert "backup strategy" in VOICE_CUE
+        assert "Done. I updated the setting" in VOICE_CUE
+        assert "I found the drop" in VOICE_CUE
 
-    def test_contains_cruelty_guardrail(self):
-        assert "never cruel" in VOICE_CUE
+    def test_contains_no_performance_guardrail(self):
+        # The old "never cruel" line became "no fake meanness" when the
+        # persona dropped the snark entirely.
+        assert "no fake meanness" in VOICE_CUE
 
     def test_contains_pre_send_test(self):
-        assert "Test before sending" in VOICE_CUE
+        assert "Before sending" in VOICE_CUE
 
     def test_stays_one_dense_block(self):
         # If the cue grows into a second personality file, it's riding on
