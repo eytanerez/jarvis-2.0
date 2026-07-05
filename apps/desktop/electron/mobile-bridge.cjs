@@ -50,16 +50,18 @@ const UPSTREAM_BACKOFF_BASE_MS = 1_000
 const UPSTREAM_BACKOFF_MAX_MS = 15_000
 const LAN_HINT_POLL_MS = 60_000
 const MAX_HTTP_BODY_BYTES = 16 * 1024 * 1024
+const HTTP_RESPONSE_CHUNK_CHARS = 96 * 1024
 
 /**
  * JSON-RPC methods a phone may invoke. Deliberately excludes anything that
- * executes arbitrary code or edits configuration (shell.exec, cli.exec,
- * config.set, reload.env, …) — the phone approves commands, it doesn't run
- * them.
+ * executes arbitrary code or edits broad configuration (shell.exec, cli.exec,
+ * reload.env, …) — the phone approves commands, it doesn't run them.
  */
 const RPC_ALLOWED_METHODS = new Set([
   'approval.respond',
   'clarify.respond',
+  'config.get',
+  'config.set',
   'image.attach_bytes',
   'image.detach',
   'model.options',
@@ -76,6 +78,35 @@ const RPC_ALLOWED_METHODS = new Set([
   'session.status',
   'session.title'
 ])
+
+const MOBILE_CONFIG_KEYS = new Set(['reasoning'])
+const MOBILE_REASONING_VALUES = new Set(['none', 'minimal', 'low', 'medium', 'high', 'xhigh'])
+
+function isRpcAllowedFromMobile(rpc) {
+  if (!rpc || typeof rpc !== 'object' || typeof rpc.method !== 'string') {
+    return true
+  }
+
+  if (!RPC_ALLOWED_METHODS.has(rpc.method)) {
+    return false
+  }
+
+  if (rpc.method === 'config.get') {
+    const key = rpc.params && typeof rpc.params === 'object' ? String(rpc.params.key || '') : ''
+
+    return MOBILE_CONFIG_KEYS.has(key)
+  }
+
+  if (rpc.method === 'config.set') {
+    const params = rpc.params && typeof rpc.params === 'object' ? rpc.params : {}
+    const key = String(params.key || '')
+    const value = String(params.value || '').trim().toLowerCase()
+
+    return key === 'reasoning' && MOBILE_REASONING_VALUES.has(value)
+  }
+
+  return true
+}
 
 /** Dashboard HTTP endpoints a phone may call, proxied with the real token. */
 const HTTP_ALLOWED = new Set([
@@ -576,7 +607,7 @@ function createMobileBridge({
       return
     }
 
-    if (typeof rpc.method === 'string' && !RPC_ALLOWED_METHODS.has(rpc.method)) {
+    if (!isRpcAllowedFromMobile(rpc)) {
       log(`[mobile] refused rpc method ${rpc.method} (${session.label})`)
       rpcError(session, rpc.id, `method not available from mobile: ${rpc.method}`, -32601)
 
@@ -610,12 +641,33 @@ function createMobileBridge({
     }
 
     const respond = (status, responseContentType = 'application/json', responseBody = null) => {
-      send(session, 'http.res', {
-        body: responseBody ? responseBody.toString('base64url') : '',
-        contentType: responseContentType,
-        id,
-        status
-      })
+      const encoded = responseBody ? responseBody.toString('base64url') : ''
+
+      if (encoded.length <= HTTP_RESPONSE_CHUNK_CHARS) {
+        send(session, 'http.res', {
+          body: encoded,
+          contentType: responseContentType,
+          id,
+          status
+        })
+
+        return
+      }
+
+      const total = Math.ceil(encoded.length / HTTP_RESPONSE_CHUNK_CHARS)
+
+      for (let index = 0; index < total; index++) {
+        if (!send(session, 'http.chunk', {
+          body: encoded.slice(index * HTTP_RESPONSE_CHUNK_CHARS, (index + 1) * HTTP_RESPONSE_CHUNK_CHARS),
+          contentType: responseContentType,
+          id,
+          index,
+          status,
+          total
+        })) {
+          return
+        }
+      }
     }
 
     let pathname = null
@@ -1286,6 +1338,7 @@ module.exports = {
   collectLanUrls,
   createMobileBridge,
   isHttpAllowed,
+  isRpcAllowedFromMobile,
   relayHostEndpoint
 }
 

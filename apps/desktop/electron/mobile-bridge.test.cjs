@@ -35,7 +35,7 @@ const {
   sealEnvelope
 } = require('./mobile-link-crypto.cjs')
 const { createMobileLinkStore } = require('./mobile-link-store.cjs')
-const { collectLanUrls, createMobileBridge, relayHostEndpoint } = require('./mobile-bridge.cjs')
+const { collectLanUrls, createMobileBridge, isRpcAllowedFromMobile, relayHostEndpoint } = require('./mobile-bridge.cjs')
 
 function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-mobile-test-'))
@@ -558,6 +558,45 @@ test('disallowed rpc methods are refused before the upstream sees them', async (
   }
 })
 
+test('mobile config rpc is limited to reasoning effort', () => {
+  assert.equal(isRpcAllowedFromMobile({
+    id: 'r1',
+    jsonrpc: '2.0',
+    method: 'config.get',
+    params: { key: 'reasoning' }
+  }), true)
+  assert.equal(isRpcAllowedFromMobile({
+    id: 'r2',
+    jsonrpc: '2.0',
+    method: 'config.set',
+    params: { key: 'reasoning', value: 'high' }
+  }), true)
+  assert.equal(isRpcAllowedFromMobile({
+    id: 'r3',
+    jsonrpc: '2.0',
+    method: 'config.set',
+    params: { key: 'reasoning', value: 'none' }
+  }), true)
+  assert.equal(isRpcAllowedFromMobile({
+    id: 'r4',
+    jsonrpc: '2.0',
+    method: 'config.set',
+    params: { key: 'fast', value: 'fast' }
+  }), false)
+  assert.equal(isRpcAllowedFromMobile({
+    id: 'r5',
+    jsonrpc: '2.0',
+    method: 'config.set',
+    params: { key: 'reasoning', value: 'show' }
+  }), false)
+  assert.equal(isRpcAllowedFromMobile({
+    id: 'r6',
+    jsonrpc: '2.0',
+    method: 'config.get',
+    params: { key: 'full' }
+  }), false)
+})
+
 test('http proxy honors the allowlist and forwards the dashboard token', async () => {
   const { bridge, fetchCalls } = await makeBridge()
 
@@ -628,6 +667,53 @@ test('http proxy honors the allowlist and forwards the dashboard token', async (
     const denied = await phone.next()
 
     assert.equal(denied.body.status, 403)
+
+    phone.close()
+  } finally {
+    bridge.stop()
+  }
+})
+
+test('large http responses are chunked for relay-safe delivery', async () => {
+  const largeBody = Buffer.from(JSON.stringify({
+    models: Array.from({ length: 12000 }, (_, index) => `model-${index}`)
+  }))
+  const { bridge } = await makeBridge({
+    fetchImpl: async () => ({
+      arrayBuffer: async () => largeBody,
+      headers: { get: () => 'application/json' },
+      status: 200
+    })
+  })
+
+  try {
+    const paired = await pairPhone(bridge)
+
+    paired.phone.close()
+
+    const phone = await connectDevice(bridge, { ...paired, lanUrl: paired.lanUrl })
+
+    await phone.next() // upstream.status
+
+    phone.send('http', { id: 'big1', method: 'GET', path: '/api/model/options' })
+
+    const chunks = []
+    let total = null
+
+    do {
+      const frame = await phone.next()
+
+      chunks.push(frame)
+      assert.equal(frame.type, 'http.chunk')
+      assert.equal(frame.body.id, 'big1')
+      assert.equal(frame.body.status, 200)
+      assert.equal(frame.body.contentType, 'application/json')
+      total = frame.body.total
+    } while (chunks.length < total)
+
+    assert.equal(total, chunks.length)
+    assert.equal(chunks.map(chunk => chunk.body.index).join(','), Array.from({ length: total }, (_, index) => index).join(','))
+    assert.equal(Buffer.from(chunks.map(chunk => chunk.body.body).join(''), 'base64url').toString('utf8'), largeBody.toString('utf8'))
 
     phone.close()
   } finally {
