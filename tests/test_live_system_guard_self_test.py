@@ -207,32 +207,47 @@ def test_subprocess_killall_jarvis_blocked():
 def test_systemctl_status_passes_through():
     """Read-only systemctl probes (status/show/list-units) are fine."""
     # Run with check=False so we don't fail on the gateway's exit code.
-    r = subprocess.run(
-        ["systemctl", "--user", "status", "jarvis-gateway", "--no-pager"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        r = subprocess.run(
+            ["systemctl", "--user", "status", "jarvis-gateway", "--no-pager"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        # No systemctl on this platform (macOS dev machine); the guard
+        # not raising RuntimeError is the entire assertion.
+        return
     assert r is not None  # Did not raise — the guard let it through.
 
 
 def test_systemctl_show_passes_through():
-    r = subprocess.run(
-        ["systemctl", "--user", "show", "jarvis-gateway", "--no-pager"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        r = subprocess.run(
+            ["systemctl", "--user", "show", "jarvis-gateway", "--no-pager"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        # No systemctl on this platform (macOS dev machine); the guard
+        # not raising RuntimeError is the entire assertion.
+        return
     assert r is not None
 
 
 def test_systemctl_list_units_passes_through():
-    r = subprocess.run(
-        ["systemctl", "--user", "list-units", "fake-not-real-unit*", "--no-pager"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        r = subprocess.run(
+            ["systemctl", "--user", "list-units", "fake-not-real-unit*", "--no-pager"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        # No systemctl on this platform (macOS dev machine); the guard
+        # not raising RuntimeError is the entire assertion.
+        return
     assert r is not None
 
 
@@ -242,12 +257,17 @@ def test_systemctl_unrelated_unit_passes_through():
     # verify the guard doesn't block the call. systemctl supports
     # --dry-run via the privileged API; on user scope it usually fails
     # quickly without side effects.
-    r = subprocess.run(
-        ["systemctl", "--user", "show", "fake-not-real-unit"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        r = subprocess.run(
+            ["systemctl", "--user", "show", "fake-not-real-unit"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        # No systemctl on this platform (macOS dev machine); the guard
+        # not raising RuntimeError is the entire assertion.
+        return
     assert r is not None
 
 

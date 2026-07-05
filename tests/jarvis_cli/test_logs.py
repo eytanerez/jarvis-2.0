@@ -99,7 +99,7 @@ class TestExtractLoggerName:
         assert _extract_logger_name(line) == "tools.file_tools"
 
     def test_with_session_tag_and_error(self):
-        line = "2026-04-11 10:23:45 ERROR [sess_xyz] agent.context_compressor: failed"
+        line = "2026-04-11 10:23:45 ERROR [sess_xyz] brain.context_compressor: failed"
         assert _extract_logger_name(line) == "brain.context_compressor"
 
     def test_top_level_module(self):

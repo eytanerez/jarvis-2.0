@@ -139,6 +139,9 @@ async def test_gateway_stop_systemd_service_restart_exits_cleanly(tmp_path, monk
     runner, adapter = make_restart_runner()
     adapter.disconnect = AsyncMock()
     monkeypatch.setenv("INVOCATION_ID", "systemd-test")
+    # The clean-exit-0 branch is systemd-only; on macOS (launchd) the code
+    # deliberately keeps the TEMPFAIL exit. Pin the platform under test.
+    monkeypatch.setattr("sys.platform", "linux")
     runner._launch_systemd_restart_shortcut = MagicMock()
 
     with patch("gateway.status.remove_pid_file"), patch("gateway.status.write_runtime_status"):

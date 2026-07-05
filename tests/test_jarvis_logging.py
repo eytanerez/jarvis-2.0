@@ -572,7 +572,7 @@ class TestComponentFilter:
         assert f.filter(record) is False
 
     def test_multiple_prefixes(self):
-        f = jarvis_logging._ComponentFilter(("agent", "run_brain", "model_tools"))
+        f = jarvis_logging._ComponentFilter(("brain", "run_brain", "model_tools"))
         assert f.filter(logging.LogRecord(
             "brain.compressor", logging.INFO, "", 0, "", (), None
         ))

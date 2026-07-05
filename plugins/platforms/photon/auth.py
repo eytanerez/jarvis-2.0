@@ -650,10 +650,22 @@ def list_projects(token: str) -> List[Dict[str, Any]]:
 
 
 def find_project_by_name(token: str, name: str) -> Optional[Dict[str, Any]]:
-    """Return the first project whose name matches (case-insensitive)."""
+    """Return the first project whose name matches (case-insensitive).
+
+    Exact match wins; otherwise fall back to a word-boundary prefix match so
+    a project provisioned under an older default name (e.g. "Jarvis Agent")
+    is still found when searching for the current default ("Jarvis") instead
+    of setup creating a duplicate project.
+    """
     target = (name or "").strip().lower()
-    for proj in list_projects(token):
+    if not target:
+        return None
+    projects = list_projects(token)
+    for proj in projects:
         if (proj.get("name") or "").strip().lower() == target:
+            return proj
+    for proj in projects:
+        if (proj.get("name") or "").strip().lower().startswith(target + " "):
             return proj
     return None
 

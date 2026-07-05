@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import signal
+import shutil
 import subprocess
 import sys
 import time
@@ -230,7 +231,7 @@ def spawn_async_diagnostic(
         f"echo '=== shutdown diagnostic @ {signal_name} ==='; "
         "echo '--- date ---'; date -u +%Y-%m-%dT%H:%M:%SZ; "
         "echo '--- ps auxf (top 60 by cpu) ---'; "
-        "ps auxf --sort=-pcpu 2>/dev/null | head -60; "
+        "(ps auxf --sort=-pcpu 2>/dev/null || ps aux 2>/dev/null) | head -60; "
         "echo '--- pstree of self ---'; "
         f"pstree -plau {os.getpid()} 2>/dev/null | head -40 || true; "
         "echo '--- /proc/loadavg ---'; "
@@ -254,8 +255,21 @@ def spawn_async_diagnostic(
         # would also reap us anyway, but defense in depth).  Without
         # start_new_session, a SIGKILL on our cgroup takes the diag down
         # before it can flush.
+        # GNU `timeout` is not present on stock macOS; emulate it with a
+        # shell watchdog so the diagnostic still self-cleans there instead of
+        # silently never running (Popen raised FileNotFoundError).
+        timeout_bin = shutil.which("timeout") or shutil.which("gtimeout")
+        if timeout_bin:
+            argv = [timeout_bin, f"{timeout_seconds:.0f}", "bash", "-c", script]
+        else:
+            watchdog = (
+                f"( {script} ) & c=$!; "
+                f"( sleep {timeout_seconds:.0f}; kill $c 2>/dev/null ) >/dev/null 2>&1 & w=$!; "
+                "wait $c; kill $w 2>/dev/null"
+            )
+            argv = ["bash", "-c", watchdog]
         proc = subprocess.Popen(
-            ["timeout", f"{timeout_seconds:.0f}", "bash", "-c", script],
+            argv,
             stdout=fd,
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,

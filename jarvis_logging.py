@@ -211,7 +211,9 @@ class _ComponentFilter(logging.Filter):
 # Used by _ComponentFilter and exposed for ``jarvis logs --component``.
 COMPONENT_PREFIXES = {
     "gateway": ("gateway", "jarvis_plugins"),
-    "agent": ("agent", "run_brain", "model_tools", "batch_runner"),
+    # The agent package dir is ``brain/`` (loggers are brain.*); keep the
+    # legacy "agent" prefix for stragglers.
+    "agent": ("brain", "agent", "run_brain", "model_tools", "batch_runner"),
     "tools": ("tools",),
     "cli": ("jarvis_cli", "cli"),
     "cron": ("cron",),

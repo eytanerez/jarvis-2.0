@@ -103,6 +103,21 @@ def _is_alive_like_dispatcher(pid: int) -> bool:
                         break
         except (FileNotFoundError, PermissionError, OSError):
             pass
+    elif sys.platform == "darwin":
+        # No /proc on macOS: the exited-but-unreaped child stays a zombie
+        # (this test holds the Popen open), and kill(pid, 0) still succeeds
+        # on zombies. Ask ps for the state instead.
+        try:
+            out = subprocess.run(
+                ["ps", "-o", "stat=", "-p", str(pid)],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout.strip()
+            if not out or out.startswith("Z"):
+                return False
+        except OSError:
+            pass
     return True
 
 

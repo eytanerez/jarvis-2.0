@@ -39,6 +39,13 @@ class TestUserSystemdPrivateSocketPreflight:
 
 
 class TestSystemdServiceRefresh:
+    @pytest.fixture(autouse=True)
+    def _stub_user_systemd_preflight(self, monkeypatch):
+        # systemd_start/restart preflight the user D-Bus session before any
+        # unit work; on macOS dev machines there is no user systemd at all,
+        # and these tests exercise the logic BEYOND the preflight.
+        monkeypatch.setattr(gateway_cli, "_preflight_user_systemd", lambda **kwargs: None)
+
     def test_systemd_install_repairs_outdated_unit_without_force(self, tmp_path, monkeypatch):
         unit_path = tmp_path / "jarvis-gateway.service"
         unit_path.write_text("old unit\n", encoding="utf-8")
@@ -1244,6 +1251,13 @@ class TestGatewayServiceDetection:
         assert gateway_cli._is_service_running() is False
 
 class TestGatewaySystemServiceRouting:
+    @pytest.fixture(autouse=True)
+    def _stub_user_systemd_preflight(self, monkeypatch):
+        # systemd_start/restart preflight the user D-Bus session before any
+        # unit work; on macOS dev machines there is no user systemd at all,
+        # and these tests exercise the logic BEYOND the preflight.
+        monkeypatch.setattr(gateway_cli, "_preflight_user_systemd", lambda **kwargs: None)
+
     def test_systemd_restart_gracefully_restarts_running_service_and_waits(self, monkeypatch, capsys):
         calls = []
 
