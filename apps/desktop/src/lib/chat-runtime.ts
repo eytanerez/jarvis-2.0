@@ -25,6 +25,9 @@ export const BUILTIN_PERSONALITIES = [
   'hype'
 ]
 
+const GENERIC_SESSION_TITLE_RE =
+  /^(?:new\s+(?:conver(?:sation|sasion|saton)|convosation)|untitled\s+(?:session|conversation|chat))$/i
+
 const THINKING_STATUS_PREFIX_RE =
   /^\s*(?:(?:[^\s.]{1,16})\s+)?(?:processing|thinking|reasoning|analyzing|pondering|contemplating|musing|cogitating|ruminating|deliberating|mulling|reflecting|computing|synthesizing|formulating|brainstorming)\.\.\.\s*/i
 
@@ -59,7 +62,14 @@ export function createClientSessionState(
 }
 
 export function sessionTitle(session: SessionInfo): string {
-  return session.title?.trim() || session.preview?.trim() || 'Untitled session'
+  const title = session.title?.trim() || ''
+  const preview = session.preview?.trim() || ''
+
+  if (title && (!preview || !GENERIC_SESSION_TITLE_RE.test(title))) {
+    return title
+  }
+
+  return preview || title || 'Untitled session'
 }
 
 export function coerceGatewayText(value: unknown): string {

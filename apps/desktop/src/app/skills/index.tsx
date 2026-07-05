@@ -268,7 +268,7 @@ export function SkillsView({ setStatusbarItemGroup: _setStatusbarItemGroup, ...p
                         <Switch
                           checked={skill.enabled}
                           disabled={savingSkill === skill.name}
-                          onCheckedChange={checked => void handleToggleSkill(skill, checked)}
+                          onCheckedChange={(checked: boolean) => void handleToggleSkill(skill, checked)}
                         />
                       </div>
                     ))}
@@ -315,7 +315,7 @@ export function SkillsView({ setStatusbarItemGroup: _setStatusbarItemGroup, ...p
                             aria-label={t.skills.toggleToolset(label)}
                             checked={toolset.enabled}
                             disabled={savingToolset === toolset.name}
-                            onCheckedChange={checked => void handleToggleToolset(toolset, checked)}
+                            onCheckedChange={(checked: boolean) => void handleToggleToolset(toolset, checked)}
                           />
                         </div>
                       </div>

@@ -390,7 +390,11 @@ export function ChatView({
 
       return gateway.request<ModelOptionsResponse>('model.options', { session_id: activeSessionId })
     },
-    enabled: gatewayOpen
+    enabled: gatewayOpen,
+    gcTime: 2 * 60 * 60_000,
+    placeholderData: previous => previous,
+    retry: 2,
+    staleTime: 15 * 60_000
   })
 
   const quickModels = useMemo(

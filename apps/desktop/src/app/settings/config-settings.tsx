@@ -81,7 +81,7 @@ function ConfigField({
   if (selectOptions) {
     return row(
       <Select
-        onValueChange={next => onChange(next === EMPTY_SELECT_VALUE ? '' : next)}
+        onValueChange={(next: string) => onChange(next === EMPTY_SELECT_VALUE ? '' : next)}
         value={String(value ?? '') || EMPTY_SELECT_VALUE}
       >
         <SelectTrigger className={CONTROL_TEXT}>

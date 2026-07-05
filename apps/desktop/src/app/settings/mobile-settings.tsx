@@ -27,15 +27,23 @@ function mobileApi() {
 }
 
 function formatLastSeen(iso: string | null): string {
-  if (!iso) {return 'never connected'}
+  if (!iso) {
+    return 'never connected'
+  }
 
   const delta = Date.now() - new Date(iso).getTime()
 
-  if (delta < 90_000) {return 'just now'}
+  if (delta < 90_000) {
+    return 'just now'
+  }
 
-  if (delta < 3_600_000) {return `${Math.round(delta / 60_000)}m ago`}
+  if (delta < 3_600_000) {
+    return `${Math.round(delta / 60_000)}m ago`
+  }
 
-  if (delta < 86_400_000) {return `${Math.round(delta / 3_600_000)}h ago`}
+  if (delta < 86_400_000) {
+    return `${Math.round(delta / 3_600_000)}h ago`
+  }
 
   return new Date(iso).toLocaleDateString()
 }
@@ -80,7 +88,9 @@ export function MobileSettings() {
       .catch(() => setLoaded(true))
 
     const unsubscribe = api.onState(next => {
-      if (!disposed) {setState(next)}
+      if (!disposed) {
+        setState(next)
+      }
     })
 
     return () => {
@@ -91,7 +101,9 @@ export function MobileSettings() {
 
   // Pairing QR countdown; the code is one-shot and short-lived by design.
   useEffect(() => {
-    if (!qrExpiresAt) {return}
+    if (!qrExpiresAt) {
+      return
+    }
 
     const tick = () => {
       const left = Math.max(0, Math.round((qrExpiresAt - Date.now()) / 1000))
@@ -115,7 +127,9 @@ export function MobileSettings() {
   const toggleEnabled = async (enabled: boolean) => {
     const api = mobileApi()
 
-    if (!api) {return}
+    if (!api) {
+      return
+    }
 
     setToggling(true)
     triggerHaptic(enabled ? 'success' : 'selection')
@@ -139,7 +153,9 @@ export function MobileSettings() {
   const generateQr = async () => {
     const api = mobileApi()
 
-    if (!api) {return}
+    if (!api) {
+      return
+    }
 
     triggerHaptic('open')
 
@@ -171,7 +187,9 @@ export function MobileSettings() {
   const saveRelay = async () => {
     const api = mobileApi()
 
-    if (!api || relayDraft === null) {return}
+    if (!api || relayDraft === null) {
+      return
+    }
 
     setSavingRelay(true)
 
@@ -180,7 +198,10 @@ export function MobileSettings() {
 
       setState(next)
       setRelayDraft(null)
-      notify({ kind: 'success', message: relayDraft.trim() ? 'Relay saved — the bridge is reconnecting' : 'Relay removed' })
+      notify({
+        kind: 'success',
+        message: relayDraft.trim() ? 'Relay saved — the bridge is reconnecting' : 'Relay removed'
+      })
     } catch (err) {
       notifyError(err, 'Could not save the relay URL')
     } finally {
@@ -191,9 +212,17 @@ export function MobileSettings() {
   const revoke = async (id: string, name: string) => {
     const api = mobileApi()
 
-    if (!api) {return}
+    if (!api) {
+      return
+    }
 
-    if (!window.confirm(`Unlink “${name}”? The phone will be disconnected immediately and can only return by scanning a new QR code.`)) {return}
+    if (
+      !window.confirm(
+        `Unlink “${name}”? The phone will be disconnected immediately and can only return by scanning a new QR code.`
+      )
+    ) {
+      return
+    }
 
     setRevoking(id)
     triggerHaptic('warning')
@@ -224,7 +253,7 @@ export function MobileSettings() {
                     aria-label="Allow linked devices"
                     checked={state.enabled}
                     disabled={!supported || toggling || !loaded}
-                    onCheckedChange={value => void toggleEnabled(value)}
+                    onCheckedChange={(value: boolean) => void toggleEnabled(value)}
                   />
                 </div>
               }

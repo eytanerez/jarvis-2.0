@@ -50,7 +50,11 @@ export function ModelVisibilityDialog({
 
       return getGlobalModelOptions()
     },
-    enabled: open
+    enabled: open,
+    gcTime: 2 * 60 * 60_000,
+    placeholderData: previous => previous,
+    retry: 2,
+    staleTime: 15 * 60_000
   })
 
   const providers = useMemo(

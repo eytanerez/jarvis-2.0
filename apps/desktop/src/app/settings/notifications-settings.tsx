@@ -42,7 +42,7 @@ function ToggleRow(props: {
           aria-label={props.label}
           checked={props.checked}
           disabled={props.disabled}
-          onCheckedChange={on => {
+          onCheckedChange={(on: boolean) => {
             triggerHaptic('selection')
             props.onChange(on)
           }}
@@ -87,7 +87,7 @@ export function NotificationsSettings() {
           disabled={!prefs.enabled}
           key={kind}
           label={copy.kinds[kind].label}
-          onChange={on => setNativeNotifyKind(kind, on)}
+          onChange={(on: boolean) => setNativeNotifyKind(kind, on)}
         />
       ))}
 
@@ -97,7 +97,7 @@ export function NotificationsSettings() {
         action={
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Select
-              onValueChange={value => {
+              onValueChange={(value: string) => {
                 const variantId = Number.parseInt(value, 10)
 
                 setCompletionSoundVariantId(variantId)

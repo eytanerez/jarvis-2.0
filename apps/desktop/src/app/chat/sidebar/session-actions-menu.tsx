@@ -150,7 +150,7 @@ function useSessionActions({ sessionId, title, pinned = false, profile, onPin, o
 }
 
 interface SessionActionsMenuProps
-  extends SessionActions, Pick<React.ComponentProps<typeof DropdownMenuContent>, 'align' | 'sideOffset'> {
+  extends SessionActions, Partial<Pick<React.ComponentProps<typeof DropdownMenuContent>, 'align' | 'sideOffset'>> {
   children: React.ReactNode
 }
 

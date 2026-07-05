@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { ComposerAttachment } from '@/store/composer'
 
-import { coerceThinkingText, optimisticAttachmentRef, parseCommandDispatch } from './chat-runtime'
+import { coerceThinkingText, optimisticAttachmentRef, parseCommandDispatch, sessionTitle } from './chat-runtime'
 
 const DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANS'
 
@@ -50,6 +50,50 @@ describe('coerceThinkingText', () => {
         "◉_◉ processing... I don't see any current rewritten thinking or next thinking to process. Could you provide the thinking content you'd like me to rewrite?"
       )
     ).toBe('')
+  })
+})
+
+describe('sessionTitle', () => {
+  it('uses the preview when a mobile-created row still has a generic title', () => {
+    expect(
+      sessionTitle({
+        archived: false,
+        ended_at: null,
+        id: 'mobile-1',
+        input_tokens: 0,
+        is_active: false,
+        last_active: 1,
+        message_count: 2,
+        model: null,
+        output_tokens: 0,
+        preview: 'Can you help me plan dinner?',
+        source: 'mobile',
+        started_at: 1,
+        title: 'New conversation',
+        tool_call_count: 0
+      })
+    ).toBe('Can you help me plan dinner?')
+  })
+
+  it('keeps a real user title even when a preview exists', () => {
+    expect(
+      sessionTitle({
+        archived: false,
+        ended_at: null,
+        id: 'mobile-2',
+        input_tokens: 0,
+        is_active: false,
+        last_active: 1,
+        message_count: 2,
+        model: null,
+        output_tokens: 0,
+        preview: 'Can you help me plan dinner?',
+        source: 'mobile',
+        started_at: 1,
+        title: 'Sunday dinner plan',
+        tool_call_count: 0
+      })
+    ).toBe('Sunday dinner plan')
   })
 })
 

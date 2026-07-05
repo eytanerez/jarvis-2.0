@@ -9329,14 +9329,15 @@ def _cmd_update_impl(args, gateway_mode: bool):
             f.startswith(_DESKTOP_SOURCE_PREFIXES) or f in ("package.json", "package-lock.json")
             for f in changed_files
         )
+        node_requires_desktop = desktop_present and desktop_sources_changed
         node_deps_needed = (
             force_deps
             or changed_files is None
             or any(p in changed_files for p in _NODE_DEP_MANIFEST_PATHS)
-            or not (PROJECT_ROOT / "node_modules").is_dir()
+            or not _node_install_is_fresh(PROJECT_ROOT, require_all=node_requires_desktop)
         )
         if node_deps_needed:
-            _update_node_dependencies(include_desktop=desktop_present and desktop_sources_changed)
+            _update_node_dependencies(include_desktop=node_requires_desktop)
         else:
             print("→ Node.js dependency manifests unchanged — skipping npm install")
 

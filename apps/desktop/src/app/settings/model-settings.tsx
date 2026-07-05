@@ -509,7 +509,7 @@ export function ModelSettings({ onMainModelChanged }: ModelSettingsProps) {
               <div className="flex items-center gap-2 text-xs">
                 {m.reasoning}
                 <Select
-                  onValueChange={value => void writeAgentDefault('agent.reasoning_effort', value)}
+                  onValueChange={(value: string) => void writeAgentDefault('agent.reasoning_effort', value)}
                   value={effortValue}
                 >
                   <SelectTrigger className={cn('min-w-28', CONTROL_TEXT)}>
@@ -530,7 +530,9 @@ export function ModelSettings({ onMainModelChanged }: ModelSettingsProps) {
                 {t.shell.modelOptions.fast}
                 <Switch
                   checked={fastOn}
-                  onCheckedChange={checked => void writeAgentDefault('agent.service_tier', checked ? 'fast' : 'normal')}
+                  onCheckedChange={(checked: boolean) =>
+                    void writeAgentDefault('agent.service_tier', checked ? 'fast' : 'normal')
+                  }
                   size="xs"
                 />
               </label>
@@ -608,7 +610,9 @@ export function ModelSettings({ onMainModelChanged }: ModelSettingsProps) {
                   isEditing && (
                     <div className="mt-2 flex flex-wrap items-center gap-2 pt-1">
                       <Select
-                        onValueChange={value => setAuxDraft(prev => ({ ...prev, provider: value, model: '' }))}
+                        onValueChange={(value: string) =>
+                          setAuxDraft(prev => ({ ...prev, provider: value, model: '' }))
+                        }
                         value={auxDraft.provider}
                       >
                         <SelectTrigger className={cn('min-w-32', CONTROL_TEXT)}>
@@ -623,7 +627,7 @@ export function ModelSettings({ onMainModelChanged }: ModelSettingsProps) {
                         </SelectContent>
                       </Select>
                       <Select
-                        onValueChange={value => setAuxDraft(prev => ({ ...prev, model: value }))}
+                        onValueChange={(value: string) => setAuxDraft(prev => ({ ...prev, model: value }))}
                         value={auxDraft.model}
                       >
                         <SelectTrigger className={cn('min-w-48', CONTROL_TEXT)}>

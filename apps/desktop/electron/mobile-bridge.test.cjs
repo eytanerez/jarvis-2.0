@@ -712,6 +712,7 @@ test('large http responses are chunked for relay-safe delivery', async () => {
     } while (chunks.length < total)
 
     assert.equal(total, chunks.length)
+    assert.ok(chunks.every(chunk => chunk.body.body.length <= 48 * 1024), 'chunks stay safely below relay frame limits')
     assert.equal(chunks.map(chunk => chunk.body.index).join(','), Array.from({ length: total }, (_, index) => index).join(','))
     assert.equal(Buffer.from(chunks.map(chunk => chunk.body.body).join(''), 'base64url').toString('utf8'), largeBody.toString('utf8'))
 

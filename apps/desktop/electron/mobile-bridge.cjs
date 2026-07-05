@@ -50,7 +50,7 @@ const UPSTREAM_BACKOFF_BASE_MS = 1_000
 const UPSTREAM_BACKOFF_MAX_MS = 15_000
 const LAN_HINT_POLL_MS = 60_000
 const MAX_HTTP_BODY_BYTES = 16 * 1024 * 1024
-const HTTP_RESPONSE_CHUNK_CHARS = 96 * 1024
+const HTTP_RESPONSE_CHUNK_CHARS = 48 * 1024
 
 /**
  * JSON-RPC methods a phone may invoke. Deliberately excludes anything that

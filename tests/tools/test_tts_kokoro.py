@@ -6,6 +6,35 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+class _FakeSamples:
+    def __init__(self, frames):
+        self.frames = frames
+
+    def astype(self, _dtype):
+        return self
+
+    def __mul__(self, _value):
+        return self
+
+    __rmul__ = __mul__
+
+    def tobytes(self):
+        return b"\0\0" * self.frames
+
+
+class _FakeNumpy:
+    float32 = "float32"
+    int16 = "int16"
+
+    @staticmethod
+    def zeros(frames, dtype=None):
+        return _FakeSamples(frames)
+
+    @staticmethod
+    def clip(samples, _min_value, _max_value):
+        return samples
+
+
 @pytest.fixture(autouse=True)
 def clean_env(monkeypatch):
     for key in ("JARVIS_SESSION_PLATFORM",):
@@ -24,12 +53,12 @@ def clear_kokoro_cache():
 @pytest.fixture
 def mock_kokoro_module(monkeypatch, tmp_path):
     """Inject a fake kokoro_onnx module and skip real asset resolution/download."""
-    import numpy as np
     from tools import tts_tool as _tt
 
+    fake_numpy = _FakeNumpy()
     fake_model = MagicMock()
     # 24kHz float32 PCM at ~1s of silence
-    fake_model.create.return_value = (np.zeros(24000, dtype=np.float32), 24000)
+    fake_model.create.return_value = (fake_numpy.zeros(24000, dtype=fake_numpy.float32), 24000)
     fake_cls = MagicMock(return_value=fake_model)
     fake_kokoro_onnx = MagicMock()
     fake_kokoro_onnx.Kokoro = fake_cls
@@ -39,7 +68,7 @@ def mock_kokoro_module(monkeypatch, tmp_path):
         lambda config: (str(tmp_path / "model.onnx"), str(tmp_path / "voices.bin")),
     )
 
-    with patch.dict("sys.modules", {"kokoro_onnx": fake_kokoro_onnx}):
+    with patch.dict("sys.modules", {"kokoro_onnx": fake_kokoro_onnx, "numpy": fake_numpy}):
         yield fake_model, fake_cls
 
 

@@ -218,7 +218,7 @@ export function AppearanceSettings() {
             action={
               <Switch
                 checked={orbPerformanceMode}
-                onCheckedChange={checked => {
+                onCheckedChange={(checked: boolean) => {
                   triggerHaptic('selection')
                   setOrbPerformanceMode(checked)
                 }}

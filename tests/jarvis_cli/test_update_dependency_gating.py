@@ -48,7 +48,7 @@ def _patch_managed_uv():
 def gated_update(tmp_path):
     """Run cmd_update with every expensive step mocked; returns the mocks."""
 
-    def _run(changed_files, *, marker_exists=False, force=False):
+    def _run(changed_files, *, marker_exists=False, force=False, node_fresh=True):
         marker = tmp_path / ".update-incomplete"
         if marker_exists:
             marker.write_text("started=0\n")
@@ -62,6 +62,7 @@ def gated_update(tmp_path):
              patch.object(hm, "_verify_core_dependencies_installed") as verify, \
              patch.object(hm, "_refresh_active_lazy_features") as lazy, \
              patch.object(hm, "_update_node_dependencies") as node, \
+             patch.object(hm, "_node_install_is_fresh", return_value=node_fresh), \
              patch.object(hm, "_build_web_ui"), \
              patch.object(hm, "_maybe_rebuild_desktop_after_update"), \
              patch.object(hm, "_desktop_packaged_executable", return_value=None), \
@@ -96,6 +97,12 @@ class TestUpdateDependencyGating:
         mocks.node.assert_called_once()
         # Desktop app absent (mocked) => light workspace set.
         assert mocks.node.call_args.kwargs == {"include_desktop": False}
+
+    def test_stale_node_stamp_reinstalls_node_deps(self, gated_update):
+        mocks = gated_update({"jarvis_cli/main.py"}, node_fresh=False)
+        mocks.py_install.assert_not_called()
+        mocks.verify.assert_called_once()
+        mocks.node.assert_called_once_with(include_desktop=False)
 
     def test_lazy_deps_pin_change_refreshes_lazy_features(self, gated_update):
         mocks = gated_update({"tools/lazy_deps.py"})

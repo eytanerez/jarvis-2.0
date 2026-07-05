@@ -122,7 +122,7 @@ export function CreateProfileDialog({
               {p.cloneFrom}
             </label>
             <Select
-              onValueChange={value => setCloneFrom(value === '__none__' ? null : value)}
+              onValueChange={(value: string) => setCloneFrom(value === '__none__' ? null : value)}
               value={cloneFrom ?? '__none__'}
             >
               <SelectTrigger className="h-9 rounded-md" id="new-profile-clone-from">

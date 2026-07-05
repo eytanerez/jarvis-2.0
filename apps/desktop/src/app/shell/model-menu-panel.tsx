@@ -1,5 +1,6 @@
 import { useStore } from '@nanostores/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import type { KeyboardEvent } from 'react'
 import { createContext, useContext, useMemo, useState } from 'react'
 
 import { Codicon } from '@/components/ui/codicon'
@@ -88,7 +89,11 @@ export function ModelMenuPanel({ gateway, onSelectModel, requestGateway }: Model
       }
 
       return getGlobalModelOptions()
-    }
+    },
+    gcTime: 2 * 60 * 60_000,
+    placeholderData: previous => previous,
+    retry: 2,
+    staleTime: 15 * 60_000
   })
 
   const { model: optionsModel, provider: optionsProvider } = currentPickerSelection(
@@ -99,11 +104,12 @@ export function ModelMenuPanel({ gateway, onSelectModel, requestGateway }: Model
 
   const loading = modelOptions.isPending && !modelOptions.data
 
-  const error = modelOptions.error
-    ? modelOptions.error instanceof Error
-      ? modelOptions.error.message
-      : String(modelOptions.error)
-    : null
+  const error =
+    !modelOptions.data && modelOptions.error
+      ? modelOptions.error instanceof Error
+        ? modelOptions.error.message
+        : String(modelOptions.error)
+      : null
 
   const providers = modelOptions.data?.providers
 
@@ -193,7 +199,7 @@ export function ModelMenuPanel({ gateway, onSelectModel, requestGateway }: Model
               className={dropdownMenuRow}
               disabled
               key={index}
-              onSelect={event => event.preventDefault()}
+              onSelect={(event: Event) => event.preventDefault()}
             >
               <Skeleton className="h-4 w-full" />
             </DropdownMenuItem>
@@ -271,7 +277,7 @@ export function ModelMenuPanel({ gateway, onSelectModel, requestGateway }: Model
                       className={dropdownMenuRow}
                       hideChevron
                       onClick={activate}
-                      onKeyDown={event => {
+                      onKeyDown={(event: KeyboardEvent) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           activate()
                         }
@@ -306,7 +312,7 @@ export function ModelMenuPanel({ gateway, onSelectModel, requestGateway }: Model
       <DropdownMenuItem
         className={cn(dropdownMenuRow, 'text-(--ui-text-tertiary)')}
         disabled={refreshing}
-        onSelect={event => {
+        onSelect={(event: Event) => {
           event.preventDefault()
           void refreshModels()
         }}

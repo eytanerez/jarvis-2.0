@@ -14,9 +14,8 @@ import { Eye, EyeOff, ExternalLink, Trash2 } from '@/lib/icons'
 import { triggerHaptic } from '@/lib/haptics'
 import { cn } from '@/lib/utils'
 
-interface EnvVarActionsMenuProps extends Pick<
-  React.ComponentProps<typeof DropdownMenuContent>,
-  'align' | 'sideOffset'
+interface EnvVarActionsMenuProps extends Partial<
+  Pick<React.ComponentProps<typeof DropdownMenuContent>, 'align' | 'sideOffset'>
 > {
   children: React.ReactNode
   clearDisabled?: boolean
@@ -56,7 +55,7 @@ export function EnvVarActionsMenu({
       <DropdownMenuContent align={align} aria-label={copy.actionsFor(label)} className="w-44" sideOffset={sideOffset}>
         {hasDocs && (
           <DropdownMenuItem
-            onSelect={event => {
+            onSelect={(event: Event) => {
               event.preventDefault()
               triggerHaptic('selection')
               window.open(docsUrl!, '_blank', 'noopener,noreferrer')

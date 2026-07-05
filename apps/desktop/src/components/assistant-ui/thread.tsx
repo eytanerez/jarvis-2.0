@@ -702,7 +702,7 @@ const AssistantActionBar: FC<MessageActionProps> = ({ messageId, getMessageText,
               <Codicon name="ellipsis" />
             </TooltipIconButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" onCloseAutoFocus={e => e.preventDefault()} sideOffset={6}>
+          <DropdownMenuContent align="start" onCloseAutoFocus={(e: Event) => e.preventDefault()} sideOffset={6}>
             <MessageTimestamp />
             <DropdownMenuItem onSelect={() => onBranchInNewChat?.(messageId)}>
               <GitBranchIcon />
@@ -746,7 +746,7 @@ const ReadAloudItem: FC<{ getText: () => string; messageId: string }> = ({ getTe
   return (
     <DropdownMenuItem
       disabled={isPreparing || (!isSpeaking && anyPlaybackActive)}
-      onSelect={e => {
+      onSelect={(e: Event) => {
         e.preventDefault()
         void (isSpeaking ? stopVoicePlayback() : read())
       }}

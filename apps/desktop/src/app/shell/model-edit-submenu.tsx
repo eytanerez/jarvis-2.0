@@ -191,18 +191,18 @@ export function ModelEditSubmenu({
         <>
           <DropdownMenuLabel className={dropdownMenuSectionLabel}>{copy.options}</DropdownMenuLabel>
           {reasoning ? (
-            <DropdownMenuItem className={dropdownMenuRow} onSelect={event => event.preventDefault()}>
+            <DropdownMenuItem className={dropdownMenuRow} onSelect={(event: Event) => event.preventDefault()}>
               {copy.thinking}
               <Switch
                 checked={thinkingOn}
                 className="ml-auto"
-                onCheckedChange={checked => void patchReasoning(checked ? effortValue || 'medium' : 'none')}
+                onCheckedChange={(checked: boolean) => void patchReasoning(checked ? effortValue || 'medium' : 'none')}
                 size="xs"
               />
             </DropdownMenuItem>
           ) : null}
           {hasFast ? (
-            <DropdownMenuItem className={dropdownMenuRow} onSelect={event => event.preventDefault()}>
+            <DropdownMenuItem className={dropdownMenuRow} onSelect={(event: Event) => event.preventDefault()}>
               {copy.fast}
               <Switch checked={fastOn} className="ml-auto" onCheckedChange={toggleFast} size="xs" />
             </DropdownMenuItem>
@@ -211,12 +211,12 @@ export function ModelEditSubmenu({
             <>
               <DropdownMenuSeparator className="mx-0" />
               <DropdownMenuLabel className={dropdownMenuSectionLabel}>{copy.effort}</DropdownMenuLabel>
-              <DropdownMenuRadioGroup onValueChange={value => void patchReasoning(value)} value={effortValue}>
+              <DropdownMenuRadioGroup onValueChange={(value: string) => void patchReasoning(value)} value={effortValue}>
                 {EFFORT_OPTIONS.map(option => (
                   <DropdownMenuRadioItem
                     className={dropdownMenuRow}
                     key={option.value}
-                    onSelect={event => event.preventDefault()}
+                    onSelect={(event: Event) => event.preventDefault()}
                     value={option.value}
                   >
                     {copy[option.labelKey]}

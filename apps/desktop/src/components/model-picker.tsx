@@ -63,7 +63,11 @@ export function ModelPickerDialog({
 
       return getGlobalModelOptions()
     },
-    enabled: open
+    enabled: open,
+    gcTime: 2 * 60 * 60_000,
+    placeholderData: previous => previous,
+    retry: 2,
+    staleTime: 15 * 60_000
   })
 
   const providers = modelOptions.data?.providers ?? []
@@ -76,11 +80,12 @@ export function ModelPickerDialog({
 
   const loading = modelOptions.isPending && !modelOptions.data
 
-  const error = modelOptions.error
-    ? modelOptions.error instanceof Error
-      ? modelOptions.error.message
-      : String(modelOptions.error)
-    : null
+  const error =
+    !modelOptions.data && modelOptions.error
+      ? modelOptions.error instanceof Error
+        ? modelOptions.error.message
+        : String(modelOptions.error)
+      : null
 
   const selectModel = (provider: ModelOptionProvider, model: string) => {
     onSelect({ provider: provider.slug, model })
