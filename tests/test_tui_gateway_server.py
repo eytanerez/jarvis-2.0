@@ -2499,7 +2499,7 @@ def test_config_set_fast_updates_live_agent_and_config(monkeypatch):
             "foo": "bar",
             "service_tier": "priority",
         }
-        assert ("brain.service_tier", "fast") in writes
+        assert ("agent.service_tier", "fast") in writes
         assert ("session.info", "sid", {"model": "x"}) in emits
 
         resp_normal = server.handle_request(
@@ -2512,7 +2512,7 @@ def test_config_set_fast_updates_live_agent_and_config(monkeypatch):
         assert resp_normal["result"]["value"] == "normal"
         assert agent.service_tier is None
         assert agent.request_overrides == {"foo": "bar"}
-        assert ("brain.service_tier", "normal") in writes
+        assert ("agent.service_tier", "normal") in writes
     finally:
         server._sessions.pop("sid", None)
 

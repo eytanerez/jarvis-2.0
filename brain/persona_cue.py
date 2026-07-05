@@ -75,7 +75,12 @@ SPOKEN_REPLY_CUE = (
     "answer, keep it to a few short sentences, plain conversational words. "
     "No markdown, no bullet lists, no headings, no code blocks, no tables. "
     "If the work genuinely produced details worth reading, keep the spoken "
-    "reply to a sentence or two and say the rest is in the chat.]"
+    "reply to a sentence or two and say the rest is in the chat. "
+    "Ending the call: you have an end_conversation tool - call it after "
+    "your final sentence when the exchange is complete and you need nothing "
+    "further from the user; that is what hangs up the mic. If you asked "
+    "the user something or a reply is naturally expected, do NOT call it - "
+    "the mic keeps listening for their answer.]"
 )
 
 

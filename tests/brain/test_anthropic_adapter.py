@@ -271,6 +271,16 @@ class TestIsClaudeCodeTokenValid:
 
 
 class TestResolveAnthropicToken:
+    @pytest.fixture(autouse=True)
+    def no_keychain(self, monkeypatch):
+        # The resolver consults the real macOS Keychain first; a dev machine
+        # running Claude Code has live credentials there that would shadow
+        # every tmp_path fixture below.
+        monkeypatch.setattr(
+            "brain.anthropic_adapter._read_claude_code_credentials_from_keychain",
+            lambda: None,
+        )
+
     def test_prefers_oauth_token_over_api_key(self, monkeypatch, tmp_path):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-mykey")
         monkeypatch.setenv("ANTHROPIC_TOKEN", "sk-ant-oat01-mytoken")
@@ -497,6 +507,16 @@ class TestResolveWithRefresh:
 
 
 class TestRunOauthSetupToken:
+    @pytest.fixture(autouse=True)
+    def no_keychain(self, monkeypatch):
+        # The resolver consults the real macOS Keychain first; a dev machine
+        # running Claude Code has live credentials there that would shadow
+        # every tmp_path fixture below.
+        monkeypatch.setattr(
+            "brain.anthropic_adapter._read_claude_code_credentials_from_keychain",
+            lambda: None,
+        )
+
     def test_raises_when_claude_not_installed(self, monkeypatch):
         monkeypatch.setattr("shutil.which", lambda _: None)
         with pytest.raises(FileNotFoundError, match="claude.*CLI.*not installed"):

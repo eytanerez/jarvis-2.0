@@ -83,7 +83,7 @@ class TestHandleFastCommand(unittest.TestCase):
         ):
             cli_mod.JarvisCLI._handle_fast_command(stub, "/fast normal")
 
-        mock_save.assert_called_once_with("brain.service_tier", "normal")
+        mock_save.assert_called_once_with("agent.service_tier", "normal")
         self.assertIsNone(stub.service_tier)
         self.assertIsNone(stub.agent)
 

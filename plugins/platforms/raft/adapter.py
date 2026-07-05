@@ -36,7 +36,14 @@ except ImportError:
 
 import sys
 from pathlib import Path as _Path
-sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))
+# Make the REPO ROOT importable (gateway/, utils.py live there) when this
+# adapter is loaded outside a repo-rooted process. parents[2] used to point
+# one level short — at plugins/ — which shadowed top-level packages that
+# share a plugin's name (import cron → plugins/cron) and broke e.g. the
+# dashboard's cron endpoints in any process that had discovered plugins.
+_repo_root = str(_Path(__file__).resolve().parents[3])
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (

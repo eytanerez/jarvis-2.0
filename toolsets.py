@@ -57,6 +57,8 @@ _JARVIS_CORE_TOOLS = [
     "session_search",
     # Clarifying questions
     "clarify",
+    # Voice-mode hang-up signal (no-op outside voice conversations)
+    "end_conversation",
     # Code execution + delegation
     "execute_code", "delegate_task",
     # Cronjob management
@@ -233,7 +235,7 @@ TOOLSETS = {
     
     "clarify": {
         "description": "Ask the user clarifying questions (multiple-choice or open-ended)",
-        "tools": ["clarify"],
+        "tools": ["clarify", "end_conversation"],
         "includes": []
     },
     

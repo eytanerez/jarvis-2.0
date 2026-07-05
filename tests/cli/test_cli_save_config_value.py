@@ -35,7 +35,7 @@ class TestSaveConfigValueAtomic:
     def test_preserves_existing_keys(self, config_env):
         """Writing a new key must not clobber existing config entries."""
         from cli import save_config_value
-        save_config_value("brain.max_turns", 50)
+        save_config_value("agent.max_turns", 50)
 
         result = yaml.safe_load(config_env.read_text())
         assert result["model"]["default"] == "test-model"
