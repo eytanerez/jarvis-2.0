@@ -315,7 +315,7 @@ def _load_video_gen_plugin(monkeypatch):
     _install_fake_tools_package()
 
     # Also need the agent.video_gen_provider ABC
-    agent_dir = Path(__file__).resolve().parents[2] / "agent"
+    agent_dir = Path(__file__).resolve().parents[2] / "brain"
     spec = spec_from_file_location(
         "brain.video_gen_provider",
         agent_dir / "video_gen_provider.py",
@@ -499,7 +499,7 @@ def test_video_gen_happy_horse_uses_alibaba_namespace():
     # Load just the plugin module to check the catalog
     plugin_init = PLUGINS_DIR / "video_gen" / "fal" / "__init__.py"
 
-    agent_dir = Path(__file__).resolve().parents[2] / "agent"
+    agent_dir = Path(__file__).resolve().parents[2] / "brain"
     spec = spec_from_file_location(
         "brain.video_gen_provider",
         agent_dir / "video_gen_provider.py",

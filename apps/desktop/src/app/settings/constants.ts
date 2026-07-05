@@ -13,8 +13,8 @@ import {
 } from '@/lib/icons'
 import type { ThemeMode } from '@/themes/context'
 
-import type { DesktopConfigSection } from './types'
 import { defineFieldCopy } from './field-copy'
+import type { DesktopConfigSection } from './types'
 
 // Provider group definitions used to fold raw env-var names like
 // ``XAI_API_KEY`` into a single "xAI" card with a friendly label, short
@@ -234,7 +234,7 @@ export const BUILTIN_PERSONALITIES = [
 // Schema-side select overrides for desktop-relevant enum fields whose
 // backend schema only declares a string type.
 export const ENUM_OPTIONS: Record<string, string[]> = {
-  'brain.image_input_mode': ['auto', 'native', 'text'],
+  'agent.image_input_mode': ['auto', 'native', 'text'],
   'approvals.mode': ['manual', 'smart', 'off'],
   'code_execution.mode': ['project', 'strict'],
   'context.engine': ['compressor', 'default', 'custom'],
@@ -526,7 +526,7 @@ export const SECTIONS: DesktopConfigSection[] = [
     id: 'chat',
     label: 'Chat',
     icon: MessageCircle,
-    keys: ['display.personality', 'timezone', 'display.show_reasoning', 'brain.image_input_mode']
+    keys: ['display.personality', 'timezone', 'display.show_reasoning', 'agent.image_input_mode']
   },
   {
     id: 'appearance',
@@ -636,10 +636,10 @@ export const SECTIONS: DesktopConfigSection[] = [
       'tool_output.max_lines',
       'tool_output.max_line_length',
       'checkpoints.max_snapshots',
-      'brain.max_turns',
-      'brain.api_max_retries',
-      'brain.service_tier',
-      'brain.tool_use_enforcement',
+      'agent.max_turns',
+      'agent.api_max_retries',
+      'agent.service_tier',
+      'agent.tool_use_enforcement',
       'delegation.model',
       'delegation.provider',
       'delegation.max_iterations',

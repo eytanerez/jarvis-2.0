@@ -106,6 +106,7 @@ export const en: Translations = {
       backendStopped: 'Backend stopped',
       desktopBootFailed: 'Desktop boot failed',
       gatewaySignInRequired: 'Gateway sign-in required',
+      gatewayUnreachable: "Can't reach the Jarvis gateway. It may be offline, or your network may be blocking the connection.",
       ipcBridgeUnavailable: 'Desktop IPC bridge is unavailable.'
     },
     failure: {
@@ -865,6 +866,7 @@ export const en: Translations = {
       loading: 'Loading model configuration...',
       appliesDesc: 'Applies to new sessions. Use the model picker in the composer to hot-swap the active chat.',
       provider: 'Provider',
+      providerNeedsSetup: 'set up',
       model: 'Model',
       applying: 'Applying...',
       defaultsLabel: 'Defaults',

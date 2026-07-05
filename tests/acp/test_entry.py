@@ -16,7 +16,7 @@ def test_main_enables_unstable_protocol(monkeypatch):
 
     monkeypatch.setattr(entry, "_setup_logging", lambda: None)
     monkeypatch.setattr(entry, "_load_env", lambda: None)
-    monkeypatch.setattr(acp, "run_brain", fake_run_brain)
+    monkeypatch.setattr(acp, "run_agent", fake_run_brain)
 
     entry.main([])
 

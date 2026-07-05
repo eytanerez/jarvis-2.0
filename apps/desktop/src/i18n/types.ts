@@ -121,6 +121,7 @@ export interface Translations {
       backendStopped: string
       desktopBootFailed: string
       gatewaySignInRequired: string
+      gatewayUnreachable: string
       ipcBridgeUnavailable: string
     }
     failure: {
@@ -520,6 +521,7 @@ export interface Translations {
       loading: string
       appliesDesc: string
       provider: string
+      providerNeedsSetup: string
       model: string
       applying: string
       defaultsLabel: string

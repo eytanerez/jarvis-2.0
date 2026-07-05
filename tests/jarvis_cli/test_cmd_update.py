@@ -667,6 +667,14 @@ class TestCmdUpdateCheckBranchFlag:
         def side_effect(cmd, **kwargs):
             joined = " ".join(str(c) for c in cmd)
 
+            # The upstream-preference path is gated on the upstream remote
+            # pointing at the official repo (_is_official_repo_url) — an
+            # unrelated upstream must never be used for update checks.
+            if "remote" in joined and "get-url" in joined and "upstream" in joined:
+                return subprocess.CompletedProcess(
+                    cmd, 0, stdout="https://github.com/eytanerez/jarvis-2.0.git\n", stderr=""
+                )
+
             if "fetch" in joined and "upstream" in joined:
                 rc = 0 if upstream_fetch_ok else 128
                 err = "" if upstream_fetch_ok else "fatal: 'upstream' does not appear to be a git repository\n"
@@ -757,7 +765,7 @@ class TestCmdUpdateCheckBranchFlag:
         # Should have tried upstream first.
         assert any("fetch" in c and "upstream" in c for c in commands), commands
         assert any(
-            c == "git fetch upstream refs/heads/main:refs/remotes/upstream/main"
+            c == "git fetch upstream +refs/heads/main:refs/remotes/upstream/main"
             for c in commands
         ), commands
         # Compare ref is upstream/main (upstream fetch succeeded).

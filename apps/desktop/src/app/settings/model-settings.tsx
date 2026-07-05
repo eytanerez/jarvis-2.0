@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { useI18n } from '@/i18n'
 import {
   getAuxiliaryModels,
   getGlobalModelInfo,
@@ -15,7 +16,6 @@ import {
   setModelAssignment
 } from '@/jarvis'
 import type { AuxiliaryModelsResponse, ModelOptionProvider, StaleAuxAssignment } from '@/jarvis'
-import { useI18n } from '@/i18n'
 import { AlertTriangle, Cpu, Loader2 } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { notifyError } from '@/store/notifications'
@@ -219,11 +219,13 @@ export function ModelSettings({ onMainModelChanged }: ModelSettingsProps) {
 
   const reasoningSupported = mainCaps?.reasoning ?? true
   const fastSupported = mainCaps?.fast ?? false
+
   const effortValue =
-    String(getNested(config ?? {}, 'brain.reasoning_effort') ?? '')
+    String(getNested(config ?? {}, 'agent.reasoning_effort') ?? '')
       .trim()
       .toLowerCase() || 'medium'
-  const fastOn = isFastTier(getNested(config ?? {}, 'brain.service_tier'))
+
+  const fastOn = isFastTier(getNested(config ?? {}, 'agent.service_tier'))
 
   // Persist a single agent.* default by round-tripping the whole config record
   // (PUT /api/config replaces it) — optimistic, with rollback on failure.
@@ -431,6 +433,9 @@ export function ModelSettings({ onMainModelChanged }: ModelSettingsProps) {
               {providerOptions.map(provider => (
                 <SelectItem key={provider.slug || 'none'} value={provider.slug || 'none'}>
                   {provider.name}
+                  {!isProviderReady(provider) && (
+                    <span className="ml-1.5 text-xs text-muted-foreground">· {m.providerNeedsSetup}</span>
+                  )}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -504,7 +509,7 @@ export function ModelSettings({ onMainModelChanged }: ModelSettingsProps) {
               <div className="flex items-center gap-2 text-xs">
                 {m.reasoning}
                 <Select
-                  onValueChange={value => void writeAgentDefault('brain.reasoning_effort', value)}
+                  onValueChange={value => void writeAgentDefault('agent.reasoning_effort', value)}
                   value={effortValue}
                 >
                   <SelectTrigger className={cn('min-w-28', CONTROL_TEXT)}>
@@ -525,7 +530,7 @@ export function ModelSettings({ onMainModelChanged }: ModelSettingsProps) {
                 {t.shell.modelOptions.fast}
                 <Switch
                   checked={fastOn}
-                  onCheckedChange={checked => void writeAgentDefault('brain.service_tier', checked ? 'fast' : 'normal')}
+                  onCheckedChange={checked => void writeAgentDefault('agent.service_tier', checked ? 'fast' : 'normal')}
                   size="xs"
                 />
               </label>

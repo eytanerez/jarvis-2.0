@@ -327,6 +327,12 @@ _SENSITIVE_PATH_PREFIXES = (
     "/etc/", "/boot/", "/usr/lib/systemd/",
     "/private/etc/", "/private/var/",
 )
+# Carve-outs checked BEFORE the prefixes: subtrees of a sensitive prefix that
+# are user-scoped, not system state. macOS puts the per-user temp/cache dirs
+# (TMPDIR, confstr DARWIN_USER_TEMP_DIR) under /private/var/folders/<xx>/…
+# with 700 permissions — blanket-blocking /private/var/ made every ordinary
+# temp-file write fail on macOS with "sensitive system path".
+_SENSITIVE_PATH_ALLOWED_PREFIXES = ("/private/var/folders/", "/var/folders/")
 _SENSITIVE_EXACT_PATHS = {"/var/run/docker.sock", "/run/docker.sock"}
 
 _jarvis_config_resolved: str | None = None
@@ -361,9 +367,14 @@ def _check_sensitive_path(filepath: str, task_id: str = "default") -> str | None
         f"Refusing to write to sensitive system path: {filepath}\n"
         "Use the terminal tool with sudo if you need to modify system files."
     )
-    for prefix in _SENSITIVE_PATH_PREFIXES:
-        if resolved.startswith(prefix) or normalized.startswith(prefix):
-            return _err
+    allowed = any(
+        resolved.startswith(prefix) or normalized.startswith(prefix)
+        for prefix in _SENSITIVE_PATH_ALLOWED_PREFIXES
+    )
+    if not allowed:
+        for prefix in _SENSITIVE_PATH_PREFIXES:
+            if resolved.startswith(prefix) or normalized.startswith(prefix):
+                return _err
     if resolved in _SENSITIVE_EXACT_PATHS or normalized in _SENSITIVE_EXACT_PATHS:
         return _err
     # Prevent agents from modifying the Jarvis config file directly.

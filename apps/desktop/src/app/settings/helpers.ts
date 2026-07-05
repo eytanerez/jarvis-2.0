@@ -125,7 +125,7 @@ export function setNested(obj: JarvisConfigRecord, path: string, value: unknown)
 }
 
 function personalityOptions(config: JarvisConfigRecord): string[] {
-  const custom = getNested(config, 'brain.personalities')
+  const custom = getNested(config, 'agent.personalities')
 
   const customNames =
     custom && typeof custom === 'object' && !Array.isArray(custom) ? Object.keys(custom as Record<string, unknown>) : []

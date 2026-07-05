@@ -722,10 +722,11 @@ def test_load_enabled_toolsets_rejects_disabled_mcp_env(monkeypatch, capsys):
         config_mod, "load_config", lambda: {"platform_toolsets": {"cli": ["memory"]}}
     )
 
-    # Sorted: ["kanban", "memory"]. `kanban` is auto-recovered by
-    # _get_platform_tools because it's a non-configurable platform toolset
-    # whose tools live in jarvis-cli's universe (see toolsets.py).
-    assert server._load_enabled_toolsets() == ["kanban", "memory"]
+    # Sorted: ["kanban", "memory", "timer"]. `kanban` and `timer` are
+    # auto-recovered by _get_platform_tools because they're non-configurable
+    # platform toolsets whose tools live in jarvis-cli's universe (see
+    # toolsets.py).
+    assert server._load_enabled_toolsets() == ["kanban", "memory", "timer"]
     err = capsys.readouterr().err
     assert "ignoring disabled MCP servers" in err
     assert "mcp-off" in err
@@ -746,7 +747,7 @@ def test_load_enabled_toolsets_falls_back_when_tui_env_invalid(monkeypatch, caps
         config_mod, "load_config", lambda: {"platform_toolsets": {"cli": ["memory"]}}
     )
 
-    assert server._load_enabled_toolsets() == ["kanban", "memory"]
+    assert server._load_enabled_toolsets() == ["kanban", "memory", "timer"]
     assert "using configured CLI toolsets" in capsys.readouterr().err
 
 
@@ -6198,6 +6199,13 @@ def test_browser_manage_connect_default_local_reports_launch_hint(monkeypatch):
                 "jarvis_cli.browser_connect.get_chrome_debug_candidates",
                 return_value=[],
             ),
+            # Hermetic: on a dev machine with Chrome installed this returns a
+            # real launch command and the "no supported browser" hint under
+            # test never renders.
+            patch(
+                "jarvis_cli.browser_connect.manual_chrome_debug_command",
+                return_value="",
+            ),
         ):
             resp = server.handle_request(
                 {
@@ -6253,6 +6261,13 @@ def test_browser_manage_connect_no_session_skips_progress_events(monkeypatch):
             patch(
                 "jarvis_cli.browser_connect.get_chrome_debug_candidates",
                 return_value=[],
+            ),
+            # Hermetic: on a dev machine with Chrome installed this returns a
+            # real launch command and the "no supported browser" hint under
+            # test never renders.
+            patch(
+                "jarvis_cli.browser_connect.manual_chrome_debug_command",
+                return_value="",
             ),
         ):
             resp = server.handle_request(

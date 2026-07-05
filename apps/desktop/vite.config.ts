@@ -6,6 +6,18 @@ import path from 'path'
 export default defineConfig({
   base: './',
   plugins: [react(), tailwindcss()],
+  test: {
+    // Renderer unit tests only. Without this vitest also collects the
+    // electron/ and scripts/ node:test suites (run via `npm run
+    // test:desktop:platforms`), plus stray *.test.js files inside staged
+    // native-deps under build/ and release/ — dozens of spurious failures.
+    include: ['src/**/*.test.{ts,tsx}'],
+    exclude: ['**/node_modules/**', 'build/**', 'release/**', 'dist/**', 'electron/**', 'scripts/**'],
+    // Radix + jsdom component tests intermittently exceed the 5s default
+    // under full-suite parallel load; they pass in isolation. Timeouts are
+    // a stability rail here, not a perf assertion.
+    testTimeout: 15_000
+  },
   css: {
     // Pin an explicit (empty) PostCSS config. Tailwind is handled entirely by
     // `@tailwindcss/vite`, so the renderer needs no PostCSS plugins — and

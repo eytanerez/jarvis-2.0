@@ -261,7 +261,7 @@ def test_probe_config_health_flags_null_personalities_with_active_personality():
         }
     )
     assert "display.personality" in msg
-    assert "brain.personalities" in msg
+    assert "agent.personalities" in msg
 
 
 def test_make_agent_tolerates_null_config_sections():

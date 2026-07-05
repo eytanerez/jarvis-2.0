@@ -41,7 +41,8 @@ function pump(frames: number, stepMs = 1000 / 60) {
   for (let i = 0; i < frames; i++) {
     clock += stepMs
     const queue = rafQueue.splice(0)
-    for (const cb of queue) cb(clock)
+
+    for (const cb of queue) {cb(clock)}
     // Parked loops re-arm through setTimeout; let those fire when due.
     vi.advanceTimersByTime(stepMs)
   }
@@ -59,6 +60,7 @@ beforeEach(() => {
   $windowVisible.set(true)
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
     rafQueue.push(cb)
+
     return rafQueue.length
   })
   vi.stubGlobal('cancelAnimationFrame', () => undefined)
@@ -73,7 +75,12 @@ beforeEach(() => {
     }
   )
   window.matchMedia ??= (query: string) =>
-    ({ addEventListener: () => undefined, matches: false, media: query, removeEventListener: () => undefined }) as MediaQueryList
+    ({
+      addEventListener: () => undefined,
+      matches: false,
+      media: query,
+      removeEventListener: () => undefined
+    }) as unknown as MediaQueryList
 })
 
 afterEach(() => {

@@ -106,6 +106,7 @@ export const zh: Translations = {
       backendStopped: '后端已停止',
       desktopBootFailed: '桌面启动失败',
       gatewaySignInRequired: '需要登录网关',
+      gatewayUnreachable: '无法连接 Jarvis 网关。它可能已离线，或网络阻止了连接。',
       ipcBridgeUnavailable: '桌面 IPC 桥不可用。'
     },
     failure: {
@@ -1060,6 +1061,7 @@ export const zh: Translations = {
       loading: '正在加载模型配置...',
       appliesDesc: '应用于新会话。可在输入框的模型选择器中临时切换当前对话。',
       provider: '提供方',
+      providerNeedsSetup: '需要设置',
       model: '模型',
       applying: '应用中...',
       defaultsLabel: '默认值',

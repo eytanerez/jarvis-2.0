@@ -977,7 +977,7 @@ class TestWebServerEndpoints:
         audio_file = tmp_path / "speech.mp3"
         audio_file.write_bytes(b"ID3fake-audio-bytes")
 
-        def fake_tts(text):
+        def fake_tts(text, output_path=None):
             return json.dumps({
                 "success": True,
                 "file_path": str(audio_file),

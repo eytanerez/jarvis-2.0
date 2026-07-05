@@ -1,7 +1,7 @@
 import ignore from 'ignore'
 
-import { desktopFsCacheKey, desktopGitRoot, readDesktopDir, readDesktopFileDataUrl } from '@/lib/desktop-fs'
 import type { JarvisReadDirEntry, JarvisReadDirResult } from '@/global'
+import { desktopFsCacheKey, desktopGitRoot, readDesktopDir, readDesktopFileDataUrl } from '@/lib/desktop-fs'
 
 export type ProjectTreeEntry = JarvisReadDirEntry
 
@@ -68,7 +68,10 @@ async function gitRootFor(start: string) {
   let cached = gitRootCache.get(key)
 
   if (!cached) {
-    cached = desktopGitRoot(start)
+    // Normalize before crossing the bridge so Windows-style and POSIX-style
+    // spellings of the same directory share one lookup (the cache key is
+    // already normalized — an unnormalized call defeated it).
+    cached = desktopGitRoot(clean(start))
     gitRootCache.set(key, cached)
   }
 

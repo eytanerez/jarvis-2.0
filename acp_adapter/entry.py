@@ -254,7 +254,7 @@ def main(argv: list[str] | None = None) -> None:
 
     agent = JarvisACPAgent()
     try:
-        asyncio.run(acp.run_brain(agent, use_unstable_protocol=True))
+        asyncio.run(acp.run_agent(agent, use_unstable_protocol=True))
     except KeyboardInterrupt:
         logger.info("Shutting down (KeyboardInterrupt)")
     except Exception:

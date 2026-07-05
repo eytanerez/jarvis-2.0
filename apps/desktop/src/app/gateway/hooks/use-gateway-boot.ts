@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 
 import type { JarvisConnection } from '@/global'
-import { JarvisGateway } from '@/jarvis'
 import { translateNow } from '@/i18n'
+import { JarvisGateway } from '@/jarvis'
 import { desktopDefaultCwd } from '@/lib/desktop-fs'
 import { isGatewayReauthRequired, resolveGatewayWsUrl } from '@/lib/gateway-ws-url'
 import {
@@ -105,6 +105,14 @@ export function useGatewayBoot({
     // tick — a stale OAuth ticket fails every attempt and would otherwise stack
     // identical error toasts (and their haptics). Reset on the next clean open.
     let reauthNotified = false
+    // After a sustained post-boot outage (~6 failed reconnects ≈ 45s) raise a
+    // recoverable boot error so the BootFailureOverlay (Use local gateway /
+    // Sign in / Retry) becomes reachable — without this a dead remote leaves
+    // the fullscreen CONNECTING state looping forever with no escape hatch.
+    // Raised once per outage episode; the next clean open clears it via the
+    // existing completeDesktopBoot() in the state handler.
+    let outageEscalated = false
+    const OUTAGE_ESCALATION_ATTEMPTS = 6
 
     // Wrap the live getter in a call so TS control-flow analysis doesn't narrow
     // `connectionState` to a constant across the early-return guards (the state
@@ -171,6 +179,11 @@ export function useGatewayBoot({
         reconnecting = false
 
         if (!cancelled && !gatewayOpen()) {
+          if (bootCompleted && !outageEscalated && reconnectAttempt >= OUTAGE_ESCALATION_ATTEMPTS) {
+            outageEscalated = true
+            failDesktopBoot(translateNow('boot.errors.gatewayUnreachable'))
+          }
+
           scheduleReconnect()
         }
       }
@@ -230,6 +243,7 @@ export function useGatewayBoot({
       if (st === 'open') {
         reconnectAttempt = 0
         reauthNotified = false
+        outageEscalated = false
         clearReconnectTimer()
 
         // A revalidate-driven reconnect can rebuild the backend in place when the
@@ -359,10 +373,12 @@ export function useGatewayBoot({
         })
         await ensureDefaultWorkspaceCwd()
         const remoteDefault = await desktopDefaultCwd().catch(() => null)
+
         if (remoteDefault?.cwd && !$activeSessionId.get() && !$currentCwd.get()) {
           setCurrentCwd(remoteDefault.cwd)
           setCurrentBranch(remoteDefault.branch || '')
         }
+
         await callbacksRef.current.refreshJarvisConfig()
 
         if (cancelled) {

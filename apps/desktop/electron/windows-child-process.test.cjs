@@ -12,9 +12,13 @@ function readElectronFile(name) {
 }
 
 function requireHiddenChildOptions(source, needle) {
-  const index = source.indexOf(needle)
+  // Compare with all whitespace stripped so prettier re-wrapping a call
+  // across lines (execFileSync(\n  pyExe, ...) can't break the needle.
+  const flatSource = source.replace(/\s+/g, '')
+  const flatNeedle = needle.replace(/\s+/g, '')
+  const index = flatSource.indexOf(flatNeedle)
   assert.notEqual(index, -1, `missing call site: ${needle}`)
-  const snippet = source.slice(index, index + 700)
+  const snippet = flatSource.slice(index, index + 700)
   assert.match(
     snippet,
     /hiddenWindowsChildOptions\(/,
