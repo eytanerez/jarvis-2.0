@@ -1005,7 +1005,7 @@ class CLICommandsMixin:
             if personality_name in {"none", "default", "neutral"}:
                 self.system_prompt = ""
                 self.agent = None  # Force re-init
-                if save_config_value("brain.system_prompt", ""):
+                if save_config_value("agent.system_prompt", ""):
                     print("(^_^)b Personality cleared (saved to config)")
                 else:
                     print("(^_^) Personality cleared (session only)")
@@ -1013,7 +1013,7 @@ class CLICommandsMixin:
             elif personality_name in self.personalities:
                 self.system_prompt = self._resolve_personality_prompt(self.personalities[personality_name])
                 self.agent = None  # Force re-init
-                if save_config_value("brain.system_prompt", self.system_prompt):
+                if save_config_value("agent.system_prompt", self.system_prompt):
                     print(f"(^_^)b Personality set to '{personality_name}' (saved to config)")
                 else:
                     print(f"(^_^) Personality set to '{personality_name}' (session only)")
@@ -2116,7 +2116,7 @@ class CLICommandsMixin:
         self.reasoning_config = parsed
         self.agent = None  # Force agent re-init with new reasoning config
 
-        if save_config_value("brain.reasoning_effort", arg):
+        if save_config_value("agent.reasoning_effort", arg):
             _cprint(f"  {_ACCENT}✓ Reasoning effort set to '{arg}' (saved to config){_RST}")
         else:
             _cprint(f"  {_ACCENT}✓ Reasoning effort set to '{arg}' (session only){_RST}")
@@ -2203,7 +2203,7 @@ class CLICommandsMixin:
             return
 
         self.agent = None  # Force agent re-init with new service-tier config
-        if save_config_value("brain.service_tier", saved_value):
+        if save_config_value("agent.service_tier", saved_value):
             _cprint(f"  {_ACCENT}✓ {feature_name} set to {label} (saved to config){_RST}")
         else:
             _cprint(f"  {_ACCENT}✓ {feature_name} set to {label} (session only){_RST}")

@@ -543,7 +543,7 @@ _SCHEMA_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "description": "Log level for brain.log",
         "options": ["DEBUG", "INFO", "WARNING", "ERROR"],
     },
-    "brain.service_tier": {
+    "agent.service_tier": {
         "type": "select",
         "description": "API service tier (OpenAI/Anthropic)",
         "options": ["", "auto", "default", "flex"],

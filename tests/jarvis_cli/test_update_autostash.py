@@ -12,7 +12,7 @@ FETCH_ORIGIN_MAIN = [
     "git",
     "fetch",
     "origin",
-    "refs/heads/main:refs/remotes/origin/main",
+    "+refs/heads/main:refs/remotes/origin/main",
 ]
 
 

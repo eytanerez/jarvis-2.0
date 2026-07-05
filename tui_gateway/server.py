@@ -7852,7 +7852,7 @@ def _(rid, params: dict) -> dict:
                     "fast mode is not available for this model",
                 )
 
-        _write_config_key("brain.service_tier", nv)
+        _write_config_key("agent.service_tier", nv)
         if agent is not None:
             agent.service_tier = "priority" if nv == "fast" else None
             current_overrides = dict(getattr(agent, "request_overrides", {}) or {})
@@ -8025,7 +8025,7 @@ def _(rid, params: dict) -> dict:
             parsed = parse_reasoning_effort(arg)
             if parsed is None:
                 return _err(rid, 4002, f"unknown reasoning value: {value}")
-            _write_config_key("brain.reasoning_effort", arg)
+            _write_config_key("agent.reasoning_effort", arg)
             if session and session.get("agent") is not None:
                 session["agent"].reasoning_config = parsed
                 _persist_live_session_runtime(session)
@@ -8197,7 +8197,7 @@ def _(rid, params: dict) -> dict:
                 sid_key = params.get("session_id", "")
                 pname, new_prompt = _validate_personality(str(value or ""), cfg)
                 _write_config_key("display.personality", pname)
-                _write_config_key("brain.system_prompt", new_prompt)
+                _write_config_key("agent.system_prompt", new_prompt)
                 nv = str(value or "none")
                 history_reset, info = _apply_personality_to_session(
                     sid_key, session, new_prompt, pname

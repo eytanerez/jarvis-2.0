@@ -814,7 +814,12 @@ def _looks_like_human_speaker(speaker: str, bot_guest_name: str) -> bool:
     if not speaker or not speaker.strip():
         return False
     spk = speaker.strip().lower()
-    if spk in {"unknown", "you", bot_guest_name.strip().lower()}:
+    if spk in {"unknown", "you"}:
+        return False
+    # Meet sometimes decorates our own name ("Jarvis", "Jarvis Agent", ...);
+    # any speaker that IS the bot name or starts with it is our echo.
+    bot = bot_guest_name.strip().lower()
+    if bot and (spk == bot or spk.startswith(bot + " ")):
         return False
     return True
 

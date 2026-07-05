@@ -494,7 +494,10 @@ def is_uv_tool_install() -> bool:
     """
     def _has_uv_tool_marker(path: str) -> bool:
         norm = os.path.normpath(path).replace(os.sep, "/").lower()
-        return "/uv/tools/jarvis-brain/" in norm + "/"
+        # The distribution is published as jarvis-agent (pyproject [project]
+        # name), so uv installs land in .../uv/tools/jarvis-agent/. Accept the
+        # legacy jarvis-brain spelling too for installs made under old names.
+        return "/uv/tools/jarvis-agent/" in norm + "/" or "/uv/tools/jarvis-brain/" in norm + "/"
 
     if _has_uv_tool_marker(sys.prefix):
         return True

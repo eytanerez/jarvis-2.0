@@ -48,7 +48,7 @@ def test_redact_secrets_false_in_config_yaml_is_honored(tmp_path):
         sys.path.insert(0, %r)
         import jarvis_cli.main  # triggers the bridge + setup_logging
         import brain.redact
-        print(f"REDACT_ENABLED={agent.redact._REDACT_ENABLED}")
+        print(f"REDACT_ENABLED={brain.redact._REDACT_ENABLED}")
         print(f"ENV_VAR={os.environ.get('JARVIS_REDACT_SECRETS', '<unset>')}")
         """
     ) % str(REPO_ROOT)
@@ -92,7 +92,7 @@ def test_redact_secrets_default_true_when_unset(tmp_path):
         sys.path.insert(0, %r)
         import jarvis_cli.main
         import brain.redact
-        print(f"REDACT_ENABLED={agent.redact._REDACT_ENABLED}")
+        print(f"REDACT_ENABLED={brain.redact._REDACT_ENABLED}")
         """
     ) % str(REPO_ROOT)
 
@@ -134,7 +134,7 @@ def test_redact_secrets_true_in_config_yaml_is_honored(tmp_path):
         sys.path.insert(0, %r)
         import jarvis_cli.main
         import brain.redact
-        print(f"REDACT_ENABLED={agent.redact._REDACT_ENABLED}")
+        print(f"REDACT_ENABLED={brain.redact._REDACT_ENABLED}")
         print(f"ENV_VAR={os.environ.get('JARVIS_REDACT_SECRETS', '<unset>')}")
         """
     ) % str(REPO_ROOT)
@@ -180,7 +180,7 @@ def test_dotenv_redact_secrets_beats_config_yaml(tmp_path):
         sys.path.insert(0, %r)
         import jarvis_cli.main
         import brain.redact
-        print(f"REDACT_ENABLED={agent.redact._REDACT_ENABLED}")
+        print(f"REDACT_ENABLED={brain.redact._REDACT_ENABLED}")
         print(f"ENV_VAR={os.environ.get('JARVIS_REDACT_SECRETS', '<unset>')}")
         """
     ) % str(REPO_ROOT)

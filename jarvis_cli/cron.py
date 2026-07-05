@@ -21,12 +21,15 @@ from jarvis_cli.colors import Colors, color
 # Deliberately specific — a bare "gateway ... restart" catch-all would block
 # legitimate prompts that merely mention an unrelated gateway (e.g. "summarize
 # the API gateway logs and report restart events").
+# Match the legacy binary name too: cron jobs and scripts written against the
+# pre-rename CLI still say "hermes gateway restart", and this guard exists to
+# stop a scheduled job from killing the gateway that runs it.
 _GATEWAY_LIFECYCLE_PATTERNS = re.compile(
     r"(?i)"
-    r"(jarvis\s+gateway\s+(restart|stop|start))"
-    r"|(launchctl\s+(kickstart|unload|load|stop|restart)\s+.*jarvis)"
-    r"|(systemctl\s+(-\S+\s+)*(restart|stop|start)\s+.*jarvis)"
-    r"|(p?kill\s+.*jarvis.*gateway)"
+    r"((jarvis|hermes)\s+gateway\s+(restart|stop|start))"
+    r"|(launchctl\s+(kickstart|unload|load|stop|restart)\s+.*(jarvis|hermes))"
+    r"|(systemctl\s+(-\S+\s+)*(restart|stop|start)\s+.*(jarvis|hermes))"
+    r"|(p?kill\s+.*(jarvis|hermes).*gateway)"
 )
 
 

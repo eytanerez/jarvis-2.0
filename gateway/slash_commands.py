@@ -2157,7 +2157,7 @@ class GatewaySlashCommandsMixin:
 
         self._reasoning_config = parsed
         if persist_global:
-            if _save_config_key("brain.reasoning_effort", effort):
+            if _save_config_key("agent.reasoning_effort", effort):
                 self._set_session_reasoning_override(session_key, None)
                 self._evict_cached_agent(session_key)
                 return t("gateway.reasoning.set_global", effort=effort)
@@ -2323,7 +2323,7 @@ class GatewaySlashCommandsMixin:
         else:
             return t("gateway.fast.unknown_arg", arg=args)
 
-        if _save_config_key("brain.service_tier", saved_value):
+        if _save_config_key("agent.service_tier", saved_value):
             return t("gateway.fast.saved", label=label)
         return t("gateway.fast.session_only", label=label)
 
