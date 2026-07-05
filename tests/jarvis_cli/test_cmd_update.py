@@ -232,10 +232,16 @@ class TestCmdUpdateBranchFallback:
         # The web UI build runs through _run_with_idle_timeout now (issue
         # #33788) so it no longer appears in subprocess.run's call list.
         # Mock it so the test doesn't actually shell out to ``tsc``.
+        # The node-install stamp and desktop-app detection read the real
+        # filesystem; pin them so the test is hermetic on any machine.
         import subprocess as _subprocess
         build_ok = _subprocess.CompletedProcess([], 0, stdout="", stderr="")
         with patch.object(hm, "_is_termux_env", return_value=False), \
-             patch.object(hm, "_run_with_idle_timeout", return_value=build_ok) as mock_idle:
+             patch.object(hm, "_run_with_idle_timeout", return_value=build_ok) as mock_idle, \
+             patch.object(hm, "_node_install_is_fresh", return_value=False), \
+             patch.object(hm, "_write_node_install_stamp"), \
+             patch.object(hm, "_desktop_packaged_executable", return_value=None), \
+             patch.object(hm, "_desktop_dist_exists", return_value=False):
             cmd_update(mock_args)
 
         npm_calls = [
@@ -245,29 +251,17 @@ class TestCmdUpdateBranchFallback:
         ]
 
         # cmd_update runs npm commands in these locations:
-        #   1. repo root  — root-only install (--workspaces=false)
-        #   2. repo root  — workspace install (--workspace ui-tui --workspace web)
-        #   3. web/       — npm ci --silent (if lockfile not at root)
+        #   1. repo root  — single deterministic install covering the root
+        #                  plus the ui-tui and web workspaces (desktop is
+        #                  skipped when no desktop app is installed)
+        #   2. web/       — npm ci --silent (if lockfile not at root)
         #                  via _build_web_ui (subprocess.run)
-        #   4. web/       — npm run build (_run_with_idle_timeout)
+        #   3. web/       — npm run build (_run_with_idle_timeout)
         #
-        # With a single workspace lockfile at the repo root, the root
-        # install covers all workspaces.  The web/ ci call runs from the
-        # workspace root too (parent of web_dir) when the root lockfile
-        # exists.
-        #
-        # The root install omits `--silent` and runs without
-        # `capture_output` so optional postinstall scripts (e.g.
-        # `@askjo/camofox-browser`'s browser-binary fetch) print progress —
-        # otherwise long downloads look like a hang (#18840).
-        root_flags = [
-            "/usr/bin/npm",
-            "ci",
-            "--no-fund",
-            "--no-audit",
-            "--progress=false",
-            "--workspaces=false",
-        ]
+        # The install omits `--silent` and runs without `capture_output` so
+        # optional postinstall scripts (e.g. `@askjo/camofox-browser`'s
+        # browser-binary fetch) print progress — otherwise long downloads
+        # look like a hang (#18840).
         ws_flags = [
             "/usr/bin/npm",
             "ci",
@@ -279,14 +273,13 @@ class TestCmdUpdateBranchFallback:
             "--workspace",
             "web",
         ]
-        assert npm_calls[:2] == [
-            (root_flags, PROJECT_ROOT),
+        assert npm_calls[:1] == [
             (ws_flags, PROJECT_ROOT),
         ]
-        if len(npm_calls) > 2:
+        if len(npm_calls) > 1:
             # The web/ install runs from the workspace root when the root
             # lockfile exists (npm workspaces hoist node_modules upward).
-            assert npm_calls[2:] == [
+            assert npm_calls[1:] == [
                 (["/usr/bin/npm", "ci", "--workspace", "web", "--silent"], PROJECT_ROOT),
             ]
 
@@ -309,7 +302,7 @@ class TestCmdUpdateBranchFallback:
             and call.kwargs.get("cwd") == PROJECT_ROOT
             and "--silent" not in call.args[0]
         ]
-        assert len(root_install_calls) == 2  # root-only + workspace install
+        assert len(root_install_calls) == 1  # single root+workspace install
         for call in root_install_calls:
             assert call.kwargs.get("capture_output") is False, (
                 "repo-root npm install must stream output "

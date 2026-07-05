@@ -65,6 +65,6 @@ def build_update_parser(subparsers, *, cmd_update: Callable) -> None:
         "--force",
         action="store_true",
         default=False,
-        help="Windows: proceed with the update even when another jarvis.exe is detected. The concurrent process will likely cause WinError 32 warnings and may leave a reboot-deferred .exe replacement.",
+        help="Force the full dependency reinstall (Python + Node) even when no dependency manifest changed. On Windows, also proceed when another jarvis.exe is detected (may cause WinError 32 warnings and a reboot-deferred .exe replacement).",
     )
     update_parser.set_defaults(func=cmd_update)

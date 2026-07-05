@@ -342,8 +342,8 @@ class TestBackup:
         jarvis_home.mkdir()
         _make_jarvis_tree(jarvis_home)
 
-        # Add a nested jarvis-agent directory inside skills (like the real layout)
-        nested = jarvis_home / "skills" / "autonomous-ai-agents" / "jarvis-agent"
+        # Add a nested jarvis-brain directory inside skills (like the real layout)
+        nested = jarvis_home / "skills" / "autonomous-ai-agents" / "jarvis-brain"
         nested.mkdir(parents=True)
         (nested / "SKILL.md").write_text("# Jarvis Skill\n")
         (nested / "sub").mkdir()

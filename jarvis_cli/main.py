@@ -5487,22 +5487,35 @@ def cmd_gui(args: argparse.Namespace):
             build_label = "source build" if source_mode else "packaged app"
             print(f"✓ Desktop {build_label} is up to date (content stamp matches)")
         else:
-            print("→ Installing desktop workspace dependencies...")
+            # Skip the ~1GB npm ci wipe/reinstall when the last full-workspace
+            # install is still stamped fresh and the Electron dist is intact.
+            # --force-build keeps its "rebuild everything" meaning and forces
+            # the install too.
             nixos_env = _nixos_build_env()
-            install_result = _run_npm_install_deterministic(npm, PROJECT_ROOT, capture_output=False, env=nixos_env)
-            if install_result.returncode != 0:
-                if not _electron_pkg_staged_missing_dist(PROJECT_ROOT):
-                    print("✗ Desktop dependency install failed")
-                    print(f"  Run manually:  cd {PROJECT_ROOT} && npm ci")
-                    sys.exit(install_result.returncode or 1)
-                repaired = _try_redownload_electron_dist(PROJECT_ROOT, env)
-                if repaired:
-                    print("  ⚠ Dependency install failed with a missing Electron dist; "
-                          "repopulated it and continuing.")
+            if (
+                not force_build
+                and _node_install_is_fresh(PROJECT_ROOT, require_all=True)
+                and _electron_dist_ok(PROJECT_ROOT)
+            ):
+                print("✓ Desktop workspace dependencies are current (install stamp matches)")
+            else:
+                print("→ Installing desktop workspace dependencies...")
+                install_result = _run_npm_install_deterministic(npm, PROJECT_ROOT, capture_output=False, env=nixos_env)
+                if install_result.returncode != 0:
+                    if not _electron_pkg_staged_missing_dist(PROJECT_ROOT):
+                        print("✗ Desktop dependency install failed")
+                        print(f"  Run manually:  cd {PROJECT_ROOT} && npm ci")
+                        sys.exit(install_result.returncode or 1)
+                    repaired = _try_redownload_electron_dist(PROJECT_ROOT, env)
+                    if repaired:
+                        print("  ⚠ Dependency install failed with a missing Electron dist; "
+                              "repopulated it and continuing.")
+                    else:
+                        print("  ⚠ Dependency install failed with a missing Electron dist; "
+                              "continuing to the build so electron-builder can attempt "
+                              "the Electron fetch itself.")
                 else:
-                    print("  ⚠ Dependency install failed with a missing Electron dist; "
-                          "continuing to the build so electron-builder can attempt "
-                          "the Electron fetch itself.")
+                    _write_node_install_stamp(PROJECT_ROOT, workspaces="all")
 
             build_label = "source build" if source_mode else "packaged app"
             print(f"→ Building desktop {build_label}...")
@@ -7728,7 +7741,158 @@ def _ensure_uv_for_termux(pip_cmd: list[str]) -> str | None:
     return resolve_uv() or shutil.which("uv")
 
 
-def _update_node_dependencies() -> None:
+# ---------------------------------------------------------------------------
+# Node install stamp — skip npm ci when the dependency manifests are unchanged
+# ---------------------------------------------------------------------------
+# ``npm ci`` deletes the entire node_modules tree (~1GB here) before
+# reinstalling, so running it when nothing changed wastes minutes on every
+# update. The stamp records a hash of every manifest that determines the
+# install result plus which workspace set was installed ("update" =
+# root + ui-tui + web, "all" = every workspace including apps/desktop).
+# Stored under $JARVIS_HOME (like desktop-build-stamp.json) so npm's
+# node_modules wipe can't take the stamp with it.
+
+_NODE_DEP_MANIFEST_PATHS = (
+    "package.json",
+    "package-lock.json",
+    "ui-tui/package.json",
+    "web/package.json",
+    "apps/desktop/package.json",
+    "apps/shared/package.json",
+)
+
+
+def _node_install_stamp_path() -> Path:
+    from jarvis_constants import get_jarvis_home
+
+    return get_jarvis_home() / "node-install-stamp.json"
+
+
+def _node_manifest_hash(project_root: Path) -> str:
+    """SHA-256 over every manifest that determines an npm workspace install."""
+    h = hashlib.sha256()
+    for rel in _NODE_DEP_MANIFEST_PATHS:
+        p = project_root / rel
+        h.update(rel.encode())
+        h.update(b"\0")
+        try:
+            if p.is_file():
+                h.update(p.read_bytes())
+        except OSError:
+            pass
+        h.update(b"\0")
+    return h.hexdigest()
+
+
+def _node_install_is_fresh(project_root: Path, *, require_all: bool) -> bool:
+    """True when the last successful npm install still matches the manifests.
+
+    ``require_all`` demands that the desktop workspace was part of that
+    install (the desktop build needs Electron and friends); the lighter
+    "update" set satisfies callers that only need ui-tui + web.
+    """
+    stamp_file = _node_install_stamp_path()
+    try:
+        stamp = json.loads(stamp_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    if stamp.get("manifestHash") != _node_manifest_hash(project_root):
+        return False
+    installed = stamp.get("workspaces")
+    if require_all:
+        if installed != "all":
+            return False
+    elif installed not in ("update", "all"):
+        return False
+    if not (project_root / "node_modules").is_dir():
+        return False
+    return True
+
+
+def _write_node_install_stamp(project_root: Path, *, workspaces: str) -> None:
+    """Record a successful npm install. Never raises."""
+    try:
+        stamp_file = _node_install_stamp_path()
+        stamp_file.parent.mkdir(parents=True, exist_ok=True)
+        from datetime import datetime, timezone
+
+        stamp_file.write_text(
+            json.dumps(
+                {
+                    "manifestHash": _node_manifest_hash(project_root),
+                    "workspaces": workspaces,
+                    "installedAt": datetime.now(timezone.utc).isoformat(),
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    except Exception as exc:
+        logger.debug("Failed to write node install stamp: %s", exc)
+
+
+# Manifests whose change requires a Python dependency reinstall. Anything
+# else that `git pull` touches is picked up automatically by the editable
+# install — reinstalling for pure code changes is wasted minutes.
+_PYTHON_DEP_MANIFESTS = frozenset(
+    {
+        "pyproject.toml",
+        "uv.lock",
+        "setup.py",
+        "MANIFEST.in",
+        "constraints-termux.txt",
+    }
+)
+
+# Paths that feed the desktop build (stage-notch pulls from apps/notch and
+# the desktop workspace depends on apps/shared).
+_DESKTOP_SOURCE_PREFIXES = ("apps/desktop/", "apps/shared/", "apps/notch/")
+
+
+def _files_changed_between(
+    git_cmd: list[str], project_root: Path, base_sha: str | None, target: str = "HEAD"
+) -> "set[str] | None":
+    """Files changed between two commits plus currently-dirty paths.
+
+    Dirty paths are included so stash-restored local edits to a manifest
+    still trigger the dependency work they need. Returns ``None`` when
+    detection fails — callers must treat that as "everything changed".
+    """
+    if not base_sha:
+        return None
+    try:
+        diff = subprocess.run(
+            git_cmd + ["diff", "--name-only", base_sha, target],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        status = subprocess.run(
+            git_cmd + ["status", "--porcelain"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, OSError):
+        return None
+
+    files = {line.strip() for line in diff.stdout.splitlines() if line.strip()}
+    for line in status.stdout.splitlines():
+        entry = line[3:].strip() if len(line) > 3 else ""
+        if not entry:
+            continue
+        # Rename entries look like `old -> new`; both sides count as changed.
+        for part in entry.split(" -> "):
+            cleaned = part.strip().strip('"')
+            if cleaned:
+                files.add(cleaned)
+    return files
+
+
+def _update_node_dependencies(include_desktop: bool = False) -> None:
     npm = shutil.which("npm")
     if not npm:
         return
@@ -7736,51 +7900,41 @@ def _update_node_dependencies() -> None:
     if not (PROJECT_ROOT / "package.json").exists():
         return
 
-    # With a single workspace lockfile the root install would cover ALL
-    # workspaces — but apps/desktop pulls in Electron as a devDependency,
-    # and its postinstall downloads a ~200MB binary.  Most users don't
-    # need desktop during `jarvis update`, so we install root-only first
-    # then add just the workspaces the CLI/TUI/web build actually requires.
-    # Desktop deps are installed on demand by the desktop launcher
-    # (see _desktop_build_needed).
+    if _node_install_is_fresh(PROJECT_ROOT, require_all=include_desktop):
+        print("→ Node.js dependencies are current (install stamp matches); skipping npm install")
+        return
+
+    # A single deterministic pass. ``npm ci`` wipes node_modules before
+    # installing, so the old two-step (root-only, then ui-tui+web) paid the
+    # ~1GB delete/reinstall twice for the identical final tree. apps/desktop
+    # pulls in Electron (~200MB postinstall download), so it is only included
+    # when the caller knows a desktop rebuild is coming; otherwise the desktop
+    # launcher installs it on demand (see _desktop_build_needed).
     print("→ Updating Node.js dependencies...")
     extra_args = ["--no-fund", "--no-audit", "--progress=false"]
+    if not include_desktop:
+        extra_args += ["--workspace", "ui-tui", "--workspace", "web"]
 
     nixos_env = _nixos_build_env()
-
-    # Step 1: root install (no workspace recursion).
-    root_args = [*extra_args, "--workspaces=false"]
-    root_result = _run_npm_install_deterministic(
+    result = _run_npm_install_deterministic(
         npm,
         PROJECT_ROOT,
-        extra_args=tuple(root_args),
+        extra_args=tuple(extra_args),
         capture_output=False,
         env=nixos_env,
     )
-    if root_result.returncode != 0:
+    if result.returncode != 0:
         print("  ⚠ npm install failed in repo root")
-        stderr = (root_result.stderr or "").strip() if root_result.stderr else ""
+        stderr = (result.stderr or "").strip() if result.stderr else ""
         if stderr:
             print(f"    {stderr.splitlines()[-1]}")
         return
 
-    # Step 2: install only the workspaces update needs (ui-tui, web).
-    # --workspace selects specific workspaces; the rest (desktop) are skipped.
-    ws_args = [*extra_args, "--workspace", "ui-tui", "--workspace", "web"]
-    ws_result = _run_npm_install_deterministic(
-        npm,
-        PROJECT_ROOT,
-        extra_args=tuple(ws_args),
-        capture_output=False,
-        env=nixos_env,
-    )
-    if ws_result.returncode == 0:
-        print("  ✓ repo root + ui-tui, web workspaces (desktop skipped)")
+    _write_node_install_stamp(PROJECT_ROOT, workspaces="all" if include_desktop else "update")
+    if include_desktop:
+        print("  ✓ repo root + all workspaces (desktop included for pending rebuild)")
     else:
-        print("  ⚠ npm workspace install failed")
-        stderr = (ws_result.stderr or "").strip() if ws_result.stderr else ""
-        if stderr:
-            print(f"    {stderr.splitlines()[-1]}")
+        print("  ✓ repo root + ui-tui, web workspaces (desktop skipped)")
 
 
 class _UpdateOutputStream:
@@ -9062,78 +9216,130 @@ def _cmd_update_impl(args, gateway_mode: bool):
         if is_fork and branch == "main":
             _sync_with_upstream_if_needed(git_cmd, PROJECT_ROOT)
 
-        # Reinstall Python dependencies. Prefer .[all], but if one optional extra
-        # breaks on this machine, keep base deps and reinstall the remaining extras
-        # individually so update does not silently strip working capabilities.
-        #
-        # Drop the interrupted-install breadcrumb BEFORE touching the venv. If
-        # the install is killed mid-flight (Ctrl-C, terminal close, WSL OOM),
-        # the marker survives and the next ``jarvis`` launch finishes the
-        # install via ``_recover_from_interrupted_install``. Cleared only after
-        # the install + core-dependency verification completes below.
-        _write_update_incomplete_marker()
-        print("→ Updating Python dependencies...")
-        from jarvis_cli.managed_uv import ensure_uv, update_managed_uv
+        # Work out what the pull actually changed so the expensive dependency
+        # reinstalls only run when a manifest they depend on moved. Pure code
+        # changes are picked up by the editable install automatically — the
+        # old unconditional reinstall added minutes to every update for
+        # nothing. A None changed-set (detection failed) falls back to the
+        # historical always-reinstall behavior, and a leftover
+        # .update-incomplete marker (previous install interrupted) forces the
+        # full Python path so a half-built venv always gets repaired.
+        changed_files = _files_changed_between(git_cmd, PROJECT_ROOT, pre_pull_sha)
+        force_deps = bool(getattr(args, "force", False)) or os.environ.get(
+            "JARVIS_UPDATE_FORCE_DEPS", ""
+        ).strip().lower() in {"1", "true", "yes"}
+        python_deps_needed = (
+            force_deps
+            or changed_files is None
+            or bool(_PYTHON_DEP_MANIFESTS.intersection(changed_files))
+            or _update_marker_path().exists()
+        )
 
-        # Keep managed uv current — runs `uv self update` if we already have one.
-        update_managed_uv()
-
-        uv_bin = ensure_uv()
-
-        pip_cmd = [sys.executable, "-m", "pip"]
-        if not uv_bin:
-            uv_bin = _ensure_uv_for_termux(pip_cmd)
-        install_group = "all"
-
-        if uv_bin:
-            uv_env = {**os.environ, "VIRTUAL_ENV": str(PROJECT_ROOT / "venv")}
-            if _is_termux_env(uv_env):
-                uv_env.pop("PYTHONPATH", None)
-                uv_env.pop("PYTHONHOME", None)
-                install_group = "termux-all"
-                print("  → Termux detected: using uv + curated termux-all optional profile...")
-            if _is_termux_env(uv_env) and _is_android_python():
-                print("  → Termux/Android detected: prebuilding psutil with Linux source path compatibility...")
-                _install_psutil_android_compat([uv_bin, "pip"], env=uv_env)
-            _install_python_dependencies_with_optional_fallback(
-                [uv_bin, "pip"], env=uv_env, group=install_group
-            )
+        if not python_deps_needed:
+            print("→ Python dependency manifests unchanged — skipping reinstall")
+            # Belt-and-suspenders even on the skip path: a cheap importability
+            # sweep of pyproject's base deps catches a half-stale venv and
+            # repairs it, so skipping can never strand a broken install.
+            _verify_core_dependencies_installed([sys.executable, "-m", "pip"])
         else:
-            # Use sys.executable to explicitly call the venv's pip module,
-            # avoiding PEP 668 'externally-managed-environment' errors on Debian/Ubuntu.
-            # Some environments lose pip inside the venv; bootstrap it back with
-            # ensurepip before trying the editable install.
+            # Reinstall Python dependencies. Prefer .[all], but if one optional extra
+            # breaks on this machine, keep base deps and reinstall the remaining extras
+            # individually so update does not silently strip working capabilities.
+            #
+            # Drop the interrupted-install breadcrumb BEFORE touching the venv. If
+            # the install is killed mid-flight (Ctrl-C, terminal close, WSL OOM),
+            # the marker survives and the next ``jarvis`` launch finishes the
+            # install via ``_recover_from_interrupted_install``. Cleared only after
+            # the install + core-dependency verification completes below.
+            _write_update_incomplete_marker()
+            print("→ Updating Python dependencies...")
+            from jarvis_cli.managed_uv import ensure_uv, update_managed_uv
+
+            # Keep managed uv current — runs `uv self update` if we already have one.
+            update_managed_uv()
+
+            uv_bin = ensure_uv()
+
             pip_cmd = [sys.executable, "-m", "pip"]
-            try:
-                subprocess.run(
-                    pip_cmd + ["--version"],
-                    cwd=PROJECT_ROOT,
-                    check=True,
-                    capture_output=True,
+            if not uv_bin:
+                uv_bin = _ensure_uv_for_termux(pip_cmd)
+            install_group = "all"
+
+            if uv_bin:
+                uv_env = {**os.environ, "VIRTUAL_ENV": str(PROJECT_ROOT / "venv")}
+                if _is_termux_env(uv_env):
+                    uv_env.pop("PYTHONPATH", None)
+                    uv_env.pop("PYTHONHOME", None)
+                    install_group = "termux-all"
+                    print("  → Termux detected: using uv + curated termux-all optional profile...")
+                if _is_termux_env(uv_env) and _is_android_python():
+                    print("  → Termux/Android detected: prebuilding psutil with Linux source path compatibility...")
+                    _install_psutil_android_compat([uv_bin, "pip"], env=uv_env)
+                _install_python_dependencies_with_optional_fallback(
+                    [uv_bin, "pip"], env=uv_env, group=install_group
                 )
-            except subprocess.CalledProcessError:
-                subprocess.run(
-                    [sys.executable, "-m", "ensurepip", "--upgrade", "--default-pip"],
-                    cwd=PROJECT_ROOT,
-                    check=True,
-                )
-            if _is_termux_env():
-                install_group = "termux-all"
-                print("  → Termux detected: using curated termux-all optional profile...")
-            if _is_termux_env() and _is_android_python():
-                print("  → Termux/Android detected: prebuilding psutil with Linux source path compatibility...")
-                _install_psutil_android_compat(pip_cmd)
-            _install_python_dependencies_with_optional_fallback(pip_cmd, group=install_group)
+            else:
+                # Use sys.executable to explicitly call the venv's pip module,
+                # avoiding PEP 668 'externally-managed-environment' errors on Debian/Ubuntu.
+                # Some environments lose pip inside the venv; bootstrap it back with
+                # ensurepip before trying the editable install.
+                pip_cmd = [sys.executable, "-m", "pip"]
+                try:
+                    subprocess.run(
+                        pip_cmd + ["--version"],
+                        cwd=PROJECT_ROOT,
+                        check=True,
+                        capture_output=True,
+                    )
+                except subprocess.CalledProcessError:
+                    subprocess.run(
+                        [sys.executable, "-m", "ensurepip", "--upgrade", "--default-pip"],
+                        cwd=PROJECT_ROOT,
+                        check=True,
+                    )
+                if _is_termux_env():
+                    install_group = "termux-all"
+                    print("  → Termux detected: using curated termux-all optional profile...")
+                if _is_termux_env() and _is_android_python():
+                    print("  → Termux/Android detected: prebuilding psutil with Linux source path compatibility...")
+                    _install_psutil_android_compat(pip_cmd)
+                _install_python_dependencies_with_optional_fallback(pip_cmd, group=install_group)
 
-        # Core Python deps installed AND verified (the fallback helper runs
-        # _verify_core_dependencies_installed). Clear the interrupted-install
-        # breadcrumb now — the remaining steps (lazy refresh, node deps, web
-        # UI, desktop rebuild) are non-core and can't brick the venv.
-        _clear_update_incomplete_marker()
+            # Core Python deps installed AND verified (the fallback helper runs
+            # _verify_core_dependencies_installed). Clear the interrupted-install
+            # breadcrumb now — the remaining steps (lazy refresh, node deps, web
+            # UI, desktop rebuild) are non-core and can't brick the venv.
+            _clear_update_incomplete_marker()
 
-        _refresh_active_lazy_features()
+        # Lazy-feature pins live in tools/lazy_deps.py; refresh active
+        # features when those pins (or the base env they layer onto) moved.
+        if python_deps_needed or changed_files is None or "tools/lazy_deps.py" in changed_files:
+            _refresh_active_lazy_features()
 
-        _update_node_dependencies()
+        # Node dependencies: skip npm entirely when no manifest changed and a
+        # prior install is still stamped fresh. When the pull touched desktop
+        # sources (a rebuild is coming), install every workspace in the same
+        # single pass so the rebuild doesn't run a second full npm ci.
+        desktop_dir_for_update = PROJECT_ROOT / "apps" / "desktop"
+        desktop_present = (
+            _desktop_packaged_executable(desktop_dir_for_update) is not None
+            or _desktop_dist_exists(desktop_dir_for_update)
+        )
+        desktop_sources_changed = changed_files is None or any(
+            f.startswith(_DESKTOP_SOURCE_PREFIXES) or f in ("package.json", "package-lock.json")
+            for f in changed_files
+        )
+        node_deps_needed = (
+            force_deps
+            or changed_files is None
+            or any(p in changed_files for p in _NODE_DEP_MANIFEST_PATHS)
+            or not (PROJECT_ROOT / "node_modules").is_dir()
+        )
+        if node_deps_needed:
+            _update_node_dependencies(include_desktop=desktop_present and desktop_sources_changed)
+        else:
+            print("→ Node.js dependency manifests unchanged — skipping npm install")
+
         _build_web_ui(PROJECT_ROOT / "web")
 
         _maybe_rebuild_desktop_after_update()

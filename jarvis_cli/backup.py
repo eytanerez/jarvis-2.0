@@ -47,7 +47,6 @@ logger = logging.getLogger(__name__)
 # exclude ``.archive`` here because the curator's ``skills/.archive/`` holds
 # restorable user skills that must survive a backup.
 _EXCLUDED_DIRS = {
-    "jarvis-agent",     # the codebase repo — re-clone instead
     "__pycache__",      # bytecode caches — regenerated on import
     ".git",             # nested git dirs (profiles shouldn't have these, but safety)
     "node_modules",     # js deps — reinstalled on demand
@@ -66,6 +65,27 @@ _EXCLUDED_DIRS = {
     ".pytest_cache",
     ".mypy_cache",
     ".ruff_cache",
+}
+
+# Root-level-only exclusions: regeneratable runtime state that lives directly
+# under JARVIS_HOME. These were the bulk of every pre-update backup (~285MB of
+# caches/logs vs ~20MB of actual user state), adding minutes of zip time to
+# every `jarvis update`. Matched only as the FIRST path component so a skill
+# or profile subdirectory that happens to share a name (e.g.
+# ``skills/foo/cache/``) is still preserved.
+_EXCLUDED_ROOT_DIRS = {
+    "cache",                  # model catalogs / download caches — refetched on demand
+    "image_cache",            # generated-image cache
+    "audio_cache",            # TTS audio cache
+    "bootstrap-cache",        # installer bootstrap artifacts
+    "desktop-dev-user-data",  # Electron dev profile (GPU / service-worker caches)
+    "bin",                    # managed binaries (uv, node shims) — re-downloaded on demand
+    # The codebase repo clone under JARVIS_HOME — re-clone instead of backing
+    # up. Both names occur in the wild: older installs cloned ``jarvis-agent``,
+    # the current installer uses ``jarvis-brain``. Root-level-only matching
+    # keeps skill dirs like ``skills/autonomous-ai-agents/jarvis-brain/``.
+    "jarvis-agent",
+    "jarvis-brain",
 }
 
 # File-name suffixes to skip
@@ -129,15 +149,12 @@ def _should_exclude(rel_path: Path) -> bool:
     """Return True if *rel_path* (relative to jarvis root) should be skipped."""
     parts = rel_path.parts
 
-    for part in parts:
-        if part not in _EXCLUDED_DIRS:
-            continue
-        # ``jarvis-agent`` only matches at the root level (first component).
-        # Nested directories with the same name — e.g.
-        # ``skills/autonomous-ai-agents/jarvis-brain/`` — must be preserved.
-        if part == "jarvis-agent" and part != parts[0]:
-            continue
+    if parts and parts[0] in _EXCLUDED_ROOT_DIRS:
         return True
+
+    for part in parts:
+        if part in _EXCLUDED_DIRS:
+            return True
 
     name = rel_path.name
 
@@ -241,14 +258,15 @@ def run_backup(args) -> None:
         dp = Path(dirpath)
         rel_dir = dp.relative_to(jarvis_root)
 
-        # Prune excluded directories in-place so os.walk doesn't descend
-        # ``jarvis-agent`` is only pruned at the root level; nested dirs
-        # with the same name (e.g. in skills/) must be preserved.
+        # Prune excluded directories in-place so os.walk doesn't descend.
+        # _EXCLUDED_ROOT_DIRS entries (repo clones, caches) are only pruned
+        # at the root level; nested dirs with the same name (e.g. in
+        # skills/) must be preserved.
         is_root = rel_dir == Path(".")
         orig_dirnames = dirnames[:]
         dirnames[:] = [
             d for d in dirnames
-            if d not in _EXCLUDED_DIRS or (d == "jarvis-agent" and not is_root)
+            if d not in _EXCLUDED_DIRS and not (is_root and d in _EXCLUDED_ROOT_DIRS)
         ]
         for removed in set(orig_dirnames) - set(dirnames):
             skipped_dirs.add(str(rel_dir / removed))
