@@ -95,13 +95,14 @@ export function SidebarSessionRow({
         className={cn(
           'group relative grid min-h-[1.625rem] cursor-pointer grid-cols-[minmax(0,1fr)_1.375rem] items-center rounded-md border border-transparent transition-[background-color,border-color,color,transform] duration-150 ease-out hover:border-[color-mix(in_srgb,var(--jarvis-hairline)_36%,transparent)] hover:bg-(--ui-row-hover-background) hover:text-white active:scale-[0.995]',
           isSelected &&
-            'border-[color-mix(in_srgb,var(--jarvis-blue)_42%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_10%,var(--ui-row-active-background))] shadow-[inset_0_0.0625rem_0_color-mix(in_srgb,#fff_5%,transparent)]',
+            'border-[color-mix(in_srgb,var(--jarvis-blue)_55%,transparent)] bg-[color-mix(in_srgb,var(--jarvis-blue)_16%,var(--ui-row-active-background))] text-white shadow-[inset_0.1875rem_0_0_color-mix(in_srgb,var(--jarvis-blue)_82%,transparent),inset_0_0.0625rem_0_color-mix(in_srgb,#fff_8%,transparent),0_0.25rem_1rem_color-mix(in_srgb,var(--jarvis-blue)_8%,transparent)]',
           isWorking && 'text-white',
           // Opaque surface while lifted so the dragged row erases what's under
           // it (translucency let the rows below bleed through).
           dragging && 'z-10 cursor-grabbing bg-[color-mix(in_srgb,var(--ui-sidebar-surface-background)_96%,#02040a)]',
           className
         )}
+        data-selected={isSelected ? 'true' : undefined}
         data-working={isWorking ? 'true' : undefined}
         draggable
         onDragStart={event => {
@@ -204,7 +205,7 @@ export function SidebarSessionRow({
               />
             </Tip>
           ) : null}
-          <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-normal text-(--ui-text-secondary) group-hover:text-white group-data-[working=true]:text-white/92">
+          <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-normal text-(--ui-text-secondary) group-hover:text-white group-data-[selected=true]:text-white group-data-[working=true]:text-white/92">
             {title}
           </span>
         </button>
