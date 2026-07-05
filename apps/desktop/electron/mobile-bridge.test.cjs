@@ -739,6 +739,54 @@ test('bridge dials the relay, pipes envelopes by cid, and closes on revoke', asy
   }
 })
 
+test('relay watchdog recycles an unresponsive uplink and reconnects', async () => {
+  // autoPong:false makes the server swallow protocol pings — the same
+  // symptom as a half-open uplink (NAT drop, Cloudflare idle-kill, Mac
+  // sleep). Before the watchdog existed this left the bridge claiming
+  // "relay: connected" forever while phones could never reach the host.
+  const relayConnections = []
+  const relayServer = new WebSocketServer({ autoPong: false, host: '127.0.0.1', port: 0 })
+
+  relayServer.on('connection', socket => {
+    relayConnections.push(socket)
+  })
+
+  await new Promise(resolve => relayServer.once('listening', resolve))
+
+  const waitFor = (predicate, what, timeoutMs = 6000) =>
+    new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        clearInterval(poll)
+        reject(new Error(`timed out waiting for ${what}`))
+      }, timeoutMs)
+      const poll = setInterval(() => {
+        if (predicate()) {
+          clearTimeout(timer)
+          clearInterval(poll)
+          resolve()
+        }
+      }, 20)
+    })
+
+  const relayPort = relayServer.address().port
+  const { bridge } = await makeBridge({ relayLivenessGraceMs: 250, relayPingIntervalMs: 100 })
+
+  try {
+    bridge.setRelayUrl(`http://127.0.0.1:${relayPort}`)
+
+    await waitFor(() => relayConnections.length >= 1, 'first uplink')
+
+    // No pongs ever arrive, so the liveness watchdog must terminate the
+    // zombie and the bridge must dial a fresh uplink by itself.
+    await waitFor(() => relayConnections.length >= 2, 'watchdog-driven reconnect')
+
+    assert.ok(relayConnections[0].readyState >= 2, 'first uplink should be closing/closed after the recycle')
+  } finally {
+    bridge.stop()
+    relayServer.close()
+  }
+})
+
 // ── Helpers ────────────────────────────────────────────────────────────
 
 test('relayHostEndpoint normalizes schemes', () => {

@@ -3536,6 +3536,15 @@ function sendClosePreviewRequested() {
 // renderer's WebSocket to the local backend; the renderer reconnects on this
 // signal so the chat composer doesn't stay stuck on "Starting Jarvis...".
 function sendPowerResume() {
+  // Sleep also leaves the mobile bridge's relay uplink half-open — recycle
+  // it right away so paired phones can reconnect without waiting for the
+  // liveness watchdog. Independent of the window: the bridge runs headless.
+  try {
+    mobileBridge?.pokeRelay?.()
+  } catch {
+    // Never let bridge trouble break the renderer wake signal.
+  }
+
   if (!mainWindow || mainWindow.isDestroyed()) return
   const { webContents } = mainWindow
   if (!webContents || webContents.isDestroyed()) return

@@ -301,6 +301,7 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
         "deepseek-ai/deepseek-v3.2",
         "moonshotai/kimi-k2.6",
         "minimaxai/minimax-m2.5",
+        "z-ai/glm-5.2",
         "z-ai/glm5",
         "openai/gpt-oss-120b",
     ],

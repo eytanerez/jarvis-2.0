@@ -68,6 +68,7 @@ class TestProviderModels:
         nvidia = _PROVIDER_MODELS["nvidia"]
         assert "nvidia/nemotron-3-super-120b-a12b" in nvidia
         assert "nvidia/nemotron-3-ultra-550b-a55b" in nvidia
+        assert "z-ai/glm-5.2" in nvidia
 
     def test_nous_nemotron_ultra_is_added_without_replacing_super(self):
         nous = _PROVIDER_MODELS["nous"]

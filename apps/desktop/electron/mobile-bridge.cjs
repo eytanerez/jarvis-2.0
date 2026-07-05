@@ -43,6 +43,9 @@ const HANDSHAKE_TIMEOUT_MS = 15_000
 const GARBAGE_FRAME_LIMIT = 5
 const RELAY_BACKOFF_BASE_MS = 1_000
 const RELAY_BACKOFF_MAX_MS = 30_000
+const RELAY_HANDSHAKE_TIMEOUT_MS = 15_000
+const RELAY_PING_INTERVAL_MS = 30_000
+const RELAY_LIVENESS_GRACE_MS = 75_000
 const UPSTREAM_BACKOFF_BASE_MS = 1_000
 const UPSTREAM_BACKOFF_MAX_MS = 15_000
 const LAN_HINT_POLL_MS = 60_000
@@ -69,6 +72,7 @@ const RPC_ALLOWED_METHODS = new Set([
   'session.list',
   'session.most_recent',
   'session.resume',
+  'session.spectate',
   'session.status',
   'session.title'
 ])
@@ -164,7 +168,9 @@ function createMobileBridge({
   now = Date.now,
   onActivity = () => {},
   onDevicesChanged = () => {},
-  onStatusChanged = () => {}
+  onStatusChanged = () => {},
+  relayLivenessGraceMs = RELAY_LIVENESS_GRACE_MS,
+  relayPingIntervalMs = RELAY_PING_INTERVAL_MS
 } = {}) {
   const store = createMobileLinkStore({ dir: jarvisHome, log })
 
@@ -182,6 +188,8 @@ function createMobileBridge({
   let relayTimer = null
   let relayAttempt = 0
   let relayGeneration = 0
+  let relayPingTimer = null
+  let relayLastAliveAt = 0
 
   const sessions = new Set()
   const pairings = new Map()
@@ -881,6 +889,23 @@ function createMobileBridge({
 
   const relaySessions = new Map()
 
+  /** Abrupt teardown — no close handshake, the peer may be long gone. */
+  function destroySocket(socket) {
+    try {
+      if (typeof socket.terminate === 'function') socket.terminate()
+      else socket.close?.()
+    } catch {
+      void 0
+    }
+  }
+
+  function stopRelayKeepalive() {
+    if (relayPingTimer) {
+      clearInterval(relayPingTimer)
+      relayPingTimer = null
+    }
+  }
+
   function startRelay() {
     const relayUrl = store.getConfig().relayUrl
 
@@ -893,7 +918,12 @@ function createMobileBridge({
     let socket = null
 
     try {
-      socket = new WebSocket(endpoint, { headers: { 'x-jarvis-host-key': identity.hostKey } })
+      socket = new WebSocket(endpoint, {
+        // A connect that never completes must fail into the normal retry
+        // path — otherwise relaySocket stays truthy and blocks reconnects.
+        handshakeTimeout: RELAY_HANDSHAKE_TIMEOUT_MS,
+        headers: { 'x-jarvis-host-key': identity.hostKey }
+      })
     } catch (error) {
       log(`[mobile] relay connect failed: ${error.message}`)
       scheduleRelayReconnect()
@@ -903,16 +933,66 @@ function createMobileBridge({
 
     relaySocket = socket
 
+    const markAlive = () => {
+      if (relayGeneration === generation) relayLastAliveAt = now()
+    }
+
+    /**
+     * Keepalive + liveness watchdog. The uplink idles for hours between
+     * phone connections, and NAT boxes, the Cloudflare edge, and macOS sleep
+     * all kill idle TCP without telling us — a half-open socket here used to
+     * mean "relay: connected" forever while the Durable Object told every
+     * phone the host was offline (the stuck-on-"Connecting…" bug). Pings
+     * force traffic both ways; missing pongs for two cycles recycles the
+     * socket through the normal reconnect path.
+     */
+    const startKeepalive = () => {
+      stopRelayKeepalive()
+      relayPingTimer = setInterval(() => {
+        if (relayGeneration !== generation || relaySocket !== socket) {
+          stopRelayKeepalive()
+
+          return
+        }
+
+        const silentMs = now() - relayLastAliveAt
+
+        if (silentMs > relayLivenessGraceMs) {
+          log(`[mobile] relay link silent for ${Math.round(silentMs / 1000)}s — recycling connection`)
+          destroySocket(socket)
+          onDown('liveness timeout')
+
+          return
+        }
+
+        try {
+          socket.ping?.()
+        } catch (error) {
+          log(`[mobile] relay ping failed: ${error.message}`)
+          destroySocket(socket)
+          onDown('ping failed')
+        }
+      }, relayPingIntervalMs)
+      relayPingTimer.unref?.()
+    }
+
     socket.on?.('open', () => {
       if (relayGeneration !== generation) return
       relayConnected = true
       relayAttempt = 0
+      markAlive()
+      startKeepalive()
       log(`[mobile] relay connected (${endpoint.replace(/\/host\/.*$/, '')})`)
       emitStatus()
     })
 
+    socket.on?.('pong', markAlive)
+    socket.on?.('ping', markAlive)
+
     socket.on?.('message', data => {
       if (relayGeneration !== generation) return
+
+      markAlive()
 
       let frame = null
 
@@ -949,10 +1029,20 @@ function createMobileBridge({
       }
     })
 
-    const onDown = why => {
-      if (relayGeneration !== generation) return
+    let downed = false
 
+    function onDown(why) {
+      if (relayGeneration !== generation || downed) return
+
+      downed = true
+      stopRelayKeepalive()
+      destroySocket(socket)
       relaySocket = null
+
+      if (relayConnected) {
+        log(`[mobile] relay link down (${why}) — reconnecting`)
+      }
+
       relayConnected = false
 
       for (const [cid, session] of relaySessions) {
@@ -965,9 +1055,12 @@ function createMobileBridge({
       if (enabled) scheduleRelayReconnect()
     }
 
-    socket.on?.('close', () => onDown('closed'))
+    socket.on?.('close', (code, reason) => onDown(`closed ${code ?? ''} ${reason ?? ''}`.trim()))
     socket.on?.('error', error => {
       log(`[mobile] relay socket error: ${error.message}`)
+      // ws emits 'close' after 'error' for established connections, but a
+      // failed handshake can end with only 'error' — recover either way.
+      onDown('socket error')
     })
   }
 
@@ -986,6 +1079,7 @@ function createMobileBridge({
 
   function stopRelay() {
     relayGeneration += 1
+    stopRelayKeepalive()
 
     if (relayTimer) {
       clearTimeout(relayTimer)
@@ -1060,6 +1154,39 @@ function createMobileBridge({
     },
 
     getState,
+
+    /**
+     * Wake/network-change kick: a suspended Mac always comes back with a
+     * stale uplink TCP. Recycle it immediately (if it has not proven
+     * liveness recently) instead of waiting for the next watchdog cycle,
+     * and cut any pending backoff so phones can reach us again fast.
+     */
+    pokeRelay() {
+      if (!enabled) return
+
+      if (!relaySocket) {
+        if (relayTimer) {
+          clearTimeout(relayTimer)
+          relayTimer = null
+        }
+
+        relayAttempt = 0
+        startRelay()
+
+        return
+      }
+
+      if (now() - relayLastAliveAt > relayLivenessGraceMs) {
+        log('[mobile] relay link stale after wake — recycling connection')
+        destroySocket(relaySocket)
+      } else {
+        try {
+          relaySocket.ping?.()
+        } catch {
+          destroySocket(relaySocket)
+        }
+      }
+    },
 
     revokeDevice(id) {
       const revoked = store.revokeDevice(id)

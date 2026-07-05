@@ -555,6 +555,22 @@ def _close_sessions_for_transport(
     Returns ``(reaped, detached)`` counts for disconnect-path observability."""
     with _sessions_lock:
         owned = [(sid, s) for sid, s in _sessions.items() if s.get("transport") is transport]
+        # A disconnecting transport may also be spectating (session.spectate)
+        # sessions it doesn't own — drop it from those lists too, else a dead
+        # socket sits there forever eating (harmless but pointless) write
+        # attempts until that session itself is torn down.
+        spectating = [(sid, s) for sid, s in _sessions.items() if transport in (s.get("spectators") or ())]
+    for _sid, session in spectating:
+        lock = session.get("history_lock")
+        spectators = session.get("spectators")
+        if not spectators:
+            continue
+        if lock is not None:
+            with lock:
+                if transport in spectators:
+                    spectators.remove(transport)
+        elif transport in spectators:
+            spectators.remove(transport)
     reaped = 0
     detached = 0
     for sid, session in owned:
@@ -731,9 +747,13 @@ def write_json(obj: dict) -> bool:
 
     Precedence:
 
-    1. Event frames with a session id → the transport stored on that session,
-       so async events land with the client that owns the session even if
-       the emitting thread has no contextvar binding.
+    1. Event frames with a session id → the transport stored on that session
+       (the owner — whoever last called session.create/resume), so async
+       events land with the client that owns the session even if the
+       emitting thread has no contextvar binding. Also fanned out,
+       best-effort, to any read-only ``spectators`` (see session.spectate)
+       so a second device watching the same live turn sees the same deltas
+       without taking ownership away from the owner.
     2. Otherwise the transport bound on the current context (set by
        :func:`dispatch` for the lifetime of a request).
     3. Otherwise the module-level stdio transport, matching the historical
@@ -741,8 +761,16 @@ def write_json(obj: dict) -> bool:
     """
     if obj.get("method") == "event":
         sid = ((obj.get("params") or {}).get("session_id")) or ""
-        if sid and (t := (_sessions.get(sid) or {}).get("transport")) is not None:
-            return t.write(obj)
+        session = _sessions.get(sid) if sid else None
+        if session is not None:
+            owner = session.get("transport")
+            ok = owner.write(obj) if owner is not None else False
+            for spectator in list(session.get("spectators") or ()):
+                try:
+                    spectator.write(obj)
+                except Exception:
+                    pass
+            return ok
 
     return (current_transport() or _stdio_transport).write(obj)
 
@@ -4708,6 +4736,97 @@ def _(rid, params: dict) -> dict:
             "status": "idle",
         },
     )
+
+
+@method("session.spectate")
+def _(rid, params: dict) -> dict:
+    """Read-only tail of a session's live event stream, for a SECOND device
+    watching a turn some other device started (e.g. the linked phone opening
+    a thread the desktop is actively running).
+
+    Unlike ``session.resume``, this never reassigns the session's owning
+    transport — ``_live_session_payload``'s ``transport=`` reattach is
+    exactly what would silently steal the desktop's own live view mid-turn,
+    which is the bug this exists to avoid. Instead the calling transport is
+    added to the session's ``spectators`` list, which ``write_json`` fans
+    events out to alongside the owner.
+
+    Silent no-op (``live: false``) when the target isn't actually running a
+    live turn right now — the caller falls back to its normal history/resume
+    path, nothing to spectate.
+    """
+    target = str(params.get("session_id") or "").strip()
+    if not target:
+        return _err(rid, 4006, "session_id required")
+
+    profile = (params.get("profile") or "").strip() or None
+    profile_home = _profile_home(profile)
+    if profile_home is not None:
+        from jarvis_state import SessionDB
+
+        db = SessionDB(db_path=profile_home / "state.db")
+    else:
+        db = _get_db()
+
+    # Same compression-continuation follow as session.resume, so spectating
+    # a rotated-out parent id still finds the live tip.
+    if db is not None:
+        try:
+            tip = db.resolve_resume_session_id(target)
+            if tip:
+                target = tip
+        except Exception:
+            pass
+
+    transport = current_transport()
+    if transport is None:
+        return _err(rid, 4008, "spectate requires a live transport")
+
+    with _session_resume_lock:
+        live = _find_live_session_by_key(target)
+    if live is None:
+        return _ok(rid, {"live": False})
+    sid, session = live
+
+    # One active spectate per transport: drop it from any session it was
+    # previously watching so switching threads on the phone doesn't keep
+    # leaking events into a chat you've since left.
+    with _sessions_lock:
+        others = [(osid, s) for osid, s in _sessions.items() if osid != sid]
+    for _osid, other in others:
+        other_spectators = other.get("spectators")
+        if not other_spectators or transport not in other_spectators:
+            continue
+        other_lock = other.get("history_lock")
+        if other_lock is not None:
+            with other_lock:
+                if transport in other_spectators:
+                    other_spectators.remove(transport)
+        elif transport in other_spectators:
+            other_spectators.remove(transport)
+
+    with session["history_lock"]:
+        spectators = session.setdefault("spectators", [])
+        if transport not in spectators:
+            spectators.append(transport)
+        history = list(session.get("display_history_prefix") or []) + list(
+            session.get("history") or []
+        )
+        inflight = _inflight_snapshot(session)
+        running = bool(session.get("running"))
+
+    payload = {
+        "session_id": sid,
+        "session_key": session.get("session_key") or sid,
+        "live": True,
+        "running": running,
+        "message_count": len(history),
+        "messages": _history_to_messages(history),
+        "status": _session_live_status(sid, session),
+    }
+    if inflight:
+        payload["inflight"] = inflight
+    return _ok(rid, payload)
 
 
 @method("session.cwd.set")
