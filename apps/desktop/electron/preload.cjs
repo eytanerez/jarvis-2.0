@@ -120,6 +120,16 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     ipcRenderer.on('jarvis:power-resume', listener)
     return () => ipcRenderer.removeListener('jarvis:power-resume', listener)
   },
+  // Real window visibility (minimized/hidden/screen-locked ⇒ false). The
+  // renderer can't observe this itself: background throttling is disabled
+  // process-wide, so document.hidden stays false while the window is hidden.
+  // The orb backdrop parks its WebGL loop on this signal.
+  getWindowVisibility: () => ipcRenderer.invoke('jarvis:window-visibility:get'),
+  onWindowVisibility: callback => {
+    const listener = (_event, visible) => callback(Boolean(visible))
+    ipcRenderer.on('jarvis:window-visibility', listener)
+    return () => ipcRenderer.removeListener('jarvis:window-visibility', listener)
+  },
   onBootProgress: callback => {
     const listener = (_event, payload) => callback(payload)
     ipcRenderer.on('jarvis:boot-progress', listener)

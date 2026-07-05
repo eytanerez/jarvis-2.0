@@ -3567,6 +3567,60 @@ function registerPowerResumeListeners() {
   }
 }
 
+// ─── Window visibility (drives the orb backdrop's render governor) ─────────
+//
+// This app runs with ALL Chromium background throttling disabled (see the
+// appendSwitch block near the top) so streaming turns keep painting when the
+// window is blurred or covered. The collateral was that document.hidden never
+// goes true and requestAnimationFrame never pauses — so the orb's WebGL scene
+// kept rendering at full frame rate while the window was minimized, hidden
+// via Cmd+H, or "closed" (macOS hide-on-close keeps the renderer alive for
+// voice). Measured cost: the GPU process averaged ~35% CPU around the clock.
+//
+// The renderer can't observe any of this itself (that's exactly what the
+// switches disable), so the main process tells it: screen locked, or the
+// primary window minimized/hidden ⇒ not visible. The orb parks its render
+// loop while invisible and resumes on the next event. Chat streaming and
+// voice are unaffected — they don't run on the orb's loop.
+let screenLocked = false
+
+function primaryWindowVisible() {
+  if (!mainWindow || mainWindow.isDestroyed()) return false
+  if (screenLocked) return false
+  return mainWindow.isVisible() && !mainWindow.isMinimized()
+}
+
+function sendWindowVisibility() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const { webContents } = mainWindow
+  if (!webContents || webContents.isDestroyed()) return
+  webContents.send('jarvis:window-visibility', primaryWindowVisible())
+}
+
+function registerScreenLockVisibilityListeners() {
+  try {
+    powerMonitor.on('lock-screen', () => {
+      screenLocked = true
+      sendWindowVisibility()
+    })
+    powerMonitor.on('unlock-screen', () => {
+      screenLocked = false
+      sendWindowVisibility()
+    })
+    // A suspend implies the screen went dark; resume re-evaluates real state.
+    powerMonitor.on('suspend', () => {
+      screenLocked = true
+      sendWindowVisibility()
+    })
+    powerMonitor.on('resume', () => {
+      screenLocked = false
+      sendWindowVisibility()
+    })
+  } catch {
+    // powerMonitor unavailable — visibility still tracks window events.
+  }
+}
+
 function getAppIconPath() {
   return APP_ICON_PATHS.find(fileExists)
 }
@@ -5432,6 +5486,13 @@ function createWindow() {
   mainWindow.on('will-leave-full-screen', () => sendWindowStateChanged(false))
   mainWindow.on('leave-full-screen', () => sendWindowStateChanged(false))
 
+  // Visibility feed for the orb render governor — see sendWindowVisibility.
+  // 'hide' covers both Cmd+H and the macOS hide-on-close red button.
+  mainWindow.on('minimize', sendWindowVisibility)
+  mainWindow.on('restore', sendWindowVisibility)
+  mainWindow.on('hide', sendWindowVisibility)
+  mainWindow.on('show', sendWindowVisibility)
+
   // Hide-on-close (macOS only): the red button hides the window instead of
   // destroying it, so the renderer — and with it, an active notch voice
   // conversation (use-voice-conversation's React state) — survives being
@@ -5618,6 +5679,10 @@ ipcMain.handle('jarvis:bootstrap:cancel', async () => {
 })
 ipcMain.handle('jarvis:boot-progress:get', async () => bootProgressState)
 ipcMain.handle('jarvis:bootstrap:get', async () => getBootstrapState())
+
+// Current visibility snapshot so the renderer can seed its store on mount
+// (the event feed only reports changes after subscription).
+ipcMain.handle('jarvis:window-visibility:get', async () => primaryWindowVisible())
 ipcMain.handle('jarvis:connection-config:get', async (_event, profile) =>
   sanitizeDesktopConnectionConfig(readDesktopConnectionConfig(), profile)
 )
@@ -6930,6 +6995,7 @@ app.whenReady().then(() => {
   ensureWslWindowsFonts()
   configureSpellChecker()
   registerPowerResumeListeners()
+  registerScreenLockVisibilityListeners()
   createWindow()
   startNotchLink().catch(error => rememberLog(`[notch] start failed: ${error.message}`))
   startMobileBridge().catch(error => rememberLog(`[mobile] start failed: ${error.message}`))

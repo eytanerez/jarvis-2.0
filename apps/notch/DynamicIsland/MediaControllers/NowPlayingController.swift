@@ -146,6 +146,51 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
     }
     
     // MARK: - Setup Methods
+
+    /// Kill stale stream adapters left over from previous app runs. An abrupt
+    /// host death (crash, force-quit, SIGKILL during an update restart) skips
+    /// deinit's terminate(), leaving the perl adapter orphaned under launchd —
+    /// one more accumulating on every restart. The adapter's own fork()ed
+    /// watchdog handles this going forward; this sweep clears any left behind
+    /// by older builds. Scoped to OUR bundle's script path and to processes
+    /// whose parent is launchd (ppid 1), so a live sibling is never touched.
+    private static func sweepOrphanedAdapters(scriptPath: String) {
+        let pgrep = Process()
+        pgrep.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        pgrep.arguments = ["-f", scriptPath]
+        let out = Pipe()
+        pgrep.standardOutput = out
+        pgrep.standardError = Pipe()
+        guard (try? pgrep.run()) != nil else { return }
+        pgrep.waitUntilExit()
+        guard let data = try? out.fileHandleForReading.readToEnd(),
+              let text = String(data: data, encoding: .utf8)
+        else { return }
+
+        for pidText in text.split(whereSeparator: \.isNewline) {
+            guard let pid = Int32(pidText.trimmingCharacters(in: .whitespaces)), pid > 1,
+                  pid != ProcessInfo.processInfo.processIdentifier
+            else { continue }
+
+            let ps = Process()
+            ps.executableURL = URL(fileURLWithPath: "/bin/ps")
+            ps.arguments = ["-o", "ppid=", "-p", String(pid)]
+            let psOut = Pipe()
+            ps.standardOutput = psOut
+            ps.standardError = Pipe()
+            guard (try? ps.run()) != nil else { continue }
+            ps.waitUntilExit()
+            guard let psData = try? psOut.fileHandleForReading.readToEnd(),
+                  let ppid = String(data: psData, encoding: .utf8)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                  ppid == "1"
+            else { continue }
+
+            kill(pid, SIGTERM)
+            Logger.log("Reaped orphaned mediaremote adapter (pid \(pid))", category: .debug)
+        }
+    }
+
     private func setupNowPlayingObserver() async {
         let process = Process()
         guard
@@ -160,7 +205,13 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
             Logger.log("Could not find mediaremote-adapter.pl script or MediaRemoteAdapter.framework path", category: .error)
             return
         }
-        
+
+        // Off the current actor — the sweep shells out to pgrep/ps and waits.
+        let sweepPath = scriptURL.path
+        await Task.detached(priority: .utility) {
+            Self.sweepOrphanedAdapters(scriptPath: sweepPath)
+        }.value
+
         process.executableURL = URL(fileURLWithPath: "/usr/bin/perl")
         process.arguments = [scriptURL.path, frameworkPath, "stream"]
         

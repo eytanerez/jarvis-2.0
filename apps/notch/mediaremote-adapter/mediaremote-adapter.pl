@@ -88,6 +88,35 @@ if ($maybe_helper_path =~ m{NowPlayingTestClient} || $maybe_helper_path =~ m{/})
     $ENV{NOWPLAYING_CLIENT} = $helper_path;
 }
 
+# Orphan watchdog for long-running stream mode. The Swift host terminates us
+# in deinit, but an abrupt host death (crash, force-quit, SIGKILL during an
+# app update/restart) skips that path: the stream process is re-parented to
+# launchd and keeps running forever — observed as a pile of stale
+# mediaremote-adapter.pl processes accumulating across host restarts. Fork a
+# tiny pure-perl watchdog BEFORE the framework loads (so the child carries no
+# CoreFoundation state): it polls the spawning host's pid and tears the
+# adapter down when the host is gone.
+if (grep { $_ eq "stream" } @ARGV) {
+  my $host_pid = getppid();
+  my $adapter_pid = $$;
+  if ($host_pid > 1) {
+    my $watchdog = fork();
+    if (defined $watchdog && $watchdog == 0) {
+      while (1) {
+        sleep 5;
+        # Adapter already gone (normal exit) — nothing left to guard.
+        exit 0 if getppid() != $adapter_pid;
+        if (kill(0, $host_pid) == 0) {
+          kill 'TERM', $adapter_pid;
+          sleep 2;
+          kill 'KILL', $adapter_pid if kill(0, $adapter_pid);
+          exit 0;
+        }
+      }
+    }
+  }
+}
+
 my $framework_basename = File::Basename::basename($framework_path);
 fail "Provided path is not a framework: $framework_path"
   unless $framework_basename =~ s/\.framework$//;

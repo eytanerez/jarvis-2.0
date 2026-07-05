@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { $orbPerformanceMode } from '@/store/orb-performance'
 import { $activeSessionId } from '@/store/session'
 import { $subagentsBySession } from '@/store/subagents'
+import { $windowVisible, ensureWindowVisibilityWiring } from '@/store/window-visibility'
 
 import { installOrbDebugConsole } from './debug-console'
 import { readCssColor } from './gl-utils'
@@ -165,13 +166,29 @@ export function JarvisOrbScene({
     resizeObserver.observe(container)
     resize()
 
+    ensureWindowVisibilityWiring()
+
     let raf = 0
+    let resumeTimer = 0
     let running = true
     let wasPaused = false
     let lastFrame = performance.now()
+    let lastRenderedAt = 0
     let frameParity = 0
     let lastOrbColor: [number, number, number] = [0.22, 0.64, 1]
     let lastOrbBrightness = 0.4
+
+    // Render-rate governor. The scene is an ambient backdrop, not a game:
+    // 60fps is visually indistinguishable for its soft glow/drift even on
+    // 120Hz displays, and a fully calm scene (idle state, no audio, no
+    // constellation) drifts slowly enough that 30fps is invisible too. While
+    // the window is hidden/minimized/locked or an overlay pauses the scene,
+    // the loop parks entirely on a cheap resume probe — background throttling
+    // is disabled app-wide (streaming must paint while blurred), so without
+    // this rAF happily renders an invisible scene at full rate forever.
+    const ACTIVE_MIN_FRAME_MS = 1000 / 60 - 2
+    const CALM_MIN_FRAME_MS = 1000 / 30 - 2
+    const PARKED_RESUME_PROBE_MS = 200
 
     const frame = (now: number) => {
       if (!running) {
@@ -180,9 +197,11 @@ export function JarvisOrbScene({
 
       const p = propsRef.current
 
-      if (p.paused || document.hidden) {
+      if (p.paused || document.hidden || !$windowVisible.get()) {
         wasPaused = true
-        raf = requestAnimationFrame(frame)
+        resumeTimer = window.setTimeout(() => {
+          raf = requestAnimationFrame(frame)
+        }, PARKED_RESUME_PROBE_MS)
 
         return
       }
@@ -191,9 +210,6 @@ export function JarvisOrbScene({
         lastFrame = now
         wasPaused = false
       }
-
-      const dt = Math.min(0.1, Math.max(0, (now - lastFrame) / 1000))
-      lastFrame = now
 
       const rawLevel = p.getLevel
         ? p.getLevel(p.state)
@@ -204,6 +220,19 @@ export function JarvisOrbScene({
             : 0
 
       const agents = bridge.sync($subagentsBySession.get(), $activeSessionId.get(), now)
+
+      const calm = p.state === 'idle' && rawLevel < 0.01 && agents.length === 0
+
+      if (now - lastRenderedAt < (calm ? CALM_MIN_FRAME_MS : ACTIVE_MIN_FRAME_MS)) {
+        raf = requestAnimationFrame(frame)
+
+        return
+      }
+
+      lastRenderedAt = now
+
+      const dt = Math.min(0.1, Math.max(0, (now - lastFrame) / 1000))
+      lastFrame = now
 
       const perfMode = $orbPerformanceMode.get()
       frameParity = (frameParity + 1) % 2
@@ -250,6 +279,7 @@ export function JarvisOrbScene({
     return () => {
       running = false
       cancelAnimationFrame(raf)
+      window.clearTimeout(resumeTimer)
       document.removeEventListener('visibilitychange', onVisibility)
       unsubPerf()
       uninstallDebugConsole?.()

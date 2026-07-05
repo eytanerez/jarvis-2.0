@@ -95,6 +95,8 @@ declare global {
       onPreviewFileChanged: (callback: (payload: JarvisPreviewFileChanged) => void) => () => void
       onBackendExit: (callback: (payload: BackendExit) => void) => () => void
       onPowerResume?: (callback: () => void) => () => void
+      getWindowVisibility?: () => Promise<boolean>
+      onWindowVisibility?: (callback: (visible: boolean) => void) => () => void
       onBootProgress: (callback: (payload: DesktopBootProgress) => void) => () => void
       getBootstrapState: () => Promise<DesktopBootstrapState>
       resetBootstrap: () => Promise<{ ok: boolean }>
