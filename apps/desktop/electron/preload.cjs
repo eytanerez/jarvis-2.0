@@ -189,6 +189,11 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
       const listener = (_event, state) => callback(state)
       ipcRenderer.on('jarvis:mobile:state', listener)
       return () => ipcRenderer.removeListener('jarvis:mobile:state', listener)
+    },
+    onActivity: callback => {
+      const listener = () => callback()
+      ipcRenderer.on('jarvis:mobile:activity', listener)
+      return () => ipcRenderer.removeListener('jarvis:mobile:activity', listener)
     }
   },
   launchAtLogin: {

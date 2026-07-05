@@ -143,6 +143,10 @@ declare global {
         revoke: (id: string) => Promise<{ ok: boolean }>
         setRelayUrl: (url: string | null) => Promise<DesktopMobileState>
         onState: (callback: (state: DesktopMobileState) => void) => () => void
+        // Fires (debounced) when the linked phone mutates the shared session
+        // list — send, new chat, rename, archive, delete. Absent on older
+        // preloads.
+        onActivity?: (callback: () => void) => () => void
       }
       // OS login item for Jarvis itself — the notch companion only runs while
       // Jarvis does, so this is what makes the notch "always there" across

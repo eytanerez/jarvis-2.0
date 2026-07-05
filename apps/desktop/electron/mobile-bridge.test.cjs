@@ -609,7 +609,21 @@ test('http proxy honors the allowlist and forwards the dashboard token', async (
 
     assert.equal(transcript.body.status, 200)
 
+    // Session mutations (delete / rename / archive) are proxied…
     phone.send('http', { id: 'h5', method: 'DELETE', path: '/api/sessions/abc123' })
+
+    const deleted = await phone.next()
+
+    assert.equal(deleted.body.status, 200)
+
+    phone.send('http', { id: 'h6', method: 'PATCH', path: '/api/sessions/abc123' })
+
+    const patched = await phone.next()
+
+    assert.equal(patched.body.status, 200)
+
+    // …but mutations outside the session family stay refused.
+    phone.send('http', { id: 'h7', method: 'DELETE', path: '/api/files' })
 
     const denied = await phone.next()
 

@@ -2146,11 +2146,15 @@ async function applyUpdatesPosixInApp() {
   }
 
   emitUpdateProgress({ stage: 'rebuild', message: 'Rebuilding the desktop app…', percent: 60 })
+  // No --force-build: `jarvis desktop --build-only` already skips the npm
+  // install + electron-builder pack when the content-hash stamp shows
+  // apps/desktop/ is unchanged (see _desktop_build_needed in main.py), which
+  // is the common case for backend-only updates. Forcing it here made every
+  // self-update pay for a full rebuild regardless of what actually changed.
   const desktopArgs = [
     ...jarvis.args,
     'desktop',
     '--build-only',
-    '--force-build',
     '--jarvis-root',
     updateRoot
   ]
@@ -6822,6 +6826,20 @@ function forwardMobileStateToRenderer(state) {
   mainWindow.webContents.send('jarvis:mobile:state', state)
 }
 
+// Debounced "the phone touched the session list" ping — the renderer re-pulls
+// its sidebar so phone-sent chats appear without an app restart.
+let mobileActivityTimer = null
+
+function notifyMobileSessionActivity() {
+  if (mobileActivityTimer) return
+  mobileActivityTimer = setTimeout(() => {
+    mobileActivityTimer = null
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    mainWindow.webContents.send('jarvis:mobile:activity')
+  }, 1200)
+  mobileActivityTimer.unref?.()
+}
+
 function offlineMobileState() {
   return { devices: [], enabled: false, hostId: null, lanPort: null, lanUrls: [], relay: { connected: false, url: null } }
 }
@@ -6840,6 +6858,7 @@ async function startMobileBridge() {
     },
     jarvisHome: JARVIS_HOME,
     log: rememberLog,
+    onActivity: notifyMobileSessionActivity,
     onDevicesChanged: () => forwardMobileStateToRenderer(mobileBridge?.getState() ?? offlineMobileState()),
     onStatusChanged: state => forwardMobileStateToRenderer(state)
   })

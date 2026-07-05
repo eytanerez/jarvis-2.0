@@ -85,12 +85,21 @@ const HTTP_ALLOWED = new Set([
   'POST /api/model/set'
 ])
 
-// Parameterized read-only endpoints (stored-session transcripts).
-const HTTP_ALLOWED_PATTERNS = [/^GET \/api\/sessions\/[^/]+\/messages$/]
+// Parameterized session endpoints: transcripts (read), rename/archive
+// (PATCH), and delete. Still no code-execution surface.
+const HTTP_ALLOWED_PATTERNS = [
+  /^GET \/api\/sessions\/[^/]+\/messages$/,
+  /^PATCH \/api\/sessions\/[^/]+$/,
+  /^DELETE \/api\/sessions\/[^/]+$/
+]
 
 function isHttpAllowed(key) {
   return HTTP_ALLOWED.has(key) || HTTP_ALLOWED_PATTERNS.some(pattern => pattern.test(key))
 }
+
+/** Phone RPCs that mutate the shared session list — the desktop renderer
+ * re-pulls its sidebar when one goes through. */
+const SESSION_MUTATING_RPC_METHODS = new Set(['prompt.submit', 'session.create', 'session.title'])
 
 /** Same hoisting-gotcha fallback as notch.cjs (ws staged under resources). */
 function requireWs() {
@@ -153,6 +162,7 @@ function createMobileBridge({
   lanPortPreference = LAN_PORT_DEFAULT,
   log = () => {},
   now = Date.now,
+  onActivity = () => {},
   onDevicesChanged = () => {},
   onStatusChanged = () => {}
 } = {}) {
@@ -204,6 +214,15 @@ function createMobileBridge({
   function emitDevices() {
     try {
       onDevicesChanged(publicDevices())
+    } catch {
+      // Same.
+    }
+  }
+
+  /** Phone did something that changes the shared session list. */
+  function emitActivity() {
+    try {
+      onActivity()
     } catch {
       // Same.
     }
@@ -564,6 +583,10 @@ function createMobileBridge({
 
     try {
       session.upstream.send(JSON.stringify(rpc))
+
+      if (SESSION_MUTATING_RPC_METHODS.has(rpc.method)) {
+        emitActivity()
+      }
     } catch (error) {
       rpcError(session, rpc.id, `upstream send failed: ${error.message}`)
     }
@@ -641,6 +664,12 @@ function createMobileBridge({
       }
 
       respond(response.status, response.headers.get('content-type') || 'application/octet-stream', buffer)
+
+      const httpMethod = String(method || 'GET').toUpperCase()
+
+      if (response.status < 400 && (httpMethod === 'PATCH' || httpMethod === 'DELETE')) {
+        emitActivity()
+      }
     } catch (error) {
       log(`[mobile] http proxy failed ${key}: ${error.message}`)
       respond(502)
@@ -693,6 +722,12 @@ function createMobileBridge({
         parsed = JSON.parse(String(data))
       } catch {
         return
+      }
+
+      // A phone-driven turn finishing changes titles/counts in the shared
+      // session list — nudge the desktop to re-pull.
+      if (parsed?.method === 'event' && parsed.params?.type === 'message.complete') {
+        emitActivity()
       }
 
       send(session, 'rpc', { frame: parsed })

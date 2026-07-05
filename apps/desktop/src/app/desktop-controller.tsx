@@ -505,6 +505,18 @@ export function DesktopController() {
     return onSessionsChanged(() => void refreshSessions().catch(() => undefined))
   }, [refreshSessions])
 
+  // Same story for the linked phone: it talks to the backend through the
+  // Electron main process (mobile bridge), so its sends/renames/deletes never
+  // hit this window's stores. The bridge pings on phone activity — re-pull so
+  // phone-originated chats show up without a restart.
+  useEffect(() => {
+    if (isSecondaryWindow()) {
+      return
+    }
+
+    return window.jarvisDesktop?.mobile?.onActivity?.(() => void refreshSessions().catch(() => undefined))
+  }, [refreshSessions])
+
   // ALL-profiles view pages one profile at a time: fetch that profile's next
   // page and merge it in place, leaving every other profile's rows untouched.
   const loadMoreSessionsForProfile = useCallback(async (profile: string) => {
