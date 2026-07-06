@@ -195,6 +195,7 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     pair: () => ipcRenderer.invoke('jarvis:mobile:pair'),
     revoke: id => ipcRenderer.invoke('jarvis:mobile:revoke', id),
     setRelayUrl: url => ipcRenderer.invoke('jarvis:mobile:relay:set', url),
+    testRelay: () => ipcRenderer.invoke('jarvis:mobile:relay:test'),
     onState: callback => {
       const listener = (_event, state) => callback(state)
       ipcRenderer.on('jarvis:mobile:state', listener)

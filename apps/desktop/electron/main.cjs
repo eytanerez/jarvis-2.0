@@ -6973,6 +6973,14 @@ ipcMain.handle('jarvis:mobile:relay:set', (_event, url) => {
   return mobileBridge.setRelayUrl(typeof url === 'string' ? url : null)
 })
 
+ipcMain.handle('jarvis:mobile:relay:test', async () => {
+  const bridge = await startMobileBridge()
+  if (!bridge) {
+    return { code: 'bridge-unavailable', error: 'Mobile bridge is unavailable.', ok: false, relayUrl: null }
+  }
+  return bridge.testRelay()
+})
+
 ipcMain.handle('jarvis:launchAtLogin:get', () => ({
   enabled: getLaunchAtLogin(),
   supported: supportsLoginItemSettings()

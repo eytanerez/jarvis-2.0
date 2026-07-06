@@ -5,9 +5,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import type { DesktopMobileState } from '@/global'
+import type { DesktopMobileRelayTestResult, DesktopMobileState } from '@/global'
 import { triggerHaptic } from '@/lib/haptics'
-import { CheckCircle2, Copy, Loader2, Trash2, X } from '@/lib/icons'
+import { CheckCircle2, Copy, Loader2, RefreshCw, Trash2, X } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
 
@@ -55,6 +55,8 @@ export function MobileSettings() {
   const [qrSecondsLeft, setQrSecondsLeft] = useState(0)
   const [relayDraft, setRelayDraft] = useState<string | null>(null)
   const [savingRelay, setSavingRelay] = useState(false)
+  const [testingRelay, setTestingRelay] = useState(false)
+  const [relayTest, setRelayTest] = useState<DesktopMobileRelayTestResult | null>(null)
   const [revoking, setRevoking] = useState<string | null>(null)
   const qrUrlRef = useRef<string | null>(null)
 
@@ -180,11 +182,41 @@ export function MobileSettings() {
 
       setState(next)
       setRelayDraft(null)
+      setRelayTest(null)
       notify({ kind: 'success', message: relayDraft.trim() ? 'Relay saved — the bridge is reconnecting' : 'Relay removed' })
     } catch (err) {
       notifyError(err, 'Could not save the relay URL')
     } finally {
       setSavingRelay(false)
+    }
+  }
+
+  const testRelay = async () => {
+    const api = mobileApi()
+
+    if (!api || !state.relay.url) {return}
+
+    setTestingRelay(true)
+    setRelayTest(null)
+    triggerHaptic('selection')
+
+    try {
+      const result = await api.testRelay()
+
+      setRelayTest(result)
+
+      if (result.ok) {
+        triggerHaptic('success')
+        notify({ kind: 'success', message: 'Relay self-test passed' })
+      } else {
+        triggerHaptic('warning')
+        notify({ kind: 'error', message: result.error || 'Relay self-test failed' })
+      }
+    } catch (err) {
+      setRelayTest({ error: err instanceof Error ? err.message : 'Relay self-test failed', ok: false })
+      notifyError(err, 'Relay self-test failed')
+    } finally {
+      setTestingRelay(false)
     }
   }
 
@@ -371,24 +403,56 @@ export function MobileSettings() {
                     </div>
                   }
                   below={
-                    <div className="mt-2 flex items-center gap-2">
-                      <Input
-                        className="h-8 flex-1 font-mono text-xs"
-                        onChange={event => setRelayDraft(event.target.value)}
-                        placeholder="https://jarvis-link-relay.<you>.workers.dev"
-                        spellCheck={false}
-                        value={relayDraft ?? state.relay.url ?? ''}
-                      />
-                      <Button
-                        disabled={savingRelay || relayDraft === null}
-                        onClick={() => void saveRelay()}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        {savingRelay && <Loader2 className="size-3.5 animate-spin" />}
-                        Save
-                      </Button>
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          className="h-8 flex-1 font-mono text-xs"
+                          onChange={event => setRelayDraft(event.target.value)}
+                          placeholder="https://jarvis-link-relay.<you>.workers.dev"
+                          spellCheck={false}
+                          value={relayDraft ?? state.relay.url ?? ''}
+                        />
+                        <Button
+                          disabled={savingRelay || relayDraft === null}
+                          onClick={() => void saveRelay()}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          {savingRelay && <Loader2 className="size-3.5 animate-spin" />}
+                          Save
+                        </Button>
+                        <Button
+                          disabled={testingRelay || !state.relay.url || relayDraft !== null}
+                          onClick={() => void testRelay()}
+                          size="sm"
+                          title={relayDraft !== null ? 'Save the relay URL before testing' : 'Test relay round-trip'}
+                          type="button"
+                          variant="outline"
+                        >
+                          {testingRelay ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="size-3.5" />
+                          )}
+                          Test
+                        </Button>
+                      </div>
+                      {relayTest ? (
+                        <div
+                          className={cn(
+                            'flex items-center gap-1.5 text-xs',
+                            relayTest.ok ? 'text-emerald-300' : 'text-red-300'
+                          )}
+                        >
+                          {relayTest.ok ? <CheckCircle2 className="size-3.5" /> : <X className="size-3.5" />}
+                          <span>
+                            {relayTest.ok
+                              ? `Round-trip verified${typeof relayTest.durationMs === 'number' ? ` in ${Math.round(relayTest.durationMs)} ms` : ''}`
+                              : relayTest.error || 'Relay self-test failed'}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
                   }
                   description="A tiny Cloudflare Worker both sides dial out to, so your phone reaches Jarvis away from home. It forwards encrypted frames and can't read anything. Deploy it from the Jarvis 3.0 App repo (relay/) and paste its URL here."

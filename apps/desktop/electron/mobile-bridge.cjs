@@ -46,6 +46,7 @@ const RELAY_BACKOFF_MAX_MS = 30_000
 const RELAY_HANDSHAKE_TIMEOUT_MS = 15_000
 const RELAY_PING_INTERVAL_MS = 30_000
 const RELAY_LIVENESS_GRACE_MS = 75_000
+const RELAY_SELF_TEST_TIMEOUT_MS = 8_000
 const UPSTREAM_BACKOFF_BASE_MS = 1_000
 const UPSTREAM_BACKOFF_MAX_MS = 15_000
 const LAN_HINT_POLL_MS = 60_000
@@ -185,6 +186,17 @@ function relayHostEndpoint(relayUrl, hostId) {
   else if (!base.startsWith('ws://') && !base.startsWith('wss://')) base = `wss://${base}`
 
   return `${base}/host/${hostId}`
+}
+
+function relayDeviceEndpoint(relayUrl, hostId) {
+  let base = String(relayUrl || '').trim().replace(/\/+$/, '')
+
+  if (!base) return null
+  if (base.startsWith('https://')) base = `wss://${base.slice('https://'.length)}`
+  else if (base.startsWith('http://')) base = `ws://${base.slice('http://'.length)}`
+  else if (!base.startsWith('ws://') && !base.startsWith('wss://')) base = `wss://${base}`
+
+  return `${base}/device/${hostId}`
 }
 
 function createMobileBridge({
@@ -1155,6 +1167,160 @@ function createMobileBridge({
     }
   }
 
+  function selfTestError(code, message) {
+    const error = new Error(message)
+
+    error.code = code
+
+    return error
+  }
+
+  async function runRelaySelfTest(timeoutMs = RELAY_SELF_TEST_TIMEOUT_MS) {
+    if (!started || !identity) {
+      throw selfTestError('not-started', 'The mobile bridge is not running yet.')
+    }
+
+    if (!enabled) {
+      throw selfTestError('disabled', 'Linked Devices is turned off.')
+    }
+
+    const relayUrl = store.getConfig().relayUrl
+
+    if (!relayUrl) {
+      throw selfTestError('missing-relay', 'No relay URL is configured.')
+    }
+
+    if (!relaySocket) {
+      if (relayTimer) {
+        clearTimeout(relayTimer)
+        relayTimer = null
+      }
+
+      relayAttempt = 0
+      startRelay()
+    }
+
+    const endpoint = relayDeviceEndpoint(relayUrl, identity.hostId)
+
+    if (!endpoint) {
+      throw selfTestError('invalid-relay', 'The relay URL is invalid.')
+    }
+
+    const { WebSocket } = wsModule()
+    const pairingId = generateId(9)
+    const key = generateLinkKey()
+    const keyId = `pair:${pairingId}`
+    const ts = `${now()}:${generateId(6)}`
+    let seqOut = 0
+    let settled = false
+    let hostReportedOffline = false
+    let socket = null
+
+    pairings.set(pairingId, { expiresAt: now() + timeoutMs + 1_000, key, selfTest: true, used: false })
+
+    const cleanup = () => {
+      pairings.delete(pairingId)
+
+      if (!socket) return
+
+      try {
+        if (typeof socket.terminate === 'function') socket.terminate()
+        else socket.close?.()
+      } catch {
+        void 0
+      }
+    }
+
+    try {
+      await new Promise((resolve, reject) => {
+        const finish = (fn, value) => {
+          if (settled) return
+          settled = true
+          clearTimeout(timer)
+          fn(value)
+        }
+
+        const timer = setTimeout(() => {
+          const error = hostReportedOffline
+            ? selfTestError('host-offline', 'The relay is reachable, but it reports this Mac as offline.')
+            : selfTestError('timeout', 'Timed out waiting for the relay round-trip.')
+
+          finish(reject, error)
+        }, timeoutMs)
+        timer.unref?.()
+
+        try {
+          socket = new WebSocket(endpoint, { handshakeTimeout: Math.min(timeoutMs, RELAY_HANDSHAKE_TIMEOUT_MS) })
+        } catch (error) {
+          finish(reject, selfTestError('connect-failed', `Could not open the relay device socket: ${error.message}`))
+
+          return
+        }
+
+        const sendPing = () => {
+          if (!socket || socket.readyState !== 1) return
+
+          seqOut += 1
+          socket.send(sealEnvelope(key, keyId, seqOut, 'ping', { ts }))
+        }
+
+        socket.on?.('open', () => {
+          // The relay sends host_status immediately after join. Wait for it so
+          // the failure mode can say "host offline" instead of a generic timeout.
+        })
+
+        socket.on?.('message', data => {
+          const text = String(data)
+
+          try {
+            const control = JSON.parse(text)
+
+            if (control?.t === 'host_status') {
+              if (control.online === true) {
+                hostReportedOffline = false
+                sendPing()
+              } else {
+                hostReportedOffline = true
+              }
+
+              return
+            }
+          } catch {
+            // Non-JSON messages are the encrypted envelope pass-through.
+          }
+
+          let opened = null
+
+          try {
+            opened = openEnvelope(key, text)
+          } catch {
+            finish(reject, selfTestError('bad-envelope', 'The relay returned a frame the bridge could not decrypt.'))
+
+            return
+          }
+
+          if (opened.type === 'pong' && opened.body?.ts === ts) {
+            finish(resolve)
+
+            return
+          }
+
+          finish(reject, selfTestError('bad-pong', `Expected a pong from the bridge, got ${opened.type}.`))
+        })
+
+        socket.on?.('close', () => {
+          finish(reject, selfTestError('closed', 'The relay closed the test socket before the bridge answered.'))
+        })
+
+        socket.on?.('error', error => {
+          finish(reject, selfTestError('socket-error', `Relay socket error: ${error.message}`))
+        })
+      })
+    } finally {
+      cleanup()
+    }
+  }
+
   // ── Public API ───────────────────────────────────────────────────────
 
   function getState() {
@@ -1295,6 +1461,28 @@ function createMobileBridge({
       return getState()
     },
 
+    async testRelay() {
+      const startedAt = now()
+
+      try {
+        await runRelaySelfTest()
+
+        return {
+          durationMs: Math.max(0, now() - startedAt),
+          ok: true,
+          relayUrl: store.getConfig().relayUrl || null
+        }
+      } catch (error) {
+        return {
+          code: error.code || 'failed',
+          durationMs: Math.max(0, now() - startedAt),
+          error: error.message || 'Relay self-test failed.',
+          ok: false,
+          relayUrl: store.getConfig().relayUrl || null
+        }
+      }
+    },
+
     async start() {
       if (started) return
 
@@ -1339,6 +1527,7 @@ module.exports = {
   createMobileBridge,
   isHttpAllowed,
   isRpcAllowedFromMobile,
+  relayDeviceEndpoint,
   relayHostEndpoint
 }
 

@@ -144,6 +144,7 @@ declare global {
         pair: () => Promise<DesktopMobilePairing>
         revoke: (id: string) => Promise<{ ok: boolean }>
         setRelayUrl: (url: string | null) => Promise<DesktopMobileState>
+        testRelay: () => Promise<DesktopMobileRelayTestResult>
         onState: (callback: (state: DesktopMobileState) => void) => () => void
         // Fires (debounced) when the linked phone mutates the shared session
         // list — send, new chat, rename, archive, delete. Absent on older
@@ -201,6 +202,14 @@ export interface DesktopMobilePairing {
   ok: boolean
   pairingId?: string
   url?: string
+}
+
+export interface DesktopMobileRelayTestResult {
+  code?: string
+  durationMs?: number
+  error?: string
+  ok: boolean
+  relayUrl?: string | null
 }
 
 export interface DesktopMarketplaceSearchItem {

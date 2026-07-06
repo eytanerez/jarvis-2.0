@@ -18,6 +18,7 @@
 
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
+const http = require('node:http')
 const os = require('node:os')
 const path = require('node:path')
 const { EventEmitter } = require('node:events')
@@ -35,7 +36,13 @@ const {
   sealEnvelope
 } = require('./mobile-link-crypto.cjs')
 const { createMobileLinkStore } = require('./mobile-link-store.cjs')
-const { collectLanUrls, createMobileBridge, isRpcAllowedFromMobile, relayHostEndpoint } = require('./mobile-bridge.cjs')
+const {
+  collectLanUrls,
+  createMobileBridge,
+  isRpcAllowedFromMobile,
+  relayDeviceEndpoint,
+  relayHostEndpoint
+} = require('./mobile-bridge.cjs')
 
 function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-mobile-test-'))
@@ -185,6 +192,118 @@ async function makeBridge(overrides = {}) {
 /** Tests dial loopback directly; payload.lan carries the real LAN addresses. */
 function lanUrlFor(bridge) {
   return `ws://127.0.0.1:${bridge.getState().lanPort}/link`
+}
+
+async function createRelayPipeServer() {
+  const server = http.createServer()
+  const wss = new WebSocketServer({ noServer: true })
+  const devices = new Map()
+  let host = null
+  let nextCid = 1
+
+  const sendHostStatus = online => {
+    for (const device of devices.values()) {
+      if (device.readyState === WebSocket.OPEN) {
+        device.send(JSON.stringify({ online, t: 'host_status' }))
+      }
+    }
+  }
+
+  server.on('upgrade', (req, socket, head) => {
+    let pathname = ''
+
+    try {
+      pathname = new URL(req.url, 'http://relay.test').pathname
+    } catch {
+      socket.destroy()
+
+      return
+    }
+
+    wss.handleUpgrade(req, socket, head, ws => {
+      if (pathname.startsWith('/host/')) {
+        host = ws
+
+        ws.on('message', data => {
+          let frame = null
+
+          try {
+            frame = JSON.parse(String(data))
+          } catch {
+            return
+          }
+
+          const device = devices.get(frame.cid)
+
+          if (!device || device.readyState !== WebSocket.OPEN) return
+
+          if (frame.t === 'msg' && typeof frame.d === 'string') {
+            device.send(frame.d)
+          } else if (frame.t === 'close') {
+            device.close()
+          }
+        })
+
+        ws.on('close', () => {
+          if (host === ws) {
+            host = null
+            sendHostStatus(false)
+          }
+        })
+
+        sendHostStatus(true)
+
+        for (const cid of devices.keys()) {
+          ws.send(JSON.stringify({ cid, t: 'open' }))
+        }
+
+        return
+      }
+
+      if (pathname.startsWith('/device/')) {
+        const cid = `c${nextCid++}`
+
+        devices.set(cid, ws)
+        ws.send(JSON.stringify({ online: Boolean(host), t: 'host_status' }))
+
+        if (host && host.readyState === WebSocket.OPEN) {
+          host.send(JSON.stringify({ cid, t: 'open' }))
+        }
+
+        ws.on('message', data => {
+          if (!host || host.readyState !== WebSocket.OPEN) {
+            ws.send(JSON.stringify({ online: false, t: 'host_status' }))
+
+            return
+          }
+
+          host.send(JSON.stringify({ cid, d: String(data), t: 'msg' }))
+        })
+
+        ws.on('close', () => {
+          devices.delete(cid)
+
+          if (host && host.readyState === WebSocket.OPEN) {
+            host.send(JSON.stringify({ cid, t: 'close' }))
+          }
+        })
+
+        return
+      }
+
+      ws.close()
+    })
+  })
+
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+
+  return {
+    close: () =>
+      new Promise(resolve => {
+        wss.close(() => server.close(resolve))
+      }),
+    url: `http://127.0.0.1:${server.address().port}`
+  }
 }
 
 async function pairPhone(bridge) {
@@ -825,6 +944,39 @@ test('bridge dials the relay, pipes envelopes by cid, and closes on revoke', asy
   }
 })
 
+test('relay self-test round-trips through the relay into the local bridge without adding a device', async () => {
+  const relay = await createRelayPipeServer()
+  const { bridge } = await makeBridge()
+
+  try {
+    bridge.setRelayUrl(relay.url)
+
+    const result = await bridge.testRelay()
+
+    assert.equal(result.ok, true, result.error)
+    assert.equal(result.relayUrl, relay.url)
+    assert.ok(result.durationMs >= 0)
+    assert.equal(bridge.getState().devices.length, 0)
+  } finally {
+    bridge.stop()
+    await relay.close()
+  }
+})
+
+test('relay self-test reports a missing configured relay', async () => {
+  const { bridge } = await makeBridge()
+
+  try {
+    const result = await bridge.testRelay()
+
+    assert.equal(result.ok, false)
+    assert.equal(result.code, 'missing-relay')
+    assert.match(result.error, /No relay URL/)
+  } finally {
+    bridge.stop()
+  }
+})
+
 test('relay watchdog recycles an unresponsive uplink and reconnects', async () => {
   // autoPong:false makes the server swallow protocol pings — the same
   // symptom as a half-open uplink (NAT drop, Cloudflare idle-kill, Mac
@@ -880,6 +1032,10 @@ test('relayHostEndpoint normalizes schemes', () => {
   assert.equal(relayHostEndpoint('http://127.0.0.1:1234/', 'abc'), 'ws://127.0.0.1:1234/host/abc')
   assert.equal(relayHostEndpoint('x.workers.dev', 'abc'), 'wss://x.workers.dev/host/abc')
   assert.equal(relayHostEndpoint('', 'abc'), null)
+  assert.equal(relayDeviceEndpoint('https://x.workers.dev', 'abc'), 'wss://x.workers.dev/device/abc')
+  assert.equal(relayDeviceEndpoint('http://127.0.0.1:1234/', 'abc'), 'ws://127.0.0.1:1234/device/abc')
+  assert.equal(relayDeviceEndpoint('x.workers.dev', 'abc'), 'wss://x.workers.dev/device/abc')
+  assert.equal(relayDeviceEndpoint('', 'abc'), null)
 })
 
 test('collectLanUrls includes the mDNS name and only IPv4 externals', () => {

@@ -763,6 +763,12 @@ _MAX_TRANSCRIPTION_UPLOAD_BYTES = 25 * 1024 * 1024
 # requests check `.locked()` and bail instead of queueing.
 _transcription_lock = asyncio.Lock()
 
+# Serializes /api/audio/speak synthesis: voice clients pipeline sentence
+# chunks with overlapping requests, and the local TTS engines (Kokoro) are a
+# single shared instance that must not synthesize concurrently. Queued
+# requests still win over a fresh client round-trip per sentence.
+_tts_lock = asyncio.Lock()
+
 
 def _audio_extension_for_mime(mime_type: str) -> str:
     normalized = (mime_type or "").split(";", 1)[0].strip().lower()
@@ -2832,9 +2838,10 @@ async def speak_text(payload: TTSSpeakRequest):
             output_path = None
 
         loop = asyncio.get_running_loop()
-        result_json = await loop.run_in_executor(
-            None, text_to_speech_tool, text, output_path
-        )
+        async with _tts_lock:
+            result_json = await loop.run_in_executor(
+                None, text_to_speech_tool, text, output_path
+            )
     except Exception as exc:
         _log.exception("Desktop voice TTS failed")
         raise HTTPException(status_code=500, detail=f"Speech synthesis failed: {exc}")
