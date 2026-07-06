@@ -716,6 +716,53 @@ test('mobile config rpc is limited to reasoning effort', () => {
   }), false)
 })
 
+test('mobile config.set model accepts real model strings and nothing else', () => {
+  assert.equal(isRpcAllowedFromMobile({
+    id: 'm1',
+    jsonrpc: '2.0',
+    method: 'config.set',
+    params: { key: 'model', session_id: 's1', value: 'claude-sonnet-5 --provider anthropic' }
+  }), true)
+  assert.equal(isRpcAllowedFromMobile({
+    id: 'm2',
+    jsonrpc: '2.0',
+    method: 'config.set',
+    params: { key: 'model', value: 'openrouter/anthropic/claude-3.5-sonnet --provider openrouter' }
+  }), true)
+  assert.equal(isRpcAllowedFromMobile({
+    id: 'm3',
+    jsonrpc: '2.0',
+    method: 'config.set',
+    params: { key: 'model', value: 'gpt-4o' }
+  }), true)
+  // Anything beyond "<model> --provider <prov>" — extra flags, spaces,
+  // shell-ish characters — must be refused.
+  assert.equal(isRpcAllowedFromMobile({
+    id: 'm4',
+    jsonrpc: '2.0',
+    method: 'config.set',
+    params: { key: 'model', value: 'gpt-4o --provider openai --danger' }
+  }), false)
+  assert.equal(isRpcAllowedFromMobile({
+    id: 'm5',
+    jsonrpc: '2.0',
+    method: 'config.set',
+    params: { key: 'model', value: 'model; rm -rf ~' }
+  }), false)
+  assert.equal(isRpcAllowedFromMobile({
+    id: 'm6',
+    jsonrpc: '2.0',
+    method: 'config.set',
+    params: { key: 'model', value: '' }
+  }), false)
+  assert.equal(isRpcAllowedFromMobile({
+    id: 'm7',
+    jsonrpc: '2.0',
+    method: 'config.set',
+    params: { key: 'model', value: `${'a'.repeat(300)}` }
+  }), false)
+})
+
 test('http proxy honors the allowlist and forwards the dashboard token', async () => {
   const { bridge, fetchCalls } = await makeBridge()
 

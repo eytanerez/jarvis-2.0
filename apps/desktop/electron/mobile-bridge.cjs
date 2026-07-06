@@ -83,6 +83,13 @@ const RPC_ALLOWED_METHODS = new Set([
 const MOBILE_CONFIG_KEYS = new Set(['reasoning'])
 const MOBILE_REASONING_VALUES = new Set(['none', 'minimal', 'low', 'medium', 'high', 'xhigh'])
 
+// Session model hot-swap ("<model> --provider <prov>") — the same config.set
+// the desktop picker sends. Model/provider ids only: word chars plus the
+// separators real ids use (dots, slashes, colons, @). No spaces beyond the
+// single flag, so nothing shell- or flag-injection-shaped gets through.
+const MOBILE_MODEL_VALUE_RE = /^[\w./:@-]+( --provider [\w./:@-]+)?$/
+const MOBILE_MODEL_VALUE_MAX = 200
+
 function isRpcAllowedFromMobile(rpc) {
   if (!rpc || typeof rpc !== 'object' || typeof rpc.method !== 'string') {
     return true
@@ -101,6 +108,13 @@ function isRpcAllowedFromMobile(rpc) {
   if (rpc.method === 'config.set') {
     const params = rpc.params && typeof rpc.params === 'object' ? rpc.params : {}
     const key = String(params.key || '')
+
+    if (key === 'model') {
+      const value = String(params.value || '').trim()
+
+      return value.length > 0 && value.length <= MOBILE_MODEL_VALUE_MAX && MOBILE_MODEL_VALUE_RE.test(value)
+    }
+
     const value = String(params.value || '').trim().toLowerCase()
 
     return key === 'reasoning' && MOBILE_REASONING_VALUES.has(value)
