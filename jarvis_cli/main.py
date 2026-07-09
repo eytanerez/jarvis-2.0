@@ -5340,7 +5340,7 @@ def _stop_desktop_processes_locking_build(desktop_dir: Path) -> list[int]:
     return stopped
 
 
-def _desktop_macos_relaunchable_fixup(desktop_dir: Path) -> None:
+def _desktop_macos_relaunchable_fixup(desktop_dir: Path, env: dict | None = None) -> None:
     """Make a locally-built (unsigned) macOS desktop app survive in-place self-update.
 
     An ad-hoc-signed .app has no stable Designated Requirement (no Team ID), so
@@ -5354,11 +5354,20 @@ def _desktop_macos_relaunchable_fixup(desktop_dir: Path) -> None:
     (omitting the hardened-runtime flag, which is meaningless without a real
     Developer ID) lets the rebuilt app relaunch. No-op when a real signing
     identity is configured (CSC_LINK / APPLE_SIGNING_IDENTITY) so a properly
-    signed/notarized build is never clobbered. Best-effort: never raises.
+    signed/notarized build is never clobbered.
+
+    ``env`` should be the same environment mapping the build subprocess was
+    given — the identity vars the caller sets (e.g. cmd_gui's local
+    DESKTOP_LOCAL_CODESIGN_IDENTITY injection) only ever land in that dict,
+    never in this process's own os.environ, so checking os.environ here would
+    never see them and this would always strip the signature electron-builder
+    just applied. Falls back to os.environ for callers that don't pass one.
+    Best-effort: never raises.
     """
     if sys.platform != "darwin":
         return
-    if os.environ.get("CSC_LINK") or os.environ.get("APPLE_SIGNING_IDENTITY"):
+    active_env = env if env is not None else os.environ
+    if active_env.get("CSC_LINK") or active_env.get("APPLE_SIGNING_IDENTITY"):
         return
     exe = _desktop_packaged_executable(desktop_dir)
     if exe is None:
@@ -5591,7 +5600,7 @@ def cmd_gui(args: argparse.Namespace):
                 # Locally-built apps are ad-hoc signed; make them relaunchable after
                 # an in-place self-update (otherwise macOS reports "Jarvis is
                 # damaged"). No-op on non-macOS and on real-identity builds.
-                _desktop_macos_relaunchable_fixup(desktop_dir)
+                _desktop_macos_relaunchable_fixup(desktop_dir, env=env)
 
             # Build succeeded — write the stamp so next run can skip
             _write_desktop_build_stamp(PROJECT_ROOT, source_mode=source_mode)
