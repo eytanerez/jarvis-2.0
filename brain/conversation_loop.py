@@ -755,6 +755,19 @@ def run_conversation(
                     if isinstance(_spoken_base, str) and _spoken_base.strip():
                         api_msg["content"] = append_spoken_reply_cue(_spoken_base)
 
+                # Mobile-context cue — the gateway flags turns that arrived
+                # via the Jarvis mobile app (prompt.submit ``platform:
+                # "mobile"``). Purely informational (see
+                # brain/persona_cue.MOBILE_CUE): no behavior change asked
+                # for, just lets the agent know where Eytan is. Independent
+                # of the spoken-reply cue above — a voice call placed from
+                # the phone gets both.
+                if getattr(agent, "_mobile_turn_active", False):
+                    from brain.persona_cue import append_mobile_cue
+                    _mobile_base = api_msg.get("content", "")
+                    if isinstance(_mobile_base, str) and _mobile_base.strip():
+                        api_msg["content"] = append_mobile_cue(_mobile_base)
+
             # For ALL assistant messages, pass reasoning back to the API
             # This ensures multi-turn reasoning context is preserved
             agent._copy_reasoning_content_for_api(msg, api_msg)

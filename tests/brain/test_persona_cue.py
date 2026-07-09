@@ -10,8 +10,10 @@ conversation, not here.
 import pytest
 
 from brain.persona_cue import (
+    MOBILE_CUE,
     TONAL_CHECKPOINT,
     VOICE_CUE,
+    append_mobile_cue,
     append_voice_cue,
     should_apply_persona_cue,
 )
@@ -106,6 +108,31 @@ class TestCueContent:
         # If the cue grows into a second personality file, it's riding on
         # every user message — keep it under ~1200 chars.
         assert len(VOICE_CUE) < 1200
+
+
+class TestAppendMobileCue:
+    def test_appends_cue_after_content(self):
+        result = append_mobile_cue("open the calendar app")
+        assert result.startswith("open the calendar app")
+        assert result.endswith(MOBILE_CUE)
+
+    def test_original_string_unmodified(self):
+        original = "hello"
+        result = append_mobile_cue(original)
+        assert original == "hello"
+        assert result != original
+
+    def test_cue_never_doubles_up(self):
+        once = append_mobile_cue("hello")
+        twice = append_mobile_cue(once)
+        assert twice.count(MOBILE_CUE) == 1
+
+    def test_is_purely_informational_not_instructional(self):
+        # Unlike VOICE_CUE/SPOKEN_REPLY_CUE, this must never ask for
+        # different behavior — just state the fact and let the agent's own
+        # judgment decide what, if anything, it implies.
+        for word in ("keep it", "answer the way", "banned", "do not", "must"):
+            assert word not in MOBILE_CUE.lower()
 
 
 class TestTonalCheckpoint:

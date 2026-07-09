@@ -95,6 +95,29 @@ def append_spoken_reply_cue(content: str) -> str:
     return f"{content}\n\n{SPOKEN_REPLY_CUE}"
 
 
+# Appended to the API-bound copy of the current turn's user message when the
+# turn arrived via the Jarvis mobile app (gateway sets
+# ``agent._mobile_turn_active`` per turn from prompt.submit's ``platform``
+# field). Deliberately just a fact, not an instruction — unlike the spoken-
+# reply cue, this doesn't ask for any different behavior. It exists so the
+# agent's own judgment can factor in where Eytan actually is: e.g. an "open
+# X" still runs on the Mac either way, but he's not sitting in front of it
+# right now; "send me X" might land better on a channel he'll see on his
+# phone than in this chat.
+MOBILE_CUE = "[This message came from Eytan's phone via the Jarvis mobile app, not his Mac.]"
+
+
+def append_mobile_cue(content: str) -> str:
+    """Return ``content`` with the mobile-context cue appended (idempotent).
+
+    Same contract as :func:`append_voice_cue`: string content only, applied
+    to the API-bound copy of a message, never to stored history.
+    """
+    if MOBILE_CUE in content:
+        return content
+    return f"{content}\n\n{MOBILE_CUE}"
+
+
 def should_apply_persona_cue(agent: Any) -> bool:
     """Whether this session gets the persona push.
 
