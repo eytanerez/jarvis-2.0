@@ -7,6 +7,7 @@ Covers:
 - Config version covers all ENV_VARS_BY_VERSION keys (regression guard)
 """
 
+import os
 from unittest.mock import patch
 
 
@@ -77,6 +78,22 @@ class TestConfigYamlBridging:
         wa_config = config.platforms.get(Platform.WHATSAPP)
         assert "reply_prefix" not in wa_config.extra
 
+    def test_send_presence_bridged_from_yaml(self, tmp_path):
+        """whatsapp.send_presence in config.yaml controls bridge presence."""
+        config_yaml = tmp_path / "config.yaml"
+        config_yaml.write_text("whatsapp:\n  send_presence: false\n")
+
+        with patch("gateway.config.get_jarvis_home", return_value=tmp_path):
+            from gateway.config import load_gateway_config
+            with patch.dict(os.environ, {"WHATSAPP_ENABLED": "true"}, clear=False):
+                os.environ.pop("WHATSAPP_SEND_PRESENCE", None)
+                config = load_gateway_config()
+
+                wa_config = config.platforms.get(Platform.WHATSAPP)
+                assert wa_config is not None
+                assert wa_config.extra.get("send_presence") is False
+                assert os.environ["WHATSAPP_SEND_PRESENCE"] == "false"
+
 
 # ---------------------------------------------------------------------------
 # WhatsAppAdapter __init__
@@ -103,6 +120,20 @@ class TestAdapterInit:
         config = PlatformConfig(enabled=True, extra={"reply_prefix": ""})
         adapter = WhatsAppAdapter(config)
         assert adapter._reply_prefix == ""
+
+    def test_send_presence_from_extra_false(self, monkeypatch):
+        from gateway.platforms.whatsapp import WhatsAppAdapter
+        monkeypatch.setenv("WHATSAPP_SEND_PRESENCE", "true")
+        config = PlatformConfig(enabled=True, extra={"send_presence": False})
+        adapter = WhatsAppAdapter(config)
+        assert adapter._send_presence is False
+
+    def test_send_presence_from_env_false(self, monkeypatch):
+        from gateway.platforms.whatsapp import WhatsAppAdapter
+        monkeypatch.setenv("WHATSAPP_SEND_PRESENCE", "false")
+        config = PlatformConfig(enabled=True)
+        adapter = WhatsAppAdapter(config)
+        assert adapter._send_presence is False
 
 
 # ---------------------------------------------------------------------------

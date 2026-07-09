@@ -274,6 +274,19 @@ class WhatsAppAdapter(WhatsAppBehaviorMixin, BasePlatformAdapter):
             get_jarvis_dir("platforms/whatsapp/session", "whatsapp/session")
         ))
         self._reply_prefix: Optional[str] = config.extra.get("reply_prefix")
+        _send_presence_default = self._coerce_bool_value(
+            os.getenv("WHATSAPP_SEND_PRESENCE"), True
+        )
+        if "send_presence" in config.extra:
+            self._send_presence = self._coerce_bool_value(
+                config.extra.get("send_presence"), _send_presence_default
+            )
+        elif "typing_indicators" in config.extra:
+            self._send_presence = self._coerce_bool_value(
+                config.extra.get("typing_indicators"), _send_presence_default
+            )
+        else:
+            self._send_presence = _send_presence_default
         self._dm_policy = str(config.extra.get("dm_policy") or os.getenv("WHATSAPP_DM_POLICY", "open")).strip().lower()
         self._allow_from = self._coerce_allow_list(config.extra.get("allow_from") or config.extra.get("allowFrom"))
         self._group_policy = str(config.extra.get("group_policy") or os.getenv("WHATSAPP_GROUP_POLICY", "open")).strip().lower()
@@ -309,6 +322,19 @@ class WhatsAppAdapter(WhatsAppBehaviorMixin, BasePlatformAdapter):
         )
         self._pending_text_batches: Dict[str, MessageEvent] = {}
         self._pending_text_batch_tasks: Dict[str, asyncio.Task] = {}
+
+    @staticmethod
+    def _coerce_bool_value(value: Any, default: bool = False) -> bool:
+        if value is None:
+            return default
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in {"true", "1", "yes", "on"}:
+                return True
+            if lowered in {"false", "0", "no", "off"}:
+                return False
+            return default
+        return bool(value)
 
     def _coerce_float_extra(self, key: str, default: float) -> float:
         """Read a float from ``config.extra``, guarding against bad/non-finite values.
@@ -493,6 +519,7 @@ class WhatsAppAdapter(WhatsAppBehaviorMixin, BasePlatformAdapter):
             bridge_env = os.environ.copy()
             if self._reply_prefix is not None:
                 bridge_env["WHATSAPP_REPLY_PREFIX"] = self._reply_prefix
+            bridge_env["WHATSAPP_SEND_PRESENCE"] = "true" if self._send_presence else "false"
             # Pass the profile-aware cache directories so the bridge writes
             # media where the Python side reads it.  Without these the bridge
             # hardcodes ~/.jarvis/{image,audio,document}_cache, which diverges
@@ -911,6 +938,8 @@ class WhatsAppAdapter(WhatsAppBehaviorMixin, BasePlatformAdapter):
 
     async def send_typing(self, chat_id: str, metadata=None) -> None:
         """Send typing indicator via bridge."""
+        if not self._send_presence:
+            return
         if not self._running or not self._http_session:
             return
         if await self._check_managed_bridge_exit():

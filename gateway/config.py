@@ -976,6 +976,10 @@ def load_gateway_config() -> GatewayConfig:
                     )
                 if "reply_prefix" in platform_cfg:
                     bridged["reply_prefix"] = platform_cfg["reply_prefix"]
+                if "send_presence" in platform_cfg:
+                    bridged["send_presence"] = platform_cfg["send_presence"]
+                if "typing_indicators" in platform_cfg:
+                    bridged["typing_indicators"] = platform_cfg["typing_indicators"]
                 if "reply_in_thread" in platform_cfg:
                     bridged["reply_in_thread"] = platform_cfg["reply_in_thread"]
                 if "require_mention" in platform_cfg:
@@ -1220,6 +1224,11 @@ def load_gateway_config() -> GatewayConfig:
                     if isinstance(gaf, list):
                         gaf = ",".join(str(v) for v in gaf)
                     os.environ["WHATSAPP_GROUP_ALLOWED_USERS"] = str(gaf)
+                presence = whatsapp_cfg.get("send_presence")
+                if presence is None:
+                    presence = whatsapp_cfg.get("typing_indicators")
+                if presence is not None and not os.getenv("WHATSAPP_SEND_PRESENCE"):
+                    os.environ["WHATSAPP_SEND_PRESENCE"] = str(presence).lower()
 
             # Signal settings → env vars (env vars take precedence)
             signal_cfg = yaml_cfg.get("signal", {})

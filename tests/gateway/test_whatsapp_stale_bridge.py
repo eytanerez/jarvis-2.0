@@ -53,6 +53,7 @@ def _make_adapter(bridge_script: str = "/tmp/test-bridge.js",
     adapter._bridge_log = None
     adapter._bridge_process = None
     adapter._reply_prefix = None
+    adapter._send_presence = True
     adapter._running = False
     adapter._message_handler = None
     adapter._fatal_error_code = None

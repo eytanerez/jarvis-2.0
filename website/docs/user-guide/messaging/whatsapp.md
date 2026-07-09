@@ -129,6 +129,7 @@ whatsapp:
 
 - `unauthorized_dm_behavior: pair` is the global default. Unknown DM senders get a pairing code.
 - `whatsapp.unauthorized_dm_behavior: ignore` makes WhatsApp stay silent for unauthorized DMs, which is usually the better choice for a private number.
+- `whatsapp.send_presence: false` keeps the Baileys linked device marked unavailable and disables typing indicators, while still allowing outbound sends.
 
 Then start the gateway:
 

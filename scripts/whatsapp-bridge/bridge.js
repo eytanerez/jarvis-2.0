@@ -77,6 +77,15 @@ const REPLY_PREFIX = process.env.WHATSAPP_REPLY_PREFIX === undefined
   : process.env.WHATSAPP_REPLY_PREFIX.replace(/\\n/g, '\n');
 const MAX_MESSAGE_LENGTH = parseInt(process.env.WHATSAPP_MAX_MESSAGE_LENGTH || '4096', 10);
 const CHUNK_DELAY_MS = parseInt(process.env.WHATSAPP_CHUNK_DELAY_MS || '300', 10);
+function envBool(name, defaultVal) {
+  const raw = process.env[name];
+  if (raw === undefined) return defaultVal;
+  const value = String(raw).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(value)) return true;
+  if (['0', 'false', 'no', 'off'].includes(value)) return false;
+  return defaultVal;
+}
+const SEND_PRESENCE = envBool('WHATSAPP_SEND_PRESENCE', true);
 // Per-call timeout for sock.sendMessage(). Baileys occasionally hangs forever
 // when uploading media to WhatsApp servers (and, less often, on text sends),
 // which pins the bridge's HTTP handler until the upstream aiohttp timeout
@@ -97,6 +106,13 @@ function sendWithTimeout(chatId, payload, timeoutMs = SEND_TIMEOUT_MS) {
   });
   return Promise.race([sock.sendMessage(chatId, payload), timeoutPromise])
     .finally(() => clearTimeout(timer));
+}
+
+async function restoreUnavailablePresence() {
+  if (SEND_PRESENCE || !sock || connectionState !== 'connected') return;
+  try {
+    await sock.sendPresenceUpdate('unavailable');
+  } catch {}
 }
 
 function formatOutgoingMessage(message) {
@@ -248,6 +264,7 @@ async function startSocket() {
     } else if (connection === 'open') {
       connectionState = 'connected';
       console.log('✅ WhatsApp connected!');
+      restoreUnavailablePresence();
       if (PAIR_ONLY) {
         console.log('✅ Pairing complete. Credentials saved.');
         // Give Baileys a moment to flush creds, then exit cleanly
@@ -539,6 +556,8 @@ app.post('/send', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  } finally {
+    await restoreUnavailablePresence();
   }
 });
 
@@ -573,6 +592,8 @@ app.post('/edit', async (req, res) => {
     res.json({ success: true, messageIds });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  } finally {
+    await restoreUnavailablePresence();
   }
 });
 
@@ -669,6 +690,8 @@ app.post('/send-media', async (req, res) => {
     res.json({ success: true, messageId: sent?.key?.id });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  } finally {
+    await restoreUnavailablePresence();
   }
 });
 
@@ -680,6 +703,11 @@ app.post('/typing', async (req, res) => {
 
   const { chatId } = req.body;
   if (!chatId) return res.status(400).json({ error: 'chatId required' });
+
+  if (!SEND_PRESENCE) {
+    await restoreUnavailablePresence();
+    return res.json({ success: true, skipped: true });
+  }
 
   try {
     await sock.sendPresenceUpdate('composing', chatId);
