@@ -5415,6 +5415,19 @@ def _desktop_linux_sandbox_fixup(packaged_executable: Path) -> bool:
     return True
 
 
+# Self-signed identity (see docs/macos-local-codesigning.md) used to sign
+# locally-built desktop app bundles so every rebuild — including headless
+# self-update rebuilds — shares one stable code-signing identity instead of
+# each getting its own throwaway ad-hoc signature. macOS's permission system
+# (TCC: Accessibility, Microphone, etc.) keys grants to that identity, so an
+# unstable one meant every self-update looked like a brand-new app and reset
+# every permission. A real Developer ID Application certificate (which
+# requires a paid Apple Developer Program membership) does the same job and
+# additionally supports notarization — this identity is the free substitute
+# for a single-user, self-hosted install that never leaves this Mac.
+DESKTOP_LOCAL_CODESIGN_IDENTITY = "Jarvis Local Code Signing"
+
+
 def cmd_gui(args: argparse.Namespace):
     """Build and launch the native Electron desktop GUI."""
     desktop_dir = PROJECT_ROOT / "apps" / "desktop"
@@ -5429,6 +5442,12 @@ def cmd_gui(args: argparse.Namespace):
         pass
 
     env = os.environ.copy()
+    if sys.platform == "darwin" and not (env.get("CSC_LINK") or env.get("APPLE_SIGNING_IDENTITY")):
+        # Only fill in the stable local identity when the caller hasn't
+        # already configured a real one (e.g. a future paid Developer ID) —
+        # never override an intentional signing setup.
+        env["CSC_NAME"] = DESKTOP_LOCAL_CODESIGN_IDENTITY
+        env["APPLE_SIGNING_IDENTITY"] = DESKTOP_LOCAL_CODESIGN_IDENTITY
     if getattr(args, "fake_boot", False):
         env["JARVIS_DESKTOP_BOOT_FAKE"] = "1"
     if getattr(args, "ignore_existing", False):
