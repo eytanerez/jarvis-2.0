@@ -3104,6 +3104,19 @@ def _mirror_subagent_to_child(event_type: str, payload: dict) -> None:
             _child_mirrors.pop(child_key, None)
 
 
+def _on_reasoning_delta(sid: str, text: Any) -> None:
+    """Mirror reasoning tokens into the inflight-turn snapshot, the same way
+    ``_stream`` mirrors assistant reply tokens — so a spectating device sees
+    reasoning-so-far, not just the reply-so-far. Best-effort: a session that
+    has since been torn down just skips the append.
+    """
+    session = _sessions.get(sid)
+    if session is None:
+        return
+    with session["history_lock"]:
+        _append_inflight_reasoning(session, text)
+
+
 def _agent_cbs(sid: str) -> dict:
     return {
         "tool_start_callback": lambda tc_id, name, args: _on_tool_start(
@@ -3118,7 +3131,8 @@ def _agent_cbs(sid: str) -> dict:
         "tool_gen_callback": lambda name: _tool_progress_enabled(sid)
         and _emit("tool.generating", sid, {"name": name}),
         "thinking_callback": lambda text: _emit("thinking.delta", sid, {"text": text}),
-        "reasoning_callback": lambda text: _emit(
+        "reasoning_callback": lambda text: _on_reasoning_delta(sid, text)
+        or _emit(
             "reasoning.delta",
             sid,
             {"text": text, **({"verbose": True} if _session_verbose(sid) else {})},
@@ -4151,6 +4165,7 @@ def _start_inflight_turn(session: dict, text: Any) -> None:
     now = time.time()
     session["inflight_turn"] = {
         "assistant": "",
+        "reasoning": "",
         "started_at": now,
         "streaming": True,
         "updated_at": now,
@@ -4171,6 +4186,19 @@ def _append_inflight_delta(session: dict, delta: Any) -> None:
     session["inflight_turn"] = turn
 
 
+def _append_inflight_reasoning(session: dict, text: Any) -> None:
+    text = "" if text is None else str(text)
+    if not text:
+        return
+    turn = session.get("inflight_turn")
+    if not isinstance(turn, dict):
+        turn = {"assistant": "", "streaming": True, "user": ""}
+    turn["reasoning"] = f"{turn.get('reasoning') or ''}{text}"
+    turn["streaming"] = True
+    turn["updated_at"] = time.time()
+    session["inflight_turn"] = turn
+
+
 def _clear_inflight_turn(session: dict) -> None:
     session["inflight_turn"] = None
 
@@ -4181,14 +4209,18 @@ def _inflight_snapshot(session: dict) -> dict | None:
         return None
     user = str(turn.get("user") or "").strip()
     assistant = str(turn.get("assistant") or "")
+    reasoning = str(turn.get("reasoning") or "")
     streaming = bool(turn.get("streaming"))
-    if not user and not assistant and not streaming:
+    if not user and not assistant and not reasoning and not streaming:
         return None
-    return {
+    result = {
         "assistant": assistant,
         "streaming": streaming,
         "user": user,
     }
+    if reasoning:
+        result["reasoning"] = reasoning
+    return result
 
 
 # ── Methods: session ─────────────────────────────────────────────────
@@ -6629,8 +6661,11 @@ def _run_prompt_submit(rid, sid: str, session: dict, text: Any) -> None:
                 "stream_callback": _stream,
             }
             try:
-                if "task_id" in inspect.signature(agent.run_conversation).parameters:
+                _run_conversation_params = inspect.signature(agent.run_conversation).parameters
+                if "task_id" in _run_conversation_params:
                     run_kwargs["task_id"] = session["session_key"]
+                if "persist_user_message" in _run_conversation_params:
+                    run_kwargs["persist_user_message"] = _inflight_text(text)
             except (TypeError, ValueError):
                 pass
             result = agent.run_conversation(run_message, **run_kwargs)
