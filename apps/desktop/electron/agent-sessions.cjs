@@ -24,8 +24,15 @@ const os = require('node:os')
 const path = require('node:path')
 const crypto = require('node:crypto')
 const { spawn } = require('node:child_process')
+const { defaultJarvisHome } = require('./mobile-link-store.cjs')
 
 const PROVIDERS = ['claude', 'codex']
+// `claude setup-token` mints a long-lived (1yr) OAuth token meant exactly for
+// headless/automation use — unlike the short-lived (~8h) interactive session
+// token, it isn't dependent on a long-running process's background refresh
+// timer, which is what made cold, one-off `claude -p` spawns intermittently
+// report "Not logged in" (see claude-cli-headless-auth-gotcha memory).
+const CLAUDE_AUTH_TOKEN_FILE = 'agent-auth.json'
 
 const SESSION_LIST_LIMIT_MAX = 60
 const MESSAGE_LIMIT_DEFAULT = 50
@@ -403,11 +410,24 @@ function codexSessionIdFromFilename(filename) {
   return match ? match[1] : null
 }
 
+/** `{ claudeCodeOauthToken: "sk-ant-oat01-..." }` written once via `claude setup-token`. */
+function readClaudeAuthToken(jarvisHome) {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(jarvisHome, CLAUDE_AUTH_TOKEN_FILE), 'utf8'))
+    const token = typeof parsed.claudeCodeOauthToken === 'string' ? parsed.claudeCodeOauthToken.trim() : ''
+
+    return token || null
+  } catch {
+    return null
+  }
+}
+
 // ── Factory ────────────────────────────────────────────────────────────
 
 function createAgentSessions({
   claudeDir = path.join(os.homedir(), '.claude'),
   codexDir = path.join(os.homedir(), '.codex'),
+  jarvisHome = defaultJarvisHome(),
   log = () => {},
   now = Date.now,
   spawnImpl = spawn
@@ -463,7 +483,17 @@ function createAgentSessions({
     const currentPath = process.env.PATH || ''
     const merged = [...extra.filter(entry => !currentPath.includes(entry)), currentPath].join(':')
 
-    return { ...process.env, PATH: merged }
+    const env = { ...process.env, PATH: merged }
+    const claudeToken = readClaudeAuthToken(jarvisHome)
+
+    // Prefer the long-lived setup-token over whatever short-lived session
+    // credential this Mac's interactive Claude Code happens to hold right
+    // now — that one silently expires between phone-triggered spawns.
+    if (claudeToken) {
+      env.CLAUDE_CODE_OAUTH_TOKEN = claudeToken
+    }
+
+    return env
   }
 
   function providers() {
@@ -996,5 +1026,7 @@ module.exports = {
   parseClaudeTranscript,
   parseCodexTranscript,
   codexSessionIdFromFilename,
-  summarizeToolInput
+  readClaudeAuthToken,
+  summarizeToolInput,
+  CLAUDE_AUTH_TOKEN_FILE
 }

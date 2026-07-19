@@ -9,6 +9,7 @@ const {
   createAgentSessions,
   parseClaudeTranscript,
   parseCodexTranscript,
+  readClaudeAuthToken,
   summarizeToolInput
 } = require('./agent-sessions.cjs')
 
@@ -145,6 +146,7 @@ function makeFakeStores() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sessions-'))
   const claudeDir = path.join(root, '.claude')
   const codexDir = path.join(root, '.codex')
+  const jarvisHome = path.join(root, '.jarvis')
   const projectDir = path.join(claudeDir, 'projects', '-tmp-proj')
   const claudeCwd = path.join(root, 'claude-proj')
   const codexCwd = path.join(root, 'codex-proj')
@@ -178,12 +180,12 @@ function makeFakeStores() {
     JSON.stringify({ id: codexSession, thread_name: 'Indexed title', updated_at: '2026-07-19T02:10:00Z' })
   )
 
-  return { claudeCwd, claudeDir, claudeSession, codexCwd, codexDir, codexSession, root }
+  return { claudeCwd, claudeDir, claudeSession, codexCwd, codexDir, codexSession, jarvisHome, root }
 }
 
 test('listSessions + readMessages across both providers', () => {
-  const { claudeDir, claudeSession, codexDir, codexSession } = makeFakeStores()
-  const agents = createAgentSessions({ claudeDir, codexDir })
+  const { claudeDir, claudeSession, codexDir, codexSession, jarvisHome } = makeFakeStores()
+  const agents = createAgentSessions({ claudeDir, codexDir, jarvisHome })
 
   const claudeSessions = agents.listSessions('claude')
 
@@ -208,7 +210,7 @@ test('listSessions + readMessages across both providers', () => {
 })
 
 test('sendPrompt spawns the right CLI shapes and reports run lifecycle', async () => {
-  const { claudeCwd, claudeDir, claudeSession, codexCwd, codexDir, codexSession } = makeFakeStores()
+  const { claudeCwd, claudeDir, claudeSession, codexCwd, codexDir, codexSession, jarvisHome } = makeFakeStores()
   const spawned = []
 
   const fakeSpawn = (binary, args, options) => {
@@ -228,7 +230,7 @@ test('sendPrompt spawns the right CLI shapes and reports run lifecycle', async (
     return child
   }
 
-  const agents = createAgentSessions({ claudeDir, codexDir, spawnImpl: fakeSpawn })
+  const agents = createAgentSessions({ claudeDir, codexDir, jarvisHome, spawnImpl: fakeSpawn })
   const events = []
 
   agents.onRunEvent(event => events.push(event))
@@ -265,7 +267,7 @@ test('sendPrompt spawns the right CLI shapes and reports run lifecycle', async (
 })
 
 test('sendPrompt inserts --model only when a model is given, for both providers and fresh/resumed sessions', () => {
-  const { claudeDir, claudeSession, codexDir, codexSession } = makeFakeStores()
+  const { claudeDir, claudeSession, codexDir, codexSession, jarvisHome } = makeFakeStores()
   const spawned = []
 
   const fakeSpawn = (binary, args) => {
@@ -280,7 +282,7 @@ test('sendPrompt inserts --model only when a model is given, for both providers 
     }
   }
 
-  const agents = createAgentSessions({ claudeDir, codexDir, spawnImpl: fakeSpawn })
+  const agents = createAgentSessions({ claudeDir, codexDir, jarvisHome, spawnImpl: fakeSpawn })
 
   agents.sendPrompt('claude', { model: 'claude-opus-4-8', sessionId: claudeSession, text: 'go' })
   assert.ok(spawned[0].includes('--model'))
@@ -302,7 +304,7 @@ test('sendPrompt inserts --model only when a model is given, for both providers 
 })
 
 test('new claude session gets a fresh uuid; new codex session resolves id from stdout', () => {
-  const { claudeDir, codexDir } = makeFakeStores()
+  const { claudeDir, codexDir, jarvisHome } = makeFakeStores()
   const spawned = []
 
   const fakeSpawn = (binary, args, options) => {
@@ -324,7 +326,7 @@ test('new claude session gets a fresh uuid; new codex session resolves id from s
     return child
   }
 
-  const agents = createAgentSessions({ claudeDir, codexDir, spawnImpl: fakeSpawn })
+  const agents = createAgentSessions({ claudeDir, codexDir, jarvisHome, spawnImpl: fakeSpawn })
   const events = []
 
   agents.onRunEvent(event => events.push(event))
@@ -347,8 +349,8 @@ test('new claude session gets a fresh uuid; new codex session resolves id from s
 })
 
 test('watch fires on file growth and unwatch stops it', async () => {
-  const { claudeDir, claudeSession, codexDir } = makeFakeStores()
-  const agents = createAgentSessions({ claudeDir, codexDir })
+  const { claudeDir, claudeSession, codexDir, jarvisHome } = makeFakeStores()
+  const agents = createAgentSessions({ claudeDir, codexDir, jarvisHome })
 
   const hits = []
   const unwatch = agents.watch('claude', claudeSession, payload => hits.push(payload))
@@ -362,5 +364,74 @@ test('watch fires on file growth and unwatch stops it', async () => {
   assert.equal(hits[0].session_id, claudeSession)
 
   unwatch()
+  agents.dispose()
+})
+
+// ── Long-lived Claude auth token (claude setup-token) ──────────────────
+
+test('readClaudeAuthToken reads a stored token and is null when absent/malformed', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-auth-'))
+
+  assert.equal(readClaudeAuthToken(root), null)
+
+  fs.writeFileSync(path.join(root, 'agent-auth.json'), JSON.stringify({ claudeCodeOauthToken: 'sk-ant-oat01-fake' }))
+  assert.equal(readClaudeAuthToken(root), 'sk-ant-oat01-fake')
+
+  fs.writeFileSync(path.join(root, 'agent-auth.json'), 'not json')
+  assert.equal(readClaudeAuthToken(root), null)
+
+  fs.writeFileSync(path.join(root, 'agent-auth.json'), JSON.stringify({ claudeCodeOauthToken: '   ' }))
+  assert.equal(readClaudeAuthToken(root), null)
+})
+
+test('sendPrompt injects the stored long-lived token as CLAUDE_CODE_OAUTH_TOKEN', () => {
+  const { claudeDir, claudeSession, codexDir, jarvisHome } = makeFakeStores()
+
+  fs.mkdirSync(jarvisHome, { recursive: true })
+  fs.writeFileSync(path.join(jarvisHome, 'agent-auth.json'), JSON.stringify({ claudeCodeOauthToken: 'sk-ant-oat01-longlived' }))
+
+  const spawned = []
+  const fakeSpawn = (binary, args, options) => {
+    spawned.push(options)
+
+    return {
+      kill: () => {},
+      on: () => {},
+      stderr: { on: () => {} },
+      stdin: { end: () => {}, write: () => {} },
+      stdout: { on: () => {} }
+    }
+  }
+
+  const agents = createAgentSessions({ claudeDir, codexDir, jarvisHome, spawnImpl: fakeSpawn })
+
+  agents.sendPrompt('claude', { sessionId: claudeSession, text: 'go' })
+  assert.equal(spawned[0].env.CLAUDE_CODE_OAUTH_TOKEN, 'sk-ant-oat01-longlived')
+
+  agents.sendPrompt('codex', { cwd: '/tmp', text: 'go' })
+  assert.equal(spawned[1].env.CLAUDE_CODE_OAUTH_TOKEN, 'sk-ant-oat01-longlived')
+
+  agents.dispose()
+})
+
+test('sendPrompt omits CLAUDE_CODE_OAUTH_TOKEN when no token file is stored', () => {
+  const { claudeDir, claudeSession, codexDir, jarvisHome } = makeFakeStores()
+  const spawned = []
+  const fakeSpawn = (binary, args, options) => {
+    spawned.push(options)
+
+    return {
+      kill: () => {},
+      on: () => {},
+      stderr: { on: () => {} },
+      stdin: { end: () => {}, write: () => {} },
+      stdout: { on: () => {} }
+    }
+  }
+
+  const agents = createAgentSessions({ claudeDir, codexDir, jarvisHome, spawnImpl: fakeSpawn })
+
+  agents.sendPrompt('claude', { sessionId: claudeSession, text: 'go' })
+  assert.equal('CLAUDE_CODE_OAUTH_TOKEN' in spawned[0].env, false)
   agents.dispose()
 })
