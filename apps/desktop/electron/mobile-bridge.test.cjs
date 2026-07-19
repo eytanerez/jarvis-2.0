@@ -1096,6 +1096,7 @@ test('collectLanUrls includes the mDNS name and only IPv4 externals', () => {
 
 function makeFakeAgents() {
   const watches = []
+  const sendCalls = []
   let runCallback = null
 
   return {
@@ -1121,7 +1122,12 @@ function makeFakeAgents() {
       total: 1
     }),
     runningRuns: () => [],
-    sendPrompt: (provider, { sessionId, text }) => ({ run_id: 'run-1', session_id: sessionId || 'fresh-id' }),
+    sendCalls,
+    sendPrompt: (provider, params) => {
+      sendCalls.push({ provider, ...params })
+
+      return { run_id: 'run-1', session_id: params.sessionId || 'fresh-id' }
+    },
     stop: () => true,
     watch(provider, sessionId, callback) {
       const entry = { callback, provider, sessionId, stopped: false }
@@ -1196,6 +1202,37 @@ test('agent.* rpcs are answered locally without touching the upstream', async ()
     reply = await phone.next()
     while (reply && reply.type !== 'rpc') reply = await phone.next()
     assert.equal(fakeAgents.watches[0].stopped, true)
+
+    phone.close()
+  } finally {
+    bridge.stop()
+  }
+})
+
+test('agent.send passes a well-formed model through and strips garbage', async () => {
+  const fakeAgents = makeFakeAgents()
+  const { bridge } = await makeBridge({ agentSessionsImpl: fakeAgents })
+
+  try {
+    const paired = await pairPhone(bridge)
+    const phone = await connectDevice(bridge, { ...paired, lanUrl: paired.lanUrl })
+
+    phone.send('rpc', {
+      frame: { id: 1, jsonrpc: '2.0', method: 'agent.send', params: { model: 'claude-opus-4-8', provider: 'claude', session_id: 's1', text: 'go' } }
+    })
+
+    let reply = await phone.next()
+
+    while (reply && reply.type !== 'rpc') reply = await phone.next()
+    assert.equal(fakeAgents.sendCalls[0].model, 'claude-opus-4-8')
+
+    // A garbage/injection-shaped value is dropped rather than forwarded.
+    phone.send('rpc', {
+      frame: { id: 2, jsonrpc: '2.0', method: 'agent.send', params: { model: 'not a model; rm -rf', provider: 'claude', session_id: 's1', text: 'go' } }
+    })
+    reply = await phone.next()
+    while (reply && reply.type !== 'rpc') reply = await phone.next()
+    assert.equal(fakeAgents.sendCalls[1].model, null)
 
     phone.close()
   } finally {

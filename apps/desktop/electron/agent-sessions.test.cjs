@@ -264,6 +264,43 @@ test('sendPrompt spawns the right CLI shapes and reports run lifecycle', async (
   agents.dispose()
 })
 
+test('sendPrompt inserts --model only when a model is given, for both providers and fresh/resumed sessions', () => {
+  const { claudeDir, claudeSession, codexDir, codexSession } = makeFakeStores()
+  const spawned = []
+
+  const fakeSpawn = (binary, args) => {
+    spawned.push(args)
+
+    return {
+      kill: () => {},
+      on: () => {},
+      stderr: { on: () => {} },
+      stdin: { end: () => {}, write: () => {} },
+      stdout: { on: () => {} }
+    }
+  }
+
+  const agents = createAgentSessions({ claudeDir, codexDir, spawnImpl: fakeSpawn })
+
+  agents.sendPrompt('claude', { model: 'claude-opus-4-8', sessionId: claudeSession, text: 'go' })
+  assert.ok(spawned[0].includes('--model'))
+  assert.equal(spawned[0][spawned[0].indexOf('--model') + 1], 'claude-opus-4-8')
+
+  agents.sendPrompt('claude', { cwd: '/tmp', text: 'fresh' })
+  assert.equal(spawned[1].includes('--model'), false)
+
+  agents.sendPrompt('codex', { model: 'gpt-5.6-sol', sessionId: codexSession, text: 'go' })
+  assert.ok(spawned[2].includes('--model'))
+  assert.equal(spawned[2][spawned[2].indexOf('--model') + 1], 'gpt-5.6-sol')
+  // --model must land before the `--` separator, not after the prompt.
+  assert.ok(spawned[2].indexOf('--model') < spawned[2].indexOf('--'))
+
+  agents.sendPrompt('codex', { cwd: '/tmp', text: 'fresh codex' })
+  assert.equal(spawned[3].includes('--model'), false)
+
+  agents.dispose()
+})
+
 test('new claude session gets a fresh uuid; new codex session resolves id from stdout', () => {
   const { claudeDir, codexDir } = makeFakeStores()
   const spawned = []

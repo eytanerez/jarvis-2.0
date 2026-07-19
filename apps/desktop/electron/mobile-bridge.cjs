@@ -226,6 +226,11 @@ function relayDeviceEndpoint(relayUrl, hostId) {
 const AGENT_PROVIDERS = new Set(['claude', 'codex'])
 /** Per-phone cap on concurrently watched agent transcripts. */
 const AGENT_WATCH_LIMIT = 4
+// A --model value is spawned as its own argv element (no shell involved), so
+// there's no injection risk regardless of content — this charset restriction
+// is just hygiene against obviously-garbage input, same spirit as the
+// existing MOBILE_MODEL_VALUE_RE for Jarvis's own config.set.
+const AGENT_MODEL_VALUE_RE = /^[\w.:@-]{1,100}$/
 
 function createMobileBridge({
   WebSocketImpl = null,
@@ -704,14 +709,18 @@ function createMobileBridge({
           rpcResult(session, rpc.id, agents.readMessages(provider, sessionId, { limit: params.limit }))
 
           return
-        case 'agent.send':
+        case 'agent.send': {
+          const rawModel = typeof params.model === 'string' ? params.model.trim() : ''
+
           rpcResult(session, rpc.id, agents.sendPrompt(provider, {
             cwd: typeof params.cwd === 'string' && params.cwd ? params.cwd : null,
+            model: AGENT_MODEL_VALUE_RE.test(rawModel) ? rawModel : null,
             sessionId: sessionId || null,
             text: String(params.text || '')
           }))
 
           return
+        }
         case 'agent.watch': {
           const key = `${provider}:${sessionId}`
 

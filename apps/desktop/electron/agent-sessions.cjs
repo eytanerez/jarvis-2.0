@@ -703,13 +703,15 @@ function createAgentSessions({
 
   // ── Sending prompts ──────────────────────────────────────────────────
 
-  function buildSpawnPlan(provider, sessionId, text, cwd) {
+  function buildSpawnPlan(provider, sessionId, text, cwd, model) {
+    const modelArgs = model ? ['--model', model] : []
+
     if (provider === 'claude') {
       const binary = findBinary('claude')
 
       if (sessionId) {
         return {
-          args: ['-p', '--resume', sessionId, '--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits'],
+          args: ['-p', '--resume', sessionId, ...modelArgs, '--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits'],
           binary,
           sessionId,
           stdin: text
@@ -719,7 +721,7 @@ function createAgentSessions({
       const freshId = crypto.randomUUID()
 
       return {
-        args: ['-p', '--session-id', freshId, '--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits'],
+        args: ['-p', '--session-id', freshId, ...modelArgs, '--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits'],
         binary,
         sessionId: freshId,
         stdin: text
@@ -730,7 +732,7 @@ function createAgentSessions({
 
     if (sessionId) {
       return {
-        args: ['exec', 'resume', sessionId, '--skip-git-repo-check', '--json', '--', text],
+        args: ['exec', 'resume', sessionId, '--skip-git-repo-check', ...modelArgs, '--json', '--', text],
         binary,
         sessionId,
         stdin: null
@@ -738,7 +740,7 @@ function createAgentSessions({
     }
 
     return {
-      args: ['exec', '--skip-git-repo-check', '--json', '--', text],
+      args: ['exec', '--skip-git-repo-check', ...modelArgs, '--json', '--', text],
       binary,
       // Unknown until the CLI reports it (stdout JSON) or the rollout appears.
       sessionId: null,
@@ -763,7 +765,7 @@ function createAgentSessions({
     return null
   }
 
-  function sendPrompt(provider, { sessionId = null, text, cwd = null } = {}) {
+  function sendPrompt(provider, { sessionId = null, text, cwd = null, model = null } = {}) {
     if (!PROVIDERS.includes(provider)) return { error: 'unknown_provider' }
 
     const prompt = String(text || '').trim()
@@ -784,7 +786,7 @@ function createAgentSessions({
       workDir = os.homedir()
     }
 
-    const plan = buildSpawnPlan(provider, sessionId, prompt, workDir)
+    const plan = buildSpawnPlan(provider, sessionId, prompt, workDir, model || null)
     const runId = crypto.randomUUID()
     let child = null
 
