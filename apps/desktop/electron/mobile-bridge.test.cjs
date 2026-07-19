@@ -1091,3 +1091,114 @@ test('collectLanUrls includes the mDNS name and only IPv4 externals', () => {
   assert.ok(urls.every(url => url.startsWith('ws://') && url.endsWith(':8776/link')))
   assert.equal(collectLanUrls(null).length, 0)
 })
+
+// ── Agent sessions (Claude Code / Codex) RPCs ──────────────────────────
+
+function makeFakeAgents() {
+  const watches = []
+  let runCallback = null
+
+  return {
+    dispose: () => {},
+    emitRun(event) {
+      runCallback?.(event)
+    },
+    listSessions: provider => [{ cwd: '/tmp', id: 's1', provider, running: false, title: 'Fix bug', updated_at: 123 }],
+    onRunEvent(callback) {
+      runCallback = callback
+
+      return () => {
+        runCallback = null
+      }
+    },
+    providers: () => [{ available: true, id: 'claude', label: 'Claude Code' }],
+    readMessages: (provider, sessionId) => ({
+      cwd: '/tmp',
+      messages: [{ id: 'm1', role: 'user', text: `hello ${provider}/${sessionId}`, thinking: '', tools: [], ts: 1 }],
+      model: 'claude-fable-5',
+      running: false,
+      sending: false,
+      total: 1
+    }),
+    runningRuns: () => [],
+    sendPrompt: (provider, { sessionId, text }) => ({ run_id: 'run-1', session_id: sessionId || 'fresh-id' }),
+    stop: () => true,
+    watch(provider, sessionId, callback) {
+      const entry = { callback, provider, sessionId, stopped: false }
+
+      watches.push(entry)
+
+      return () => {
+        entry.stopped = true
+      }
+    },
+    watches
+  }
+}
+
+test('agent.* rpcs are answered locally without touching the upstream', async () => {
+  const fakeAgents = makeFakeAgents()
+  const { bridge } = await makeBridge({ agentSessionsImpl: fakeAgents })
+
+  try {
+    const paired = await pairPhone(bridge)
+    const phone = await connectDevice(bridge, { ...paired, lanUrl: paired.lanUrl })
+
+    // No upstream socket exists in this test setup — local answers only.
+    phone.send('rpc', { frame: { id: 1, jsonrpc: '2.0', method: 'agent.sessions', params: { provider: 'claude' } } })
+
+    let reply = await phone.next()
+
+    while (reply && reply.type !== 'rpc') reply = await phone.next()
+
+    assert.equal(reply.body.frame.id, 1)
+    assert.equal(reply.body.frame.result.sessions[0].title, 'Fix bug')
+
+    phone.send('rpc', { frame: { id: 2, jsonrpc: '2.0', method: 'agent.messages', params: { provider: 'codex', session_id: 's1' } } })
+    reply = await phone.next()
+    while (reply && reply.type !== 'rpc') reply = await phone.next()
+    assert.equal(reply.body.frame.result.messages[0].text, 'hello codex/s1')
+
+    // Unknown provider is refused with a param error.
+    phone.send('rpc', { frame: { id: 3, jsonrpc: '2.0', method: 'agent.sessions', params: { provider: 'gemini' } } })
+    reply = await phone.next()
+    while (reply && reply.type !== 'rpc') reply = await phone.next()
+    assert.ok(reply.body.frame.error)
+    assert.match(reply.body.frame.error.message, /unknown agent provider/)
+
+    // Sending returns the run ack.
+    phone.send('rpc', { frame: { id: 4, jsonrpc: '2.0', method: 'agent.send', params: { provider: 'claude', session_id: 's1', text: 'go' } } })
+    reply = await phone.next()
+    while (reply && reply.type !== 'rpc') reply = await phone.next()
+    assert.equal(reply.body.frame.result.run_id, 'run-1')
+
+    // Watch → transcript change pushes an event frame.
+    phone.send('rpc', { frame: { id: 5, jsonrpc: '2.0', method: 'agent.watch', params: { provider: 'claude', session_id: 's1' } } })
+    reply = await phone.next()
+    while (reply && reply.type !== 'rpc') reply = await phone.next()
+    assert.equal(reply.body.frame.result.ok, true)
+    assert.equal(fakeAgents.watches.length, 1)
+
+    fakeAgents.watches[0].callback({ provider: 'claude', session_id: 's1' })
+    reply = await phone.next()
+    while (reply && !(reply.type === 'rpc' && reply.body.frame.method === 'event')) reply = await phone.next()
+    assert.equal(reply.body.frame.params.type, 'agent.update')
+    assert.equal(reply.body.frame.params.payload.session_id, 's1')
+
+    // Run lifecycle events broadcast to authed phones.
+    fakeAgents.emitRun({ ok: true, provider: 'claude', run_id: 'run-1', session_id: 's1', type: 'agent.run_done' })
+    reply = await phone.next()
+    while (reply && !(reply.type === 'rpc' && reply.body.frame.method === 'event')) reply = await phone.next()
+    assert.equal(reply.body.frame.params.type, 'agent.run_done')
+
+    // Unwatch stops the watcher.
+    phone.send('rpc', { frame: { id: 6, jsonrpc: '2.0', method: 'agent.unwatch', params: { provider: 'claude', session_id: 's1' } } })
+    reply = await phone.next()
+    while (reply && reply.type !== 'rpc') reply = await phone.next()
+    assert.equal(fakeAgents.watches[0].stopped, true)
+
+    phone.close()
+  } finally {
+    bridge.stop()
+  }
+})

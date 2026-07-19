@@ -35,6 +35,7 @@ const {
   sealEnvelope
 } = require('./mobile-link-crypto.cjs')
 const { createMobileLinkStore, defaultJarvisHome } = require('./mobile-link-store.cjs')
+const { createAgentSessions } = require('./agent-sessions.cjs')
 
 const LAN_PORT_DEFAULT = 8776
 const LAN_PORT_ATTEMPTS = 10
@@ -59,6 +60,14 @@ const HTTP_RESPONSE_CHUNK_CHARS = 96 * 1024
  * reload.env, …) — the phone approves commands, it doesn't run them.
  */
 const RPC_ALLOWED_METHODS = new Set([
+  'agent.messages',
+  'agent.providers',
+  'agent.runs',
+  'agent.send',
+  'agent.sessions',
+  'agent.stop',
+  'agent.unwatch',
+  'agent.watch',
   'approval.respond',
   'clarify.respond',
   'config.get',
@@ -213,9 +222,15 @@ function relayDeviceEndpoint(relayUrl, hostId) {
   return `${base}/device/${hostId}`
 }
 
+/** Providers the phone may name in agent.* RPCs. */
+const AGENT_PROVIDERS = new Set(['claude', 'codex'])
+/** Per-phone cap on concurrently watched agent transcripts. */
+const AGENT_WATCH_LIMIT = 4
+
 function createMobileBridge({
   WebSocketImpl = null,
   WebSocketServerImpl = null,
+  agentSessionsImpl = null,
   fetchImpl = null,
   getDashboard = async () => null,
   hostName = defaultHostName(),
@@ -230,6 +245,10 @@ function createMobileBridge({
   relayPingIntervalMs = RELAY_PING_INTERVAL_MS
 } = {}) {
   const store = createMobileLinkStore({ dir: jarvisHome, log })
+  // Local Claude Code / Codex access — file reads + CLI spawns only, no
+  // gateway involvement, so the phone's agent tabs work even while the
+  // Jarvis brain is down.
+  const agents = agentSessionsImpl || createAgentSessions({ log, now })
 
   let identity = null
   let started = false
@@ -325,7 +344,8 @@ function createMobileBridge({
       seqOut: 0,
       upstream: null,
       upstreamTimer: null,
-      upstreamAttempt: 0
+      upstreamAttempt: 0,
+      agentWatches: new Map()
     }
 
     session.handshakeTimer = setTimeout(() => {
@@ -363,6 +383,15 @@ function createMobileBridge({
     session.closed = true
     clearTimeout(session.handshakeTimer)
     clearTimeout(session.upstreamTimer)
+
+    for (const unwatch of session.agentWatches.values()) {
+      try {
+        unwatch()
+      } catch {
+        void 0
+      }
+    }
+    session.agentWatches.clear()
 
     if (session.upstream) {
       try {
@@ -624,6 +653,115 @@ function createMobileBridge({
     send(session, 'rpc', { frame: { error: { code, message }, id: id ?? null, jsonrpc: '2.0' } })
   }
 
+  function rpcResult(session, id, result) {
+    send(session, 'rpc', { frame: { id: id ?? null, jsonrpc: '2.0', result } })
+  }
+
+  /** Server-push in the same envelope shape the gateway's events arrive in. */
+  function pushAgentEvent(session, type, payload) {
+    send(session, 'rpc', {
+      frame: {
+        jsonrpc: '2.0',
+        method: 'event',
+        params: { payload, session_id: null, type }
+      }
+    })
+  }
+
+  agents.onRunEvent(event => {
+    for (const session of sessions) {
+      if (session.authed) pushAgentEvent(session, event.type, event)
+    }
+  })
+
+  /**
+   * agent.* methods are answered locally — they read transcript files and
+   * spawn CLIs on this Mac, never touching the gateway upstream.
+   */
+  function handleAgentRpc(session, rpc) {
+    const params = rpc.params && typeof rpc.params === 'object' ? rpc.params : {}
+    const provider = String(params.provider || '')
+
+    if (rpc.method !== 'agent.providers' && rpc.method !== 'agent.runs' && !AGENT_PROVIDERS.has(provider)) {
+      rpcError(session, rpc.id, `unknown agent provider: ${provider}`, -32602)
+
+      return
+    }
+
+    const sessionId = typeof params.session_id === 'string' ? params.session_id : ''
+
+    try {
+      switch (rpc.method) {
+        case 'agent.providers':
+          rpcResult(session, rpc.id, { providers: agents.providers() })
+
+          return
+        case 'agent.sessions':
+          rpcResult(session, rpc.id, { sessions: agents.listSessions(provider, { limit: params.limit }) })
+
+          return
+        case 'agent.messages':
+          rpcResult(session, rpc.id, agents.readMessages(provider, sessionId, { limit: params.limit }))
+
+          return
+        case 'agent.send':
+          rpcResult(session, rpc.id, agents.sendPrompt(provider, {
+            cwd: typeof params.cwd === 'string' && params.cwd ? params.cwd : null,
+            sessionId: sessionId || null,
+            text: String(params.text || '')
+          }))
+
+          return
+        case 'agent.watch': {
+          const key = `${provider}:${sessionId}`
+
+          if (!session.agentWatches.has(key)) {
+            while (session.agentWatches.size >= AGENT_WATCH_LIMIT) {
+              const [oldestKey, oldestUnwatch] = session.agentWatches.entries().next().value
+
+              oldestUnwatch()
+              session.agentWatches.delete(oldestKey)
+            }
+
+            session.agentWatches.set(key, agents.watch(provider, sessionId, payload => {
+              pushAgentEvent(session, 'agent.update', payload)
+            }))
+          }
+
+          rpcResult(session, rpc.id, { ok: true })
+
+          return
+        }
+        case 'agent.unwatch': {
+          const key = `${provider}:${sessionId}`
+          const unwatch = session.agentWatches.get(key)
+
+          if (unwatch) {
+            unwatch()
+            session.agentWatches.delete(key)
+          }
+
+          rpcResult(session, rpc.id, { ok: true })
+
+          return
+        }
+        case 'agent.stop':
+          rpcResult(session, rpc.id, { ok: agents.stop(provider, sessionId) })
+
+          return
+        case 'agent.runs':
+          rpcResult(session, rpc.id, { runs: agents.runningRuns() })
+
+          return
+        default:
+          rpcError(session, rpc.id, `unknown agent method: ${rpc.method}`, -32601)
+      }
+    } catch (error) {
+      log(`[mobile] agent rpc failed ${rpc.method}: ${error.message}`)
+      rpcError(session, rpc.id, `agent rpc failed: ${error.message}`)
+    }
+  }
+
   function handleRpc(session, frame) {
     const rpc = frame.body?.frame
 
@@ -636,6 +774,12 @@ function createMobileBridge({
     if (!isRpcAllowedFromMobile(rpc)) {
       log(`[mobile] refused rpc method ${rpc.method} (${session.label})`)
       rpcError(session, rpc.id, `method not available from mobile: ${rpc.method}`, -32601)
+
+      return
+    }
+
+    if (typeof rpc.method === 'string' && rpc.method.startsWith('agent.')) {
+      handleAgentRpc(session, rpc)
 
       return
     }
@@ -1527,6 +1671,7 @@ function createMobileBridge({
 
       stopRelay()
       stopLanServer()
+      agents.dispose()
       started = false
     }
   }
