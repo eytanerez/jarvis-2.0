@@ -60,6 +60,8 @@ const HTTP_RESPONSE_CHUNK_CHARS = 96 * 1024
  * reload.env, …) — the phone approves commands, it doesn't run them.
  */
 const RPC_ALLOWED_METHODS = new Set([
+  'agent.command',
+  'agent.configure',
   'agent.messages',
   'agent.providers',
   'agent.runs',
@@ -226,11 +228,12 @@ function relayDeviceEndpoint(relayUrl, hostId) {
 const AGENT_PROVIDERS = new Set(['claude', 'codex'])
 /** Per-phone cap on concurrently watched agent transcripts. */
 const AGENT_WATCH_LIMIT = 4
-// A --model value is spawned as its own argv element (no shell involved), so
-// there's no injection risk regardless of content — this charset restriction
-// is just hygiene against obviously-garbage input, same spirit as the
-// existing MOBILE_MODEL_VALUE_RE for Jarvis's own config.set.
-const AGENT_MODEL_VALUE_RE = /^[\w.:@-]{1,100}$/
+// A --model/--effort value is spawned as its own argv element or JSON-RPC
+// field (no shell involved), so there's no injection risk regardless of
+// content — this charset restriction is just hygiene against obviously-
+// garbage input, same spirit as the existing MOBILE_MODEL_VALUE_RE for
+// Jarvis's own config.set.
+const AGENT_TOKEN_VALUE_RE = /^[\w.:@-]{1,100}$/
 
 function createMobileBridge({
   WebSocketImpl = null,
@@ -683,7 +686,18 @@ function createMobileBridge({
    * agent.* methods are answered locally — they read transcript files and
    * spawn CLIs on this Mac, never touching the gateway upstream.
    */
-  function handleAgentRpc(session, rpc) {
+  /** Validated model/effort token. Omission or malformed input is dropped;
+   * an explicit JSON null is preserved for agent.configure's "reset to
+   * provider default" action. */
+  function agentTokenParam(raw, { allowNull = false } = {}) {
+    if (allowNull && raw === null) return null
+
+    const trimmed = typeof raw === 'string' ? raw.trim() : ''
+
+    return AGENT_TOKEN_VALUE_RE.test(trimmed) ? trimmed : undefined
+  }
+
+  async function handleAgentRpc(session, rpc) {
     const params = rpc.params && typeof rpc.params === 'object' ? rpc.params : {}
     const provider = String(params.provider || '')
 
@@ -709,15 +723,51 @@ function createMobileBridge({
           rpcResult(session, rpc.id, agents.readMessages(provider, sessionId, { limit: params.limit }))
 
           return
-        case 'agent.send': {
-          const rawModel = typeof params.model === 'string' ? params.model.trim() : ''
-
-          rpcResult(session, rpc.id, agents.sendPrompt(provider, {
+        case 'agent.command':
+          rpcResult(session, rpc.id, await agents.runCommand(provider, {
+            command: typeof params.command === 'string' ? params.command : '',
             cwd: typeof params.cwd === 'string' && params.cwd ? params.cwd : null,
-            model: AGENT_MODEL_VALUE_RE.test(rawModel) ? rawModel : null,
-            sessionId: sessionId || null,
-            text: String(params.text || '')
+            sessionId: sessionId || null
           }))
+
+          return
+        case 'agent.send': {
+          const cwd = typeof params.cwd === 'string' && params.cwd ? params.cwd : null
+          const text = String(params.text || '')
+          const model = agentTokenParam(params.model)
+          const effort = agentTokenParam(params.effort)
+          const planMode = typeof params.planMode === 'boolean' ? params.planMode : undefined
+
+          // steer redirects a turn already in flight (Codex: turn/steer;
+          // Claude: interrupt + immediate follow-up on the same live
+          // process) instead of queueing a fresh one behind it.
+          const result = params.steer === true
+            ? await agents.steer(provider, { cwd, sessionId: sessionId || null, text })
+            : await agents.sendPrompt(provider, { cwd, effort, model, planMode, sessionId: sessionId || null, text })
+
+          rpcResult(session, rpc.id, result)
+
+          return
+        }
+        case 'agent.configure': {
+          const hasModel = params.model === null || typeof params.model === 'string'
+          const hasEffort = params.effort === null || typeof params.effort === 'string'
+          const hasPlanMode = typeof params.planMode === 'boolean'
+
+          if (!sessionId) {
+            rpcError(session, rpc.id, 'agent.configure requires session_id', -32602)
+
+            return
+          }
+
+          const result = await agents.configure(provider, {
+            effort: hasEffort ? agentTokenParam(params.effort, { allowNull: true }) : undefined,
+            model: hasModel ? agentTokenParam(params.model, { allowNull: true }) : undefined,
+            planMode: hasPlanMode ? params.planMode : undefined,
+            sessionId
+          })
+
+          rpcResult(session, rpc.id, result)
 
           return
         }
@@ -755,7 +805,7 @@ function createMobileBridge({
           return
         }
         case 'agent.stop':
-          rpcResult(session, rpc.id, { ok: agents.stop(provider, sessionId) })
+          rpcResult(session, rpc.id, await agents.stop(provider, sessionId))
 
           return
         case 'agent.runs':

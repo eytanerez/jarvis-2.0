@@ -1097,9 +1097,19 @@ test('collectLanUrls includes the mDNS name and only IPv4 externals', () => {
 function makeFakeAgents() {
   const watches = []
   const sendCalls = []
+  const steerCalls = []
+  const configureCalls = []
+  const commandCalls = []
   let runCallback = null
 
   return {
+    commandCalls,
+    configureCalls,
+    configure: async (provider, params) => {
+      configureCalls.push({ provider, ...params })
+
+      return { applied: params, deferred: false }
+    },
     dispose: () => {},
     emitRun(event) {
       runCallback?.(event)
@@ -1113,6 +1123,11 @@ function makeFakeAgents() {
       }
     },
     providers: () => [{ available: true, id: 'claude', label: 'Claude Code' }],
+    runCommand: async (provider, params) => {
+      commandCalls.push({ provider, ...params })
+
+      return { ok: true }
+    },
     readMessages: (provider, sessionId) => ({
       cwd: '/tmp',
       messages: [{ id: 'm1', role: 'user', text: `hello ${provider}/${sessionId}`, thinking: '', tools: [], ts: 1 }],
@@ -1123,12 +1138,18 @@ function makeFakeAgents() {
     }),
     runningRuns: () => [],
     sendCalls,
-    sendPrompt: (provider, params) => {
+    sendPrompt: async (provider, params) => {
       sendCalls.push({ provider, ...params })
 
       return { run_id: 'run-1', session_id: params.sessionId || 'fresh-id' }
     },
-    stop: () => true,
+    steer: async (provider, params) => {
+      steerCalls.push({ provider, ...params })
+
+      return { ok: true }
+    },
+    steerCalls,
+    stop: async () => ({ ok: true }),
     watch(provider, sessionId, callback) {
       const entry = { callback, provider, sessionId, stopped: false }
 
@@ -1177,6 +1198,15 @@ test('agent.* rpcs are answered locally without touching the upstream', async ()
     reply = await phone.next()
     while (reply && reply.type !== 'rpc') reply = await phone.next()
     assert.equal(reply.body.frame.result.run_id, 'run-1')
+    assert.equal(fakeAgents.sendCalls[0].planMode, undefined)
+
+    // Provider-native quick commands stay local too.
+    phone.send('rpc', { frame: { id: 41, jsonrpc: '2.0', method: 'agent.command', params: { command: 'compact', provider: 'codex', session_id: 's1' } } })
+    reply = await phone.next()
+    while (reply && reply.type !== 'rpc') reply = await phone.next()
+    assert.deepEqual(reply.body.frame.result, { ok: true })
+    assert.equal(fakeAgents.commandCalls[0].command, 'compact')
+    assert.equal(fakeAgents.commandCalls[0].sessionId, 's1')
 
     // Watch → transcript change pushes an event frame.
     phone.send('rpc', { frame: { id: 5, jsonrpc: '2.0', method: 'agent.watch', params: { provider: 'claude', session_id: 's1' } } })
@@ -1232,7 +1262,79 @@ test('agent.send passes a well-formed model through and strips garbage', async (
     })
     reply = await phone.next()
     while (reply && reply.type !== 'rpc') reply = await phone.next()
-    assert.equal(fakeAgents.sendCalls[1].model, null)
+    assert.equal(fakeAgents.sendCalls[1].model, undefined)
+
+    phone.close()
+  } finally {
+    bridge.stop()
+  }
+})
+
+test('agent.send forwards effort/planMode and routes steer:true to agents.steer instead of sendPrompt', async () => {
+  const fakeAgents = makeFakeAgents()
+  const { bridge } = await makeBridge({ agentSessionsImpl: fakeAgents })
+
+  try {
+    const paired = await pairPhone(bridge)
+    const phone = await connectDevice(bridge, { ...paired, lanUrl: paired.lanUrl })
+
+    phone.send('rpc', {
+      frame: { id: 1, jsonrpc: '2.0', method: 'agent.send', params: { effort: 'high', planMode: true, provider: 'codex', session_id: 's1', text: 'go' } }
+    })
+
+    let reply = await phone.next()
+
+    while (reply && reply.type !== 'rpc') reply = await phone.next()
+    assert.equal(fakeAgents.sendCalls[0].effort, 'high')
+    assert.equal(fakeAgents.sendCalls[0].planMode, true)
+    assert.equal(fakeAgents.steerCalls.length, 0)
+
+    phone.send('rpc', {
+      frame: { id: 2, jsonrpc: '2.0', method: 'agent.send', params: { provider: 'codex', session_id: 's1', steer: true, text: 'redirect' } }
+    })
+    reply = await phone.next()
+    while (reply && reply.type !== 'rpc') reply = await phone.next()
+
+    assert.equal(fakeAgents.steerCalls.length, 1)
+    assert.equal(fakeAgents.steerCalls[0].text, 'redirect')
+    assert.equal(fakeAgents.sendCalls.length, 1, 'steer:true must not also call sendPrompt')
+    assert.deepEqual(reply.body.frame.result, { ok: true })
+
+    phone.close()
+  } finally {
+    bridge.stop()
+  }
+})
+
+test('agent.configure requires session_id and forwards validated model/effort/planMode', async () => {
+  const fakeAgents = makeFakeAgents()
+  const { bridge } = await makeBridge({ agentSessionsImpl: fakeAgents })
+
+  try {
+    const paired = await pairPhone(bridge)
+    const phone = await connectDevice(bridge, { ...paired, lanUrl: paired.lanUrl })
+
+    phone.send('rpc', { frame: { id: 1, jsonrpc: '2.0', method: 'agent.configure', params: { provider: 'claude', text: 'no session id' } } })
+
+    let reply = await phone.next()
+
+    while (reply && reply.type !== 'rpc') reply = await phone.next()
+    assert.ok(reply.body.frame.error)
+    assert.match(reply.body.frame.error.message, /session_id/)
+
+    phone.send('rpc', {
+      frame: { id: 2, jsonrpc: '2.0', method: 'agent.configure', params: { model: 'claude-sonnet-5', planMode: true, provider: 'claude', session_id: 's1' } }
+    })
+    reply = await phone.next()
+    while (reply && reply.type !== 'rpc') reply = await phone.next()
+
+    assert.equal(fakeAgents.configureCalls[0].sessionId, 's1')
+    assert.equal(fakeAgents.configureCalls[0].model, 'claude-sonnet-5')
+    assert.equal(fakeAgents.configureCalls[0].planMode, true)
+    // effort wasn't sent by the phone at all — must stay undefined, not
+    // coerced to null (null would mean "explicitly reset it").
+    assert.equal('effort' in fakeAgents.configureCalls[0], true)
+    assert.equal(fakeAgents.configureCalls[0].effort, undefined)
 
     phone.close()
   } finally {
