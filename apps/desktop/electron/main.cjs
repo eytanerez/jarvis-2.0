@@ -4867,6 +4867,26 @@ async function waitForBackendExit(child, timeoutMs = 5000) {
   })
 }
 
+async function stopBackendChildAfterStartupFailure(child, label = 'Jarvis backend') {
+  if (!child) {
+    return
+  }
+
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return
+  }
+
+  rememberLog(`${label} startup failed; terminating backend child${Number.isInteger(child.pid) ? ` (${child.pid})` : ''}`)
+
+  try {
+    if (!child.killed) child.kill('SIGTERM')
+  } catch {
+    // Already gone; waitForBackendExit below handles the common race.
+  }
+
+  await waitForBackendExit(child)
+}
+
 // The profile the primary (window) backend runs as. readActiveDesktopProfile()
 // returns the desktop's stored preference, or null when unset (legacy launch
 // that defers to active_profile / default).
@@ -5031,30 +5051,36 @@ async function spawnPoolBackend(profile, entry) {
     }
   })
 
-  // Discover the ephemeral port the child bound to
-  const port = await Promise.race([waitForDashboardPort(child), startFailed])
-  entry.port = port
+  try {
+    // Discover the ephemeral port the child bound to
+    const port = await Promise.race([waitForDashboardPort(child), startFailed])
+    entry.port = port
 
-  const baseUrl = `http://127.0.0.1:${port}`
-  await Promise.race([waitForJarvis(baseUrl, token), startFailed])
-  ready = true
-  const authToken = await adoptServedDashboardToken(baseUrl, token, {
-    childAlive: () => child.exitCode === null && !child.killed,
-    label: `Jarvis backend for profile "${profile}"`,
-    rememberLog
-  })
-  entry.token = authToken
+    const baseUrl = `http://127.0.0.1:${port}`
+    await Promise.race([waitForJarvis(baseUrl, token), startFailed])
+    ready = true
+    const authToken = await adoptServedDashboardToken(baseUrl, token, {
+      childAlive: () => child.exitCode === null && !child.killed,
+      label: `Jarvis backend for profile "${profile}"`,
+      rememberLog
+    })
+    entry.token = authToken
 
-  return {
-    baseUrl,
-    mode: 'local',
-    source: 'local',
-    authMode: 'token',
-    token: authToken,
-    profile,
-    wsUrl: `ws://127.0.0.1:${port}/api/ws?token=${encodeURIComponent(authToken)}`,
-    logs: jarvisLog.slice(-80),
-    ...getWindowState()
+    return {
+      baseUrl,
+      mode: 'local',
+      source: 'local',
+      authMode: 'token',
+      token: authToken,
+      profile,
+      wsUrl: `ws://127.0.0.1:${port}/api/ws?token=${encodeURIComponent(authToken)}`,
+      logs: jarvisLog.slice(-80),
+      ...getWindowState()
+    }
+  } catch (error) {
+    backendPool.delete(profile)
+    await stopBackendChildAfterStartupFailure(child, `Jarvis backend for profile "${profile}"`)
+    throw error
   }
 }
 
@@ -5301,7 +5327,8 @@ async function startJarvis() {
       logs: jarvisLog.slice(-80),
       ...getWindowState()
     }
-  })().catch(error => {
+  })().catch(async error => {
+    await stopBackendChildAfterStartupFailure(jarvisProcess)
     const message = error instanceof Error ? error.message : String(error)
     updateBootProgress(
       {

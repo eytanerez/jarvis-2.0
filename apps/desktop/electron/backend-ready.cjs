@@ -1,4 +1,16 @@
 const _READY_RE = /^JARVIS_DASHBOARD_READY port=(\d+)/m
+const DEFAULT_DASHBOARD_PORT_TIMEOUT_MS = 120_000
+
+function terminateChild(child, signal = 'SIGTERM') {
+  if (!child) return
+  if (child.exitCode !== null || child.signalCode !== null || child.killed) return
+
+  try {
+    child.kill(signal)
+  } catch {
+    // Already gone or not killable; the caller will surface the timeout.
+  }
+}
 
 /**
  * Watch a child process's stdout for the `JARVIS_DASHBOARD_READY port=<N>`
@@ -13,7 +25,7 @@ const _READY_RE = /^JARVIS_DASHBOARD_READY port=(\d+)/m
  * on every terminal path — resolve, reject, or timeout — so repeated
  * backend spawns don't leak listener slots on the child.
  */
-function waitForDashboardPort(child, timeoutMs = 45_000) {
+function waitForDashboardPort(child, timeoutMs = DEFAULT_DASHBOARD_PORT_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
     let buf = ''
     let done = false
@@ -54,6 +66,7 @@ function waitForDashboardPort(child, timeoutMs = 45_000) {
 
     const timer = setTimeout(() => {
       cleanup()
+      terminateChild(child)
       reject(new Error(`Timed out waiting for Jarvis backend port announcement (${timeoutMs}ms)`))
     }, timeoutMs)
 
@@ -63,4 +76,4 @@ function waitForDashboardPort(child, timeoutMs = 45_000) {
   })
 }
 
-module.exports = { waitForDashboardPort }
+module.exports = { DEFAULT_DASHBOARD_PORT_TIMEOUT_MS, terminateChild, waitForDashboardPort }
