@@ -1253,8 +1253,10 @@ function createMobileBridge({
      * all kill idle TCP without telling us — a half-open socket here used to
      * mean "relay: connected" forever while the Durable Object told every
      * phone the host was offline (the stuck-on-"Connecting…" bug). Pings
-     * force traffic both ways; missing pongs for two cycles recycles the
-     * socket through the normal reconnect path.
+     * force traffic through the Durable Object itself; missing app-level
+     * pongs for two cycles recycles the socket through the normal reconnect
+     * path. WebSocket control pongs only prove the Cloudflare edge is alive
+     * and can mask a host socket the Durable Object has already lost.
      */
     const startKeepalive = () => {
       stopRelayKeepalive()
@@ -1276,7 +1278,7 @@ function createMobileBridge({
         }
 
         try {
-          socket.ping?.()
+          socket.send('{"t":"ping"}')
         } catch (error) {
           log(`[mobile] relay ping failed: ${error.message}`)
           destroySocket(socket)
@@ -1295,9 +1297,6 @@ function createMobileBridge({
       log(`[mobile] relay connected (${endpoint.replace(/\/host\/.*$/, '')})`)
       emitStatus()
     })
-
-    socket.on?.('pong', markAlive)
-    socket.on?.('ping', markAlive)
 
     socket.on?.('message', data => {
       if (relayGeneration !== generation) return
@@ -1645,7 +1644,7 @@ function createMobileBridge({
         destroySocket(relaySocket)
       } else {
         try {
-          relaySocket.ping?.()
+          relaySocket.send('{"t":"ping"}')
         } catch {
           destroySocket(relaySocket)
         }

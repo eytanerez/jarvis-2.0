@@ -1025,7 +1025,7 @@ test('relay self-test reports a missing configured relay', async () => {
 })
 
 test('relay watchdog recycles an unresponsive uplink and reconnects', async () => {
-  // autoPong:false makes the server swallow protocol pings — the same
+  // The server deliberately ignores application pings — the same
   // symptom as a half-open uplink (NAT drop, Cloudflare idle-kill, Mac
   // sleep). Before the watchdog existed this left the bridge claiming
   // "relay: connected" forever while phones could never reach the host.
@@ -1066,6 +1066,41 @@ test('relay watchdog recycles an unresponsive uplink and reconnects', async () =
     await waitFor(() => relayConnections.length >= 2, 'watchdog-driven reconnect')
 
     assert.ok(relayConnections[0].readyState >= 2, 'first uplink should be closing/closed after the recycle')
+  } finally {
+    bridge.stop()
+    relayServer.close()
+  }
+})
+
+test('relay liveness requires an application pong from beyond the websocket edge', async () => {
+  // Control-frame pongs can come from Cloudflare's edge even after the
+  // Durable Object has lost its host socket. Only {t:ping}/{t:pong}
+  // traverses the actual relay pipe and proves the phone can reach the Mac.
+  const relayConnections = []
+  let applicationPings = 0
+  const relayServer = new WebSocketServer({ autoPong: false, host: '127.0.0.1', port: 0 })
+
+  relayServer.on('connection', socket => {
+    relayConnections.push(socket)
+    socket.on('message', data => {
+      if (String(data) === '{"t":"ping"}') {
+        applicationPings += 1
+        socket.send('{"t":"pong"}')
+      }
+    })
+  })
+
+  await new Promise(resolve => relayServer.once('listening', resolve))
+
+  const relayPort = relayServer.address().port
+  const { bridge } = await makeBridge({ relayLivenessGraceMs: 250, relayPingIntervalMs: 100 })
+
+  try {
+    bridge.setRelayUrl(`http://127.0.0.1:${relayPort}`)
+    await new Promise(resolve => setTimeout(resolve, 550))
+
+    assert.equal(relayConnections.length, 1, 'a responsive relay should not be recycled')
+    assert.ok(applicationPings >= 2, `expected application pings, got ${applicationPings}`)
   } finally {
     bridge.stop()
     relayServer.close()
