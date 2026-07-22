@@ -1239,6 +1239,53 @@ test('agent.* rpcs are answered locally without touching the upstream', async ()
   }
 })
 
+test('large rpc results are chunked below the relay frame ceiling and reconstruct exactly', async () => {
+  const fakeAgents = makeFakeAgents()
+  const largeText = 'transcript-data-'.repeat(70_000)
+
+  fakeAgents.readMessages = () => ({
+    messages: [{ id: 'large-turn', role: 'assistant', text: largeText }],
+    model: 'claude-sonnet-5',
+    running: false,
+    sending: false
+  })
+
+  const { bridge } = await makeBridge({ agentSessionsImpl: fakeAgents })
+
+  try {
+    const paired = await pairPhone(bridge)
+    const phone = await connectDevice(bridge, { ...paired, lanUrl: paired.lanUrl })
+
+    await phone.next() // upstream.status
+    phone.send('rpc', { frame: { id: 'large-rpc', jsonrpc: '2.0', method: 'agent.messages', params: { provider: 'claude', session_id: 's1' } } })
+
+    const chunks = []
+    let total = null
+
+    do {
+      const frame = await phone.next()
+
+      assert.equal(frame.type, 'rpc.chunk')
+      assert.equal(typeof frame.body.id, 'string')
+      assert.equal(frame.body.body.length <= 96 * 1024, true)
+      chunks.push(frame)
+      total = frame.body.total
+    } while (chunks.length < total)
+
+    assert.equal(total, chunks.length)
+    assert.equal(chunks.map(chunk => chunk.body.index).join(','), Array.from({ length: total }, (_, index) => index).join(','))
+
+    const encoded = chunks.map(chunk => chunk.body.body).join('')
+    const rpc = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'))
+
+    assert.equal(rpc.id, 'large-rpc')
+    assert.equal(rpc.result.messages[0].text, largeText)
+    phone.close()
+  } finally {
+    bridge.stop()
+  }
+})
+
 test('agent.send passes a well-formed model through and strips garbage', async () => {
   const fakeAgents = makeFakeAgents()
   const { bridge } = await makeBridge({ agentSessionsImpl: fakeAgents })

@@ -53,6 +53,7 @@ const UPSTREAM_BACKOFF_MAX_MS = 15_000
 const LAN_HINT_POLL_MS = 60_000
 const MAX_HTTP_BODY_BYTES = 16 * 1024 * 1024
 const HTTP_RESPONSE_CHUNK_CHARS = 96 * 1024
+const RPC_RESPONSE_CHUNK_CHARS = 96 * 1024
 
 /**
  * JSON-RPC methods a phone may invoke. Deliberately excludes anything that
@@ -657,22 +658,50 @@ function createMobileBridge({
     }
   }
 
+  /**
+   * The relay enforces a 900 KB frame ceiling. Agent transcripts can exceed
+   * that after encryption/base64 expansion, so large JSON-RPC frames travel
+   * as bounded base64url chunks and are reconstructed by the phone. Keep the
+   * ordinary one-frame path for small replies and older mobile clients.
+   */
+  function sendRpcFrame(session, frame) {
+    const encoded = Buffer.from(JSON.stringify(frame), 'utf8').toString('base64url')
+
+    if (encoded.length <= RPC_RESPONSE_CHUNK_CHARS) {
+      return send(session, 'rpc', { frame })
+    }
+
+    const id = `rpc-${generateId(9)}`
+    const total = Math.ceil(encoded.length / RPC_RESPONSE_CHUNK_CHARS)
+
+    for (let index = 0; index < total; index++) {
+      if (!send(session, 'rpc.chunk', {
+        body: encoded.slice(index * RPC_RESPONSE_CHUNK_CHARS, (index + 1) * RPC_RESPONSE_CHUNK_CHARS),
+        id,
+        index,
+        total
+      })) {
+        return false
+      }
+    }
+
+    return true
+  }
+
   function rpcError(session, id, message, code = -32000) {
-    send(session, 'rpc', { frame: { error: { code, message }, id: id ?? null, jsonrpc: '2.0' } })
+    sendRpcFrame(session, { error: { code, message }, id: id ?? null, jsonrpc: '2.0' })
   }
 
   function rpcResult(session, id, result) {
-    send(session, 'rpc', { frame: { id: id ?? null, jsonrpc: '2.0', result } })
+    sendRpcFrame(session, { id: id ?? null, jsonrpc: '2.0', result })
   }
 
   /** Server-push in the same envelope shape the gateway's events arrive in. */
   function pushAgentEvent(session, type, payload) {
-    send(session, 'rpc', {
-      frame: {
-        jsonrpc: '2.0',
-        method: 'event',
-        params: { payload, session_id: null, type }
-      }
+    sendRpcFrame(session, {
+      jsonrpc: '2.0',
+      method: 'event',
+      params: { payload, session_id: null, type }
     })
   }
 
@@ -1019,7 +1048,7 @@ function createMobileBridge({
         emitActivity()
       }
 
-      send(session, 'rpc', { frame: parsed })
+      sendRpcFrame(session, parsed)
     })
 
     upstream.on?.('close', () => {
